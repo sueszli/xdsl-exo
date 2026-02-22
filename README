@@ -3,17 +3,3 @@ usage:
 ```bash
 uv run xdsl-exo examples/vadd.py --target llvm
 ```
-
-## references
-
-exo lang
-
-- https://exo-lang.dev/
-- https://github.com/exo-lang/exo/
-- https://gist.github.com/sueszli/76acdde675002f64a34a6a3967cbb7fa
-
-mlir backend
-
-- https://github.com/kaylendog/exo-mlir
-- https://github.com/kaylendog/exo-mlir/blob/main/src/exomlir/generator.py
-- https://github.com/kaylendog/exo-mlir/blob/main/src/exomlir/compiler.py#L163
