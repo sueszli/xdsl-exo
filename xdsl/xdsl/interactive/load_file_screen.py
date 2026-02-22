@@ -2,10 +2,7 @@ from textual import on
 from textual.app import ComposeResult
 from textual.containers import ScrollableContainer
 from textual.screen import Screen
-from textual.widgets import (
-    Button,
-    DirectoryTree,
-)
+from textual.widgets import Button, DirectoryTree
 
 
 class LoadFile(Screen[str]):
@@ -26,9 +23,7 @@ class LoadFile(Screen[str]):
         """Configure widgets in this application before it is first shown."""
         self.query_one("#directory_tree_container").border_title = "Click File to Open"
 
-    def on_directory_tree_file_selected(
-        self, event: DirectoryTree.FileSelected
-    ) -> None:
+    def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
         selected_path = str(event.path)
         self.dismiss(selected_path)
 

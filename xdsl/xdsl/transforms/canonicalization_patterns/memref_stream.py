@@ -1,11 +1,7 @@
 from xdsl.dialects import memref_stream
 from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr
 from xdsl.ir import SSAValue
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 
 
 class RemoveUnusedInitOperandPattern(RewritePattern):
@@ -14,9 +10,7 @@ class RemoveUnusedInitOperandPattern(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: memref_stream.GenericOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: memref_stream.GenericOp, rewriter: PatternRewriter) -> None:
         if memref_stream.IteratorTypeAttr.interleaved() in op.iterator_types.data:
             # Do not run on interleaved ops
             return
@@ -28,9 +22,7 @@ class RemoveUnusedInitOperandPattern(RewritePattern):
 
         num_inputs = len(inputs)
 
-        unused_input_indices = tuple(
-            index for index, arg in enumerate(block_args[:num_inputs]) if not arg.uses
-        )
+        unused_input_indices = tuple(index for index, arg in enumerate(block_args[:num_inputs]) if not arg.uses)
 
         if not unused_input_indices:
             # All args have uses, nothing to remove

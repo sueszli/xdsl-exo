@@ -3,21 +3,10 @@ from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, func, scf
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    IndexType,
-    IntegerAttr,
-    IntegerType,
-    StringAttr,
-)
+from xdsl.dialects.builtin import ArrayAttr, IndexType, IntegerAttr, IntegerType, StringAttr
 from xdsl.ir import Block, Operation, Region
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import SymbolTable
 
@@ -92,9 +81,7 @@ class FunctionConstantPinning(RewritePattern):
 
         # unless we already hit the block terminator
         # while we haven't reached the return statement:
-        while (
-            next_op is not None and function_remainder is not func_op.body.block.last_op
-        ):
+        while next_op is not None and function_remainder is not func_op.body.block.last_op:
             # detatch the function
             function_remainder.detach()
             # re-insert it inside the else block of the if statement
@@ -104,9 +91,7 @@ class FunctionConstantPinning(RewritePattern):
             next_op = function_remainder.next_op
 
         # insert a yield that yields the return values
-        rewriter.insert_op(
-            scf.YieldOp(*function_remainder.operands), InsertPoint.at_end(dest_block)
-        )
+        rewriter.insert_op(scf.YieldOp(*function_remainder.operands), InsertPoint.at_end(dest_block))
         # return the results of the scf.if
         rewriter.replace_op(function_remainder, func.ReturnOp(*scf_if.results))
 
@@ -139,9 +124,7 @@ def generate_func_with_pinned_val(
     # checked before calling
     assert isinstance(module, builtin.ModuleOp), "func must be top-level functions!"
     # generate a new name and set it:
-    new_func.sym_name = StringAttr(
-        unique_pinned_name(module, new_func.sym_name.data, "pinned")
-    )
+    new_func.sym_name = StringAttr(unique_pinned_name(module, new_func.sym_name.data, "pinned"))
 
     # find the first operation that is structurally equivalent, this will always give us the exact same operation
     # that was matched, simply because the function `func_contains_pinning_annotation` returns
@@ -153,9 +136,7 @@ def generate_func_with_pinned_val(
             for bad_ops in ops_between_op_and_func_start(func_op, op):
                 rewriter.erase_op(bad_ops)
             # then check that we really just have one result (sanity check)
-            assert len(op.results) == 1, (
-                "Constant pinning only work on single return operations"
-            )
+            assert len(op.results) == 1, "Constant pinning only work on single return operations"
             # replace op by constant
             rewriter.replace_op(op, arith.ConstantOp(pin, op.results[0].type))
             # don't look at more operations inside the function
@@ -193,9 +174,7 @@ def get_pinned_vals_for_op(
     return list(cast(ArrayAttr[IntegerAttr[IntegerType | IndexType]], pin_attr))
 
 
-def ops_between_op_and_func_start(
-    func_op: func.FuncOp, op: Operation
-) -> Iterable[Operation]:
+def ops_between_op_and_func_start(func_op: func.FuncOp, op: Operation) -> Iterable[Operation]:
     """
     Get a list of all operations localed between op and the start of body.
     Returns them in reverse order of occurrence.

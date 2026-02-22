@@ -33,9 +33,7 @@ from xdsl.utils.test_value import create_ssa_value
             value1,
         ),
         (
-            AffineBinaryOpExpr(
-                AffineBinaryOpKind.Add, AffineExpr.dimension(0), AffineExpr.dimension(1)
-            ),
+            AffineBinaryOpExpr(AffineBinaryOpKind.Add, AffineExpr.dimension(0), AffineExpr.dimension(1)),
             [
                 value2 := create_ssa_value(IndexType()),
                 value3 := create_ssa_value(IndexType()),
@@ -45,9 +43,7 @@ from xdsl.utils.test_value import create_ssa_value
             None,
         ),
         (
-            AffineBinaryOpExpr(
-                AffineBinaryOpKind.Mul, AffineExpr.dimension(0), AffineExpr.dimension(1)
-            ),
+            AffineBinaryOpExpr(AffineBinaryOpKind.Mul, AffineExpr.dimension(0), AffineExpr.dimension(1)),
             [
                 value2 := create_ssa_value(IndexType()),
                 value3 := create_ssa_value(IndexType()),
@@ -57,9 +53,7 @@ from xdsl.utils.test_value import create_ssa_value
             None,
         ),
         (
-            AffineBinaryOpExpr(
-                AffineBinaryOpKind.Mod, AffineExpr.dimension(0), AffineExpr.dimension(1)
-            ),
+            AffineBinaryOpExpr(AffineBinaryOpKind.Mod, AffineExpr.dimension(0), AffineExpr.dimension(1)),
             [
                 value2 := create_ssa_value(IndexType()),
                 value3 := create_ssa_value(IndexType()),

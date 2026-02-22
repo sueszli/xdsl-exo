@@ -2,22 +2,11 @@ from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects import arith, memref, stencil
-from xdsl.dialects.builtin import (
-    DenseIntOrFPElementsAttr,
-    Float32Type,
-    FloatAttr,
-    IntegerAttr,
-    ModuleOp,
-)
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, Float32Type, FloatAttr, IntegerAttr, ModuleOp
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 
 
@@ -32,9 +21,7 @@ def get_dir_and_distance(
     if isinstance(offset, stencil.IndexAttr):
         offset = tuple(offset)
     assert len(offset) == 2, "Expecting 2-dimensional access"
-    assert (offset[0] == 0) != (offset[1] == 0), (
-        "Expecting neighbour access in a star-shape pattern"
-    )
+    assert (offset[0] == 0) != (offset[1] == 0), "Expecting neighbour access in a star-shape pattern"
     if offset[0] < 0:
         d = csl.Direction.EAST
     elif offset[0] > 0:
@@ -44,9 +31,7 @@ def get_dir_and_distance(
     elif offset[1] > 0:
         d = csl.Direction.SOUTH
     else:
-        raise ValueError(
-            "Invalid offset, expecting 2-dimensional star-shape neighbor access"
-        )
+        raise ValueError("Invalid offset, expecting 2-dimensional star-shape neighbor access")
     max_distance = abs(max(offset, key=abs))
     return d, max_distance
 
@@ -91,10 +76,7 @@ def get_coeff_api_ops(op: csl_stencil.ApplyOp, wrapper: csl_wrapper.ModuleOp):
     memref_t = memref.MemRefType(elem_t, shape)
     ptr_t = csl.PtrType.get(memref_t, is_single=True, is_const=True)
 
-    cnsts = {
-        d: arith.ConstantOp(DenseIntOrFPElementsAttr.create_dense_float(memref_t, v))
-        for d, v in cmap.items()
-    }
+    cnsts = {d: arith.ConstantOp(DenseIntOrFPElementsAttr.create_dense_float(memref_t, v)) for d, v in cmap.items()}
     addrs = {d: csl.AddressOfOp(v, ptr_t) for d, v in cnsts.items()}
 
     # pretty-printing
@@ -139,14 +121,8 @@ class GenerateCoeffAPICalls(RewritePattern):
                 # if we have not encountered any apply op before, coeffs are simply stored, not compared
                 if not applies:
                     if apply.coeffs:
-                        global_coeffs = sorted(
-                            apply.coeffs.data, key=lambda x: x.offset
-                        )
-                elif global_coeffs != (
-                    sorted(apply.coeffs.data, key=lambda x: x.offset)
-                    if apply.coeffs
-                    else []
-                ):
+                        global_coeffs = sorted(apply.coeffs.data, key=lambda x: x.offset)
+                elif global_coeffs != (sorted(apply.coeffs.data, key=lambda x: x.offset) if apply.coeffs else []):
                     return
                 applies.append(apply)
 
@@ -156,12 +132,7 @@ class GenerateCoeffAPICalls(RewritePattern):
 
         op_in_main_fn = applies[0]
         main_fn = None
-        while (
-            op_in_main_fn
-            and (main_fn := op_in_main_fn.parent_op())
-            and not isinstance(main_fn, csl.FuncOp)
-            and not isinstance(main_fn.parent_op(), csl_wrapper.ModuleOp)
-        ):
+        while op_in_main_fn and (main_fn := op_in_main_fn.parent_op()) and not isinstance(main_fn, csl.FuncOp) and not isinstance(main_fn.parent_op(), csl_wrapper.ModuleOp):
             op_in_main_fn = op_in_main_fn.parent_op()
 
         if not op_in_main_fn:

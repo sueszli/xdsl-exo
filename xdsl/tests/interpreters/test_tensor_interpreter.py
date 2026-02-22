@@ -42,7 +42,5 @@ def test_tensor_reshape_error():
     )
     a = ShapedArray(TypedPtr.new_float32([1, 2, 3]), [3, 1])
     b = ShapedArray(TypedPtr.new_float32([2]), [1])
-    with pytest.raises(
-        InterpretationError, match="Mismatch between static shape and new shape"
-    ):
+    with pytest.raises(InterpretationError, match="Mismatch between static shape and new shape"):
         interpreter.run_op(op, (a, b))

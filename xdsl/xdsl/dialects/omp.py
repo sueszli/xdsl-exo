@@ -1,35 +1,9 @@
 from enum import auto
 
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    IndexType,
-    IntegerAttr,
-    IntegerType,
-    SymbolRefAttr,
-    UnitAttr,
-    i32,
-)
+from xdsl.dialects.builtin import ArrayAttr, IndexType, IntegerAttr, IntegerType, SymbolRefAttr, UnitAttr, i32
 from xdsl.dialects.utils import AbstractYieldOperation
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    EnumAttribute,
-    SpacedOpaqueSyntaxAttribute,
-    StrEnum,
-)
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    SameVariadicOperandSize,
-    base,
-    irdl_attr_definition,
-    irdl_op_definition,
-    opt_operand_def,
-    opt_prop_def,
-    region_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.ir import Attribute, Dialect, EnumAttribute, SpacedOpaqueSyntaxAttribute, StrEnum
+from xdsl.irdl import AttrSizedOperandSegments, IRDLOperation, SameVariadicOperandSize, base, irdl_attr_definition, irdl_op_definition, opt_operand_def, opt_prop_def, region_def, traits_def, var_operand_def
 from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
 
@@ -57,9 +31,7 @@ class ScheduleKindAttr(EnumAttribute[ScheduleKind], SpacedOpaqueSyntaxAttribute)
 
 
 @irdl_attr_definition
-class ScheduleModifierAttr(
-    EnumAttribute[ScheduleModifier], SpacedOpaqueSyntaxAttribute
-):
+class ScheduleModifierAttr(EnumAttribute[ScheduleModifier], SpacedOpaqueSyntaxAttribute):
     name = "omp.sched_mod"
 
 
@@ -112,9 +84,7 @@ class WsLoopOp(IRDLOperation):
 
     def verify_(self) -> None:
         if len(self.body.blocks) == 1 and len(self.body.block.ops) != 1:
-            raise VerifyException(
-                f"Body of {self.name} operation body must consist of one loop nest"
-            )
+            raise VerifyException(f"Body of {self.name} operation body must consist of one loop nest")
 
 
 class ProcBindKindEnum(StrEnum):

@@ -18,23 +18,14 @@ class TransformInterpreterPass(ModulePass):
     entry_point: str = "__transform_main"
 
     @staticmethod
-    def find_transform_entry_point(
-        root: builtin.ModuleOp, entry_point: str
-    ) -> transform.NamedSequenceOp:
+    def find_transform_entry_point(root: builtin.ModuleOp, entry_point: str) -> transform.NamedSequenceOp:
         for op in root.walk():
-            if (
-                isinstance(op, transform.NamedSequenceOp)
-                and op.sym_name.data == entry_point
-            ):
+            if isinstance(op, transform.NamedSequenceOp) and op.sym_name.data == entry_point:
                 return op
-        raise PassFailedException(
-            f"{root} could not find a nested named sequence with name: {entry_point}"
-        )
+        raise PassFailedException(f"{root} could not find a nested named sequence with name: {entry_point}")
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        schedule = TransformInterpreterPass.find_transform_entry_point(
-            op, self.entry_point
-        )
+        schedule = TransformInterpreterPass.find_transform_entry_point(op, self.entry_point)
         interpreter = Interpreter(op)
         interpreter.register_implementations(TransformFunctions())
         interpreter.call_op(schedule, (op,))

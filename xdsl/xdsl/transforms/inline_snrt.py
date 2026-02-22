@@ -7,13 +7,7 @@ from xdsl.dialects import arith, builtin, riscv, riscv_snitch, snitch_runtime
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
 @dataclass(frozen=True)
@@ -43,9 +37,7 @@ class SnrtConstants(ABC):
 
 class LowerClusterHWBarrier(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.ClusterHwBarrierOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch_runtime.ClusterHwBarrierOp, rewriter: PatternRewriter, /):
         """
         Lowers to:
 
@@ -69,9 +61,7 @@ class LowerClusterHWBarrier(RewritePattern):
 
 class LowerSSRDisable(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.SsrDisableOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch_runtime.SsrDisableOp, rewriter: PatternRewriter, /):
         """
         Lowers to:
 
@@ -97,9 +87,7 @@ class LowerSSRDisable(RewritePattern):
 
 class LowerDMAStart1D(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.DmaStart1DOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch_runtime.DmaStart1DOp, rewriter: PatternRewriter, /):
         """
         Lowers to:
 
@@ -131,9 +119,7 @@ class LowerDMAStart1D(RewritePattern):
                 riscv_snitch.DMSourceOp(i32_src, zero),
                 riscv_snitch.DMDestinationOp(i32_dst, zero),
                 copy_imm := riscv_snitch.DMCopyImmOp(i32_size, 0),
-                tx_id := builtin.UnrealizedConversionCastOp.get(
-                    [copy_imm], [builtin.i32]
-                ),
+                tx_id := builtin.UnrealizedConversionCastOp.get([copy_imm], [builtin.i32]),
             ],
             new_results=tx_id.results,
         )
@@ -141,9 +127,7 @@ class LowerDMAStart1D(RewritePattern):
 
 class LowerDMAStart1DWidePtr(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.DmaStart1DWideptrOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch_runtime.DmaStart1DWideptrOp, rewriter: PatternRewriter, /):
         """
         Lowers to:
 
@@ -215,16 +199,10 @@ class LowerDMAStart1DWidePtr(RewritePattern):
                     [op.size],
                     [reg_t],
                 ),
-                riscv_snitch.DMSourceOp(
-                    split_i64_src.results[0], split_i64_src.results[1]
-                ),
-                riscv_snitch.DMDestinationOp(
-                    split_i64_dst.results[0], split_i64_dst.results[1]
-                ),
+                riscv_snitch.DMSourceOp(split_i64_src.results[0], split_i64_src.results[1]),
+                riscv_snitch.DMDestinationOp(split_i64_dst.results[0], split_i64_dst.results[1]),
                 copy_imm := riscv_snitch.DMCopyImmOp(i32_size, 0),
-                tx_id := builtin.UnrealizedConversionCastOp.get(
-                    [copy_imm], [builtin.i32]
-                ),
+                tx_id := builtin.UnrealizedConversionCastOp.get([copy_imm], [builtin.i32]),
             ],
             new_results=tx_id.results,
         )
@@ -273,16 +251,12 @@ class LowerDMAStart2DBase(RewritePattern, ABC):
         """
         Cast an i64 to two riscv registers
         """
-        return builtin.UnrealizedConversionCastOp.get(
-            [input_val], [self.any_reg, self.any_reg]
-        )
+        return builtin.UnrealizedConversionCastOp.get([input_val], [self.any_reg, self.any_reg])
 
 
 class LowerDMAStart2DWideptr(LowerDMAStart2DBase):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.DmaStart2DWideptrOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch_runtime.DmaStart2DWideptrOp, rewriter: PatternRewriter, /):
         """
         Lowers to the equivalent of the snitch_runtime implementation:
 
@@ -383,9 +357,7 @@ class LowerDMAStart2DWideptr(LowerDMAStart2DBase):
 
 class LowerDMAStart2D(LowerDMAStart2DBase):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.DmaStart2DOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch_runtime.DmaStart2DOp, rewriter: PatternRewriter, /):
         """
         Lower to the equivalent snitch_runtime implementation:
 
@@ -429,16 +401,8 @@ class LowerGlobalCoreBaseHartid(RewritePattern):
     constants: SnrtConstants
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.GlobalCoreBaseHartidOp, rewriter: PatternRewriter, /
-    ):
-        rewriter.replace_matched_op(
-            [
-                arith.ConstantOp.from_int_and_width(
-                    self.constants.base_hartid, builtin.i32
-                )
-            ]
-        )
+    def match_and_rewrite(self, op: snitch_runtime.GlobalCoreBaseHartidOp, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op([arith.ConstantOp.from_int_and_width(self.constants.base_hartid, builtin.i32)])
 
 
 @dataclass
@@ -446,9 +410,7 @@ class LowerGlobalCoreNum(RewritePattern):
     constants: SnrtConstants
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.GlobalCoreNumOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch_runtime.GlobalCoreNumOp, rewriter: PatternRewriter, /):
         rewriter.replace_matched_op(
             [
                 arith.ConstantOp.from_int_and_width(
@@ -464,16 +426,8 @@ class LowerClusterCoreNum(RewritePattern):
     constants: SnrtConstants
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.ClusterCoreNumOp, rewriter: PatternRewriter, /
-    ):
-        rewriter.replace_matched_op(
-            [
-                arith.ConstantOp.from_int_and_width(
-                    self.constants.cluster_core_num, builtin.i32
-                )
-            ]
-        )
+    def match_and_rewrite(self, op: snitch_runtime.ClusterCoreNumOp, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op([arith.ConstantOp.from_int_and_width(self.constants.cluster_core_num, builtin.i32)])
 
 
 @dataclass
@@ -481,16 +435,8 @@ class LowerClusterNum(RewritePattern):
     constants: SnrtConstants
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.ClusterNumOp, rewriter: PatternRewriter, /
-    ):
-        rewriter.replace_matched_op(
-            [
-                arith.ConstantOp.from_int_and_width(
-                    self.constants.cluster_num, builtin.i32
-                )
-            ]
-        )
+    def match_and_rewrite(self, op: snitch_runtime.ClusterNumOp, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op([arith.ConstantOp.from_int_and_width(self.constants.cluster_num, builtin.i32)])
 
 
 @dataclass
@@ -498,23 +444,13 @@ class LowerClusterDmCoreNum(RewritePattern):
     constants: SnrtConstants
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.ClusterDmCoreNumOp, rewriter: PatternRewriter, /
-    ):
-        rewriter.replace_matched_op(
-            [
-                arith.ConstantOp.from_int_and_width(
-                    self.constants.cluster_dm_core_num, builtin.i32
-                )
-            ]
-        )
+    def match_and_rewrite(self, op: snitch_runtime.ClusterDmCoreNumOp, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op([arith.ConstantOp.from_int_and_width(self.constants.cluster_dm_core_num, builtin.i32)])
 
 
 class LowerIsComputeCore(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.IsComputeCoreOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch_runtime.IsComputeCoreOp, rewriter: PatternRewriter, /):
         """
         inline int __attribute__((const)) snrt_is_compute_core() {
             return snrt_cluster_core_idx() < snrt_cluster_compute_core_num();
@@ -531,9 +467,7 @@ class LowerIsComputeCore(RewritePattern):
 
 class LowerIsDmCore(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.IsDmCoreOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch_runtime.IsDmCoreOp, rewriter: PatternRewriter, /):
         """
         inline int __attribute__((const)) snrt_is_compute_core() {
             return snrt_cluster_core_idx() < snrt_cluster_compute_core_num();
@@ -554,9 +488,7 @@ class LowerIsDmCore(RewritePattern):
 
 class LowerClusterCoreIdx(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.ClusterCoreIdxOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch_runtime.ClusterCoreIdxOp, rewriter: PatternRewriter, /):
         """
         inline uint32_t __attribute__((const)) snrt_cluster_core_idx() {
             return snrt_global_core_idx() % snrt_cluster_core_num();
@@ -576,9 +508,7 @@ class LowerClusterComputeCoreNum(RewritePattern):
     constants: SnrtConstants
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.ClusterComputeCoreNumOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch_runtime.ClusterComputeCoreNumOp, rewriter: PatternRewriter, /):
         """
         Implementation:
 
@@ -597,8 +527,7 @@ class LowerClusterComputeCoreNum(RewritePattern):
         rewriter.replace_matched_op(
             [
                 arith.ConstantOp.from_int_and_width(
-                    self.constants.cluster_core_num
-                    - self.constants.cluster_dm_core_num,
+                    self.constants.cluster_core_num - self.constants.cluster_dm_core_num,
                     builtin.i32,
                 )
             ]
@@ -610,9 +539,7 @@ class LowerGlobalCoreIdx(RewritePattern):
     constants: SnrtConstants
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.GlobalCoreIdxOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch_runtime.GlobalCoreIdxOp, rewriter: PatternRewriter, /):
         """
         Implementation:
 
@@ -630,12 +557,8 @@ class LowerGlobalCoreIdx(RewritePattern):
             [
                 zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
                 hartid := riscv.CsrrsOp(zero, IntegerAttr(0xF14, 12), readonly=True),
-                hartid_i32 := builtin.UnrealizedConversionCastOp.get(
-                    [hartid], [builtin.i32]
-                ),
-                base_hartid := arith.ConstantOp.from_int_and_width(
-                    self.constants.base_hartid, builtin.i32
-                ),
+                hartid_i32 := builtin.UnrealizedConversionCastOp.get([hartid], [builtin.i32]),
+                base_hartid := arith.ConstantOp.from_int_and_width(self.constants.base_hartid, builtin.i32),
                 arith.SubiOp(hartid_i32, base_hartid),
             ]
         )
@@ -643,9 +566,7 @@ class LowerGlobalCoreIdx(RewritePattern):
 
 class LowerClusterIdx(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_runtime.ClusterIdxOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch_runtime.ClusterIdxOp, rewriter: PatternRewriter, /):
         """
         Implementation:
 

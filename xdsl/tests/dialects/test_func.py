@@ -2,22 +2,10 @@ import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects.arith import AddiOp, ConstantOp
-from xdsl.dialects.builtin import (
-    IntegerAttr,
-    IntegerType,
-    ModuleOp,
-    StringAttr,
-    i32,
-    i64,
-)
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, StringAttr, i32, i64
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.ir import Block, Region
-from xdsl.irdl import (
-    IRDLOperation,
-    attr_def,
-    irdl_op_definition,
-    traits_def,
-)
+from xdsl.irdl import IRDLOperation, attr_def, irdl_op_definition, traits_def
 from xdsl.rewriter import Rewriter
 from xdsl.traits import CallableOpInterface, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
@@ -105,10 +93,7 @@ def test_wrong_blockarg_types():
     r = Region(b)
     f = FuncOp.from_region("f", [i32, i32], [], r)
 
-    message = (
-        "Expected entry block arguments to have the "
-        "same types as the function input types"
-    )
+    message = "Expected entry block arguments to have the " "same types as the function input types"
     with pytest.raises(VerifyException, match=message):
         f.verify()
 
@@ -199,9 +184,7 @@ def test_call_not_function():
     call0 = CallOp("foo", [], [])
     mod = ModuleOp([symop, call0])
 
-    with pytest.raises(
-        VerifyException, match="'@foo' does not reference a valid function"
-    ):
+    with pytest.raises(VerifyException, match="'@foo' does not reference a valid function"):
         mod.verify()
 
 

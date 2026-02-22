@@ -7,50 +7,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TypeAlias, cast
 
-from xdsl.dialects.builtin import (
-    DenseIntOrFPElementsAttr,
-    Float64Type,
-    FunctionType,
-    StringAttr,
-    SymbolRefAttr,
-    TensorType,
-    UnrankedTensorType,
-    f64,
-)
-from xdsl.ir import (
-    Attribute,
-    Block,
-    Dialect,
-    Operation,
-    OpResult,
-    OpTraits,
-    Region,
-    SSAValue,
-)
-from xdsl.irdl import (
-    IRDLOperation,
-    attr_def,
-    base,
-    irdl_op_definition,
-    operand_def,
-    opt_attr_def,
-    opt_operand_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, Float64Type, FunctionType, StringAttr, SymbolRefAttr, TensorType, UnrankedTensorType, f64
+from xdsl.ir import Attribute, Block, Dialect, Operation, OpResult, OpTraits, Region, SSAValue
+from xdsl.irdl import IRDLOperation, attr_def, base, irdl_op_definition, operand_def, opt_attr_def, opt_operand_def, region_def, result_def, traits_def, var_operand_def, var_result_def
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.rewriter import Rewriter
-from xdsl.traits import (
-    CallableOpInterface,
-    HasCanonicalizationPatternsTrait,
-    IsTerminator,
-    OpTrait,
-    Pure,
-    SymbolOpInterface,
-)
+from xdsl.traits import CallableOpInterface, HasCanonicalizationPatternsTrait, IsTerminator, OpTrait, Pure, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -94,23 +56,16 @@ class ConstantOp(IRDLOperation):
 
     @staticmethod
     def from_list(data: list[float], shape: list[int]) -> ConstantOp:
-        value = DenseIntOrFPElementsAttr.create_dense_float(
-            TensorType(f64, shape), data
-        )
+        value = DenseIntOrFPElementsAttr.create_dense_float(TensorType(f64, shape), data)
         return ConstantOp(value)
 
     @staticmethod
     def from_value(value: float) -> ConstantOp:
-        return ConstantOp(
-            DenseIntOrFPElementsAttr.create_dense_float(TensorType(f64, []), (value,))
-        )
+        return ConstantOp(DenseIntOrFPElementsAttr.create_dense_float(TensorType(f64, []), (value,)))
 
     def verify_(self) -> None:
         if not self.res.type == self.value.type:
-            raise VerifyException(
-                "Expected value and result types to be equal: "
-                f"{self.res.type}, {self.value.type}"
-            )
+            raise VerifyException("Expected value and result types to be equal: " f"{self.res.type}, {self.value.type}")
 
     def get_type(self) -> TensorTypeF64:
         # Constant cannot be unranked
@@ -128,10 +83,7 @@ class InferAddOpShapeTrait(ToyShapeInferenceTrait):
     def infer_shape(cls, op: Operation) -> None:
         if not isinstance(op, AddOp):
             raise TypeError
-        if not (
-            isa(op_lhs_type := op.lhs.type, TensorType)
-            and isinstance(op_rhs_type := op.rhs.type, TensorType)
-        ):
+        if not (isa(op_lhs_type := op.lhs.type, TensorType) and isinstance(op_rhs_type := op.rhs.type, TensorType)):
             return
         assert op_lhs_type.get_shape() == op_rhs_type.get_shape()
         if isinstance(op_res_type := op.res.type, TensorType):
@@ -172,9 +124,7 @@ class AddOp(IRDLOperation):
                     shape = arg_type.shape
                 else:
                     if shape != arg_type.shape:
-                        raise VerifyException(
-                            "Expected AddOp args to have the same shape"
-                        )
+                        raise VerifyException("Expected AddOp args to have the same shape")
 
 
 class FuncOpCallableInterface(CallableOpInterface):
@@ -263,16 +213,12 @@ class FuncOp(IRDLOperation):
             if len(return_types) == 1:
                 return_type = return_types[0]
             else:
-                raise VerifyException(
-                    "Expected return type of func to have 0 or 1 values"
-                )
+                raise VerifyException("Expected return type of func to have 0 or 1 values")
         else:
             return_type = None
 
         if operand_type != return_type:
-            raise VerifyException(
-                "Expected return value to match return type of function"
-            )
+            raise VerifyException("Expected return value to match return type of function")
 
 
 @irdl_op_definition
@@ -306,10 +252,7 @@ class InferMulOpShapeTrait(ToyShapeInferenceTrait):
         if not isinstance(op, MulOp):
             raise TypeError
 
-        if not (
-            isa(op_lhs_type := op.lhs.type, TensorType)
-            and isinstance(op_rhs_type := op.rhs.type, TensorType)
-        ):
+        if not (isa(op_lhs_type := op.lhs.type, TensorType) and isinstance(op_rhs_type := op.rhs.type, TensorType)):
             return
 
         assert op_lhs_type.get_shape() == op_rhs_type.get_shape()
@@ -351,9 +294,7 @@ class MulOp(IRDLOperation):
                     shape = arg_type.shape
                 else:
                     if shape != arg_type.shape:
-                        raise VerifyException(
-                            "Expected MulOp args to have the same shape"
-                        )
+                        raise VerifyException("Expected MulOp args to have the same shape")
 
 
 @irdl_op_definition
@@ -398,10 +339,7 @@ class ReturnOp(IRDLOperation):
 class ReshapeOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from ..rewrites.optimise_toy import (
-            FoldConstantReshapeOpPattern,
-            ReshapeReshapeOpPattern,
-        )
+        from ..rewrites.optimise_toy import FoldConstantReshapeOpPattern, ReshapeReshapeOpPattern
 
         return (ReshapeReshapeOpPattern(), FoldConstantReshapeOpPattern())
 
@@ -426,10 +364,7 @@ class ReshapeOp(IRDLOperation):
 
     def __init__(self, arg: SSAValue, shape: list[int]):
         if not AnyTensorTypeF64Constr.verifies(arg.type):
-            raise ValueError(
-                f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected"
-                " {AnyTensorTypeF64}"
-            )
+            raise ValueError(f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected" " {AnyTensorTypeF64}")
         element_type = arg.type.element_type
         t = TensorTypeF64(element_type, shape)
         return super().__init__(result_types=[t], operands=[arg])
@@ -437,10 +372,7 @@ class ReshapeOp(IRDLOperation):
     @staticmethod
     def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
         if not AnyTensorTypeF64Constr.verifies(arg.type):
-            raise ValueError(
-                f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected"
-                " {AnyTensorTypeF64}"
-            )
+            raise ValueError(f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected" " {AnyTensorTypeF64}")
         return ReshapeOp.create(result_types=[t], operands=[arg])
 
     def verify_(self):
@@ -497,10 +429,7 @@ class TransposeOp(IRDLOperation):
             output_type = TensorType(element_type, list(reversed(arg.type.get_shape())))
         else:
             if not isa(arg.type, UnrankedTensorTypeF64):
-                raise ValueError(
-                    f"Unexpected operand of type {arg.type} passed to TransposeOp, "
-                    "expected {TensorTypeF64 | UnrankedTensorTypeF64}"
-                )
+                raise ValueError(f"Unexpected operand of type {arg.type} passed to TransposeOp, " "expected {TensorTypeF64 | UnrankedTensorTypeF64}")
             output_type = arg.type
 
         super().__init__(operands=[arg], result_types=[output_type])

@@ -21,9 +21,7 @@ def test_empty_transform_module():
     with ImplicitBuilder(block):
         transform.YieldOp(block.args[0])
 
-    module = builtin.ModuleOp(
-        [], attributes={"transform.with_named_sequence": builtin.UnitAttr()}
-    )
+    module = builtin.ModuleOp([], attributes={"transform.with_named_sequence": builtin.UnitAttr()})
     with ImplicitBuilder(module.body):
         body = Region(block)
         sym_name = "__transform_main"

@@ -57,9 +57,7 @@ class IRDLDialectLoader(importlib.abc.Loader):
             dialect_op = SymbolTable.lookup_symbol(irdl_module, dialect_name)
             assert isinstance(dialect_op, DialectOp)
             dialect = make_dialect(dialect_op)
-            with open(
-                f"{os.path.dirname(self.path)}/{dialect_name}.pyi", "w"
-            ) as stubfile:
+            with open(f"{os.path.dirname(self.path)}/{dialect_name}.pyi", "w") as stubfile:
                 print(
                     f"""\
 ""\"
@@ -90,9 +88,7 @@ class IRDLDialectFinder(importlib.abc.MetaPathFinder):
 
     get_all_dialects: Callable[[], dict[str, Callable[[], Dialect]]]
 
-    def __init__(
-        self, get_all_dialects: Callable[[], dict[str, Callable[[], Dialect]]]
-    ) -> None:
+    def __init__(self, get_all_dialects: Callable[[], dict[str, Callable[[], Dialect]]]) -> None:
         super().__init__()
         self.get_all_dialects = get_all_dialects
 
@@ -109,12 +105,8 @@ class IRDLDialectFinder(importlib.abc.MetaPathFinder):
             potential_path = os.path.join(entry, filename)
             if os.path.isfile(potential_path):
                 # If found, create the right loader and return it
-                loader = IRDLDialectLoader(
-                    fullname, potential_path, self.get_all_dialects
-                )
-                return importlib.util.spec_from_file_location(
-                    fullname, potential_path, loader=loader
-                )
+                loader = IRDLDialectLoader(fullname, potential_path, self.get_all_dialects)
+                return importlib.util.spec_from_file_location(fullname, potential_path, loader=loader)
 
         # Return None if not found to let importlib do its thing.
         return None

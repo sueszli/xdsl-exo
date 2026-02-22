@@ -4,22 +4,10 @@ from typing import Any, cast
 
 from xdsl.context import Context
 from xdsl.dialects import arith, riscv, riscv_snitch
-from xdsl.dialects.builtin import (
-    Float16Type,
-    Float32Type,
-    Float64Type,
-    ModuleOp,
-    UnrealizedConversionCastOp,
-    VectorType,
-)
+from xdsl.dialects.builtin import Float16Type, Float32Type, Float64Type, ModuleOp, UnrealizedConversionCastOp, VectorType
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern
 
 
 @dataclass
@@ -42,12 +30,8 @@ class LowerBinaryFloatVectorOp(RewritePattern):
         operand_type = cast(VectorType[Any], operand_type)
         scalar_type = operand_type.element_type
 
-        lhs = UnrealizedConversionCastOp.get(
-            (op.lhs,), (riscv.Registers.UNALLOCATED_FLOAT,)
-        )
-        rhs = UnrealizedConversionCastOp.get(
-            (op.rhs,), (riscv.Registers.UNALLOCATED_FLOAT,)
-        )
+        lhs = UnrealizedConversionCastOp.get((op.lhs,), (riscv.Registers.UNALLOCATED_FLOAT,))
+        rhs = UnrealizedConversionCastOp.get((op.rhs,), (riscv.Registers.UNALLOCATED_FLOAT,))
 
         match scalar_type:
             case Float64Type():
@@ -73,9 +57,7 @@ class LowerBinaryFloatVectorOp(RewritePattern):
         rewriter.replace_matched_op((lhs, rhs, new_op, cast_op))
 
 
-lower_arith_addf = LowerBinaryFloatVectorOp(
-    arith.AddfOp, riscv.FAddDOp, riscv_snitch.VFAddSOp, riscv_snitch.VFAddHOp
-)
+lower_arith_addf = LowerBinaryFloatVectorOp(arith.AddfOp, riscv.FAddDOp, riscv_snitch.VFAddSOp, riscv_snitch.VFAddHOp)
 
 
 class ConvertArithToRiscvSnitchPass(ModulePass):

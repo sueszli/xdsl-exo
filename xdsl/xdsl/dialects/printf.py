@@ -2,13 +2,7 @@ from __future__ import annotations
 
 from xdsl.dialects import arith, builtin
 from xdsl.ir import Dialect, Operation, SSAValue, VerifyException
-from xdsl.irdl import (
-    IRDLOperation,
-    attr_def,
-    irdl_op_definition,
-    operand_def,
-    var_operand_def,
-)
+from xdsl.irdl import IRDLOperation, attr_def, irdl_op_definition, operand_def, var_operand_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
@@ -33,16 +27,12 @@ class PrintFormatOp(IRDLOperation):
     format_vals = var_operand_def()
 
     def __init__(self, format_str: str, *vals: SSAValue | Operation):
-        super().__init__(
-            operands=[vals], attributes={"format_str": builtin.StringAttr(format_str)}
-        )
+        super().__init__(operands=[vals], attributes={"format_str": builtin.StringAttr(format_str)})
 
     def verify_(self) -> None:
         num_of_templates = self.format_str.data.count("{}")
         if not num_of_templates == len(self.format_vals):
-            raise VerifyException(
-                "Number of templates in template string must match number of arguments!"
-            )
+            raise VerifyException("Number of templates in template string must match number of arguments!")
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -76,9 +66,7 @@ class PrintFormatOp(IRDLOperation):
         attr_dict = parser.parse_optional_attr_dict()
 
         if "format_str" in attr_dict:
-            parser.raise_error(
-                "format_str keyword is a reserved attribute for printf.print_format!"
-            )
+            parser.raise_error("format_str keyword is a reserved attribute for printf.print_format!")
 
         op = PrintFormatOp(format_str, *args)
 
@@ -111,9 +99,7 @@ class PrintCharOp(IRDLOperation):
         in "char" as a python char.
         """
         if len(char) != 1:
-            raise ValueError(
-                f'Unexpected char value "{char}", input must be a single ascii character'
-            )
+            raise ValueError(f'Unexpected char value "{char}", input must be a single ascii character')
         ascii_value = ord(char)
         if ascii_value > 128:
             raise ValueError("Only ascii characters are supported")

@@ -5,11 +5,7 @@ from xdsl.dialects import arith
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, ModuleOp
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 from xdsl.traits import HasCanonicalizationPatternsTrait
 
 
@@ -45,21 +41,15 @@ class DivisionOfSameVariableToOne(RewritePattern):
 
 
 INDIVIDUAL_REWRITE_PATTERNS_BY_NAME: dict[str, dict[str, RewritePattern]] = {
-    arith.AddiOp.name: {
-        AdditionOfSameVariablesToMultiplyByTwo.__name__: AdditionOfSameVariablesToMultiplyByTwo()
-    },
-    arith.DivUIOp.name: {
-        DivisionOfSameVariableToOne.__name__: DivisionOfSameVariableToOne()
-    },
+    arith.AddiOp.name: {AdditionOfSameVariablesToMultiplyByTwo.__name__: AdditionOfSameVariablesToMultiplyByTwo()},
+    arith.DivUIOp.name: {DivisionOfSameVariableToOne.__name__: DivisionOfSameVariableToOne()},
 }
 """
 Extra rewrite patterns available to ApplyIndividualRewritePass
 """
 
 
-def _get_canonicalization_pattern(
-    op: Operation, pattern_name: str
-) -> RewritePattern | None:
+def _get_canonicalization_pattern(op: Operation, pattern_name: str) -> RewritePattern | None:
     if (trait := op.get_trait(HasCanonicalizationPatternsTrait)) is None:
         return None
 
@@ -92,30 +82,16 @@ class ApplyIndividualRewritePass(ModulePass):
         rewriter = PatternRewriter(matched_operation)
 
         if matched_operation.name != self.operation_name:
-            raise ValueError(
-                f"Operation {matched_operation.name} at index "
-                f"{self.matched_operation_index} does not match {self.operation_name}"
-            )
+            raise ValueError(f"Operation {matched_operation.name} at index " f"{self.matched_operation_index} does not match {self.operation_name}")
 
         # Check individual rewrites first
-        if (
-            individual_rewrites := INDIVIDUAL_REWRITE_PATTERNS_BY_NAME.get(
-                self.operation_name
-            )
-        ) is not None and (p := individual_rewrites.get(self.pattern_name)) is not None:
+        if (individual_rewrites := INDIVIDUAL_REWRITE_PATTERNS_BY_NAME.get(self.operation_name)) is not None and (p := individual_rewrites.get(self.pattern_name)) is not None:
             pattern = p
-        elif (
-            p := _get_canonicalization_pattern(matched_operation, self.pattern_name)
-        ) is not None:
+        elif (p := _get_canonicalization_pattern(matched_operation, self.pattern_name)) is not None:
             pattern = p
         else:
-            raise ValueError(
-                f"Pattern name {self.pattern_name} not found for the provided operation name."
-            )
+            raise ValueError(f"Pattern name {self.pattern_name} not found for the provided operation name.")
 
         pattern.match_and_rewrite(matched_operation, rewriter)
         if not rewriter.has_done_action:
-            raise ValueError(
-                f"Invalid rewrite ({self.pattern_name}) for operation "
-                f"({matched_operation}) at location {self.matched_operation_index}."
-            )
+            raise ValueError(f"Invalid rewrite ({self.pattern_name}) for operation " f"({matched_operation}) at location {self.matched_operation_index}.")

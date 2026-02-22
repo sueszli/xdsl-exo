@@ -18,49 +18,25 @@ def test_ssr_loop_op():
     strides4d = [ten, ten, ten, ten]
 
     # checking for valid and invalid var_operand lengths for the individual ops
-    snitch_runtime.SsrLoop1dOp(
-        data_mover=data_mover, bounds=bounds1d, strides=strides1d
-    )
+    snitch_runtime.SsrLoop1dOp(data_mover=data_mover, bounds=bounds1d, strides=strides1d)
     with pytest.raises(VerifyException):
-        snitch_runtime.SsrLoop1dOp(
-            data_mover=data_mover, bounds=bounds2d, strides=strides2d
-        ).verify()
-    snitch_runtime.SsrLoop2dOp(
-        data_mover=data_mover, bounds=bounds2d, strides=strides2d
-    )
+        snitch_runtime.SsrLoop1dOp(data_mover=data_mover, bounds=bounds2d, strides=strides2d).verify()
+    snitch_runtime.SsrLoop2dOp(data_mover=data_mover, bounds=bounds2d, strides=strides2d)
     with pytest.raises(VerifyException):
-        snitch_runtime.SsrLoop2dOp(
-            data_mover=data_mover, bounds=bounds3d, strides=strides3d
-        ).verify()
-    snitch_runtime.SsrLoop3dOp(
-        data_mover=data_mover, bounds=bounds3d, strides=strides3d
-    )
+        snitch_runtime.SsrLoop2dOp(data_mover=data_mover, bounds=bounds3d, strides=strides3d).verify()
+    snitch_runtime.SsrLoop3dOp(data_mover=data_mover, bounds=bounds3d, strides=strides3d)
     with pytest.raises(VerifyException):
-        snitch_runtime.SsrLoop3dOp(
-            data_mover=data_mover, bounds=bounds4d, strides=strides4d
-        ).verify()
-    snitch_runtime.SsrLoop4dOp(
-        data_mover=data_mover, bounds=bounds4d, strides=strides4d
-    )
+        snitch_runtime.SsrLoop3dOp(data_mover=data_mover, bounds=bounds4d, strides=strides4d).verify()
+    snitch_runtime.SsrLoop4dOp(data_mover=data_mover, bounds=bounds4d, strides=strides4d)
     with pytest.raises(VerifyException):
-        snitch_runtime.SsrLoop4dOp(
-            data_mover=data_mover, bounds=bounds1d, strides=strides1d
-        ).verify()
+        snitch_runtime.SsrLoop4dOp(data_mover=data_mover, bounds=bounds1d, strides=strides1d).verify()
 
     # checking for invalid combinations of var_operand lengths
     with pytest.raises(VerifyException):
-        snitch_runtime.SsrLoop1dOp(
-            data_mover=data_mover, bounds=bounds1d, strides=strides3d
-        ).verify()
+        snitch_runtime.SsrLoop1dOp(data_mover=data_mover, bounds=bounds1d, strides=strides3d).verify()
     with pytest.raises(VerifyException):
-        snitch_runtime.SsrLoop2dOp(
-            data_mover=data_mover, bounds=bounds4d, strides=strides1d
-        ).verify()
+        snitch_runtime.SsrLoop2dOp(data_mover=data_mover, bounds=bounds4d, strides=strides1d).verify()
     with pytest.raises(VerifyException):
-        snitch_runtime.SsrLoop3dOp(
-            data_mover=data_mover, bounds=bounds2d, strides=strides3d
-        ).verify()
+        snitch_runtime.SsrLoop3dOp(data_mover=data_mover, bounds=bounds2d, strides=strides3d).verify()
     with pytest.raises(VerifyException):
-        snitch_runtime.SsrLoop4dOp(
-            data_mover=data_mover, bounds=bounds3d, strides=strides2d
-        ).verify()
+        snitch_runtime.SsrLoop4dOp(data_mover=data_mover, bounds=bounds3d, strides=strides2d).verify()

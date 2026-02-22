@@ -4,37 +4,12 @@ from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, scf
-from xdsl.dialects.stencil import (
-    AccessOp,
-    ApplyOp,
-    DynAccessOp,
-    ResultType,
-    ReturnOp,
-    StencilBoundsAttr,
-    StoreResultOp,
-    TempType,
-)
-from xdsl.ir import (
-    Attribute,
-    Block,
-    BlockArgument,
-    Operation,
-    OpResult,
-)
+from xdsl.dialects.stencil import AccessOp, ApplyOp, DynAccessOp, ResultType, ReturnOp, StencilBoundsAttr, StoreResultOp, TempType
+from xdsl.ir import Attribute, Block, BlockArgument, Operation, OpResult
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
-from xdsl.transforms.canonicalization_patterns.stencil import (
-    ApplyRedundantOperands,
-    ApplyUnusedOperands,
-    ApplyUnusedResults,
-)
+from xdsl.transforms.canonicalization_patterns.stencil import ApplyRedundantOperands, ApplyUnusedOperands, ApplyUnusedResults
 from xdsl.transforms.shape_inference_patterns.stencil import update_result_size
 from xdsl.transforms.stencil_unroll import offseted_block_clone
 
@@ -69,9 +44,7 @@ class StencilIfResultForwardPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.IfOp, rewriter: PatternRewriter, /):
         result_types = [r.type for r in op.output]
-        new_result_types = [
-            t.elem if isinstance(t, ResultType) else t for t in result_types
-        ]
+        new_result_types = [t.elem if isinstance(t, ResultType) else t for t in result_types]
         if new_result_types == result_types:
             return
         rewriter.replace_matched_op(
@@ -88,11 +61,7 @@ def has_single_consumer(producer: ApplyOp, consumer: ApplyOp):
     """
     Check if the producer has a single consumer.
     """
-    return all(
-        isinstance(u.operation, ApplyOp) and u.operation == consumer
-        for r in producer.results
-        for u in r.uses
-    )
+    return all(isinstance(u.operation, ApplyOp) and u.operation == consumer for r in producer.results for u in r.uses)
 
 
 def is_rerouting_possible(producer: ApplyOp, consumer: ApplyOp):
@@ -102,12 +71,7 @@ def is_rerouting_possible(producer: ApplyOp, consumer: ApplyOp):
     # Perform producer consumer inlining instead
     if has_single_consumer(producer, consumer):
         return False
-    return not any(
-        isinstance(operand.owner, Operation)
-        and (operand.owner is not producer)
-        and is_before_in_block(producer, operand.owner)
-        for operand in consumer.operands
-    )
+    return not any(isinstance(operand.owner, Operation) and (operand.owner is not producer) and is_before_in_block(producer, operand.owner) for operand in consumer.operands)
 
 
 def is_inlining_possible(producer: ApplyOp, consumer: ApplyOp):
@@ -115,18 +79,12 @@ def is_inlining_possible(producer: ApplyOp, consumer: ApplyOp):
     Check if inlining is possible.
     """
     # Don't inline any producer with conditional writes.
-    r = not any(
-        store_result.arg is None
-        for store_result in producer.walk()
-        if isinstance(store_result, StoreResultOp)
-    ) and not any(
+    r = not any(store_result.arg is None for store_result in producer.walk() if isinstance(store_result, StoreResultOp)) and not any(
         # Don't inline any dynamic accesses.
         isinstance(use.operation, DynAccessOp)
         for consumer_operand in consumer.operands
         if consumer_operand.owner is producer
-        for use in consumer.region.block.args[
-            consumer.operands.index(consumer_operand)
-        ].uses
+        for use in consumer.region.block.args[consumer.operands.index(consumer_operand)].uses
     )
 
     return r
@@ -151,9 +109,7 @@ class StencilReroutingPattern(RewritePattern):
        ```
     """
 
-    def redirect_store(
-        self, producer: ApplyOp, consumer: ApplyOp, rewriter: PatternRewriter
-    ):
+    def redirect_store(self, producer: ApplyOp, consumer: ApplyOp, rewriter: PatternRewriter):
         # We want to replace the consumer adding the producer's results to its operands
         # and results
         new_operands = list(consumer.args) + list(producer.results)
@@ -202,9 +158,7 @@ class StencilReroutingPattern(RewritePattern):
                     continue
                 use.operation.operands[use.index] = rres
 
-        rewriter.replace_op(
-            consumer, new_consumer, new_consumer.res[: len(consumer.res)]
-        )
+        rewriter.replace_op(consumer, new_consumer, new_consumer.res[: len(consumer.res)])
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter):
@@ -224,9 +178,7 @@ class StencilReroutingPattern(RewritePattern):
                             if not is_before_in_block(producer, consumer):
                                 continue
 
-                            if is_inlining_possible(
-                                producer, consumer
-                            ) and is_rerouting_possible(producer, consumer):
+                            if is_inlining_possible(producer, consumer) and is_rerouting_possible(producer, consumer):
                                 return self.redirect_store(producer, consumer, rewriter)
 
         # Reroute output dependency
@@ -234,9 +186,7 @@ class StencilReroutingPattern(RewritePattern):
         for operand in consumer.operands:
             producer = operand.owner
             if isinstance(producer, ApplyOp):
-                if is_inlining_possible(producer, consumer) and is_rerouting_possible(
-                    producer, consumer
-                ):
+                if is_inlining_possible(producer, consumer) and is_rerouting_possible(producer, consumer):
                     return self.redirect_store(producer, consumer, rewriter)
 
 
@@ -261,15 +211,9 @@ class StencilInliningPattern(RewritePattern):
     ```
     """
 
-    result_type_cleaner = PatternRewriteWalker(
-        GreedyRewritePatternApplier(
-            [StencilIfResultForwardPattern(), StencilStoreResultForwardPattern()]
-        )
-    )
+    result_type_cleaner = PatternRewriteWalker(GreedyRewritePatternApplier([StencilIfResultForwardPattern(), StencilStoreResultForwardPattern()]))
 
-    def inline_producer(
-        self, producer: ApplyOp, consumer: ApplyOp, rewriter: PatternRewriter
-    ):
+    def inline_producer(self, producer: ApplyOp, consumer: ApplyOp, rewriter: PatternRewriter):
         """
         Inline the producer into the consumer.
         """
@@ -295,9 +239,7 @@ class StencilInliningPattern(RewritePattern):
         )
 
         # Store the list of consumer accesses
-        consumer_accesses = [
-            op for op in merged_block.walk(reverse=True) if isinstance(op, AccessOp)
-        ]
+        consumer_accesses = [op for op in merged_block.walk(reverse=True) if isinstance(op, AccessOp)]
 
         # Start inlining accesses to the producer
         for access in consumer_accesses:
@@ -319,9 +261,7 @@ class StencilInliningPattern(RewritePattern):
 
             # Remove the return, inline the computation, replace the access.
             rewriter.erase_op(return_op)
-            rewriter.inline_block(
-                offsetted_block, InsertPoint.before(access), merged_producer_arguments
-            )
+            rewriter.inline_block(offsetted_block, InsertPoint.before(access), merged_producer_arguments)
             rewriter.replace_op(access, [], [accessed])
 
         new_operands = operands
@@ -341,9 +281,7 @@ class StencilInliningPattern(RewritePattern):
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         for operand in (consumer := op).operands:
             if isinstance(producer := operand.owner, ApplyOp):
-                if has_single_consumer(producer, consumer) and is_inlining_possible(
-                    producer, consumer
-                ):
+                if has_single_consumer(producer, consumer) and is_inlining_possible(producer, consumer):
                     return self.inline_producer(producer, consumer, rewriter)
 
 

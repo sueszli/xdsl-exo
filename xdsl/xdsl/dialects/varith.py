@@ -4,32 +4,9 @@ from typing import ClassVar
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import (
-    BFloat16Type,
-    ContainerOf,
-    DenseIntElementsAttr,
-    Float16Type,
-    Float32Type,
-    Float64Type,
-    Float80Type,
-    Float128Type,
-    IndexType,
-    IntegerType,
-    VectorType,
-)
+from xdsl.dialects.builtin import BFloat16Type, ContainerOf, DenseIntElementsAttr, Float16Type, Float32Type, Float64Type, Float80Type, Float128Type, IndexType, IntegerType, VectorType
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
-from xdsl.irdl import (
-    AnyAttr,
-    AnyOf,
-    IRDLOperation,
-    VarConstraint,
-    irdl_op_definition,
-    operand_def,
-    prop_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.irdl import AnyAttr, AnyOf, IRDLOperation, VarConstraint, irdl_op_definition, operand_def, prop_def, result_def, traits_def, var_operand_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import Pure
@@ -136,24 +113,18 @@ class VarithSwitchOp(IRDLOperation):
         parser.parse_punctuation("[")
         parser.parse_keyword("default")
         parser.parse_punctuation(":")
-        default_arg = parser.resolve_operand(
-            parser.parse_unresolved_operand(), return_type
-        )
+        default_arg = parser.resolve_operand(parser.parse_unresolved_operand(), return_type)
 
         values: list[int] = []
         args: list[SSAValue] = []
         while parser.parse_optional_punctuation(","):
             values.append(parser.parse_integer())
             parser.parse_punctuation(":")
-            args.append(
-                parser.resolve_operand(parser.parse_unresolved_operand(), return_type)
-            )
+            args.append(parser.resolve_operand(parser.parse_unresolved_operand(), return_type))
         parser.parse_punctuation("]")
         attr_dict = parser.parse_optional_attr_dict()
 
-        case_values = DenseIntElementsAttr.create_dense_int(
-            VectorType(flag_type, (len(values),)), values
-        )
+        case_values = DenseIntElementsAttr.create_dense_int(VectorType(flag_type, (len(values),)), values)
 
         return cls(
             flag,
@@ -187,9 +158,7 @@ class VarithSwitchOp(IRDLOperation):
                     strict=True,
                 )
             ]
-            printer.print_list(
-                cases, lambda x: self._print_case(printer, x[0], x[1]), ",\n"
-            )
+            printer.print_list(cases, lambda x: self._print_case(printer, x[0], x[1]), ",\n")
         printer.print_string("\n]")
         if self.attributes:
             printer.print_attr_dict(self.attributes)

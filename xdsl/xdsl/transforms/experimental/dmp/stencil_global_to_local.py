@@ -10,13 +10,7 @@ from xdsl.dialects.builtin import ContainerType
 from xdsl.dialects.experimental import dmp
 from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import StencilToMemRefType
 
@@ -31,12 +25,8 @@ class ChangeStoreOpSizes(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
-        assert all(
-            integer_attr.data == 0 for integer_attr in op.bounds.lb.array.data
-        ), "lb must be 0"
-        shape: tuple[int, ...] = tuple(
-            integer_attr.data for integer_attr in op.bounds.ub.array.data
-        )
+        assert all(integer_attr.data == 0 for integer_attr in op.bounds.lb.array.data), "lb must be 0"
+        shape: tuple[int, ...] = tuple(integer_attr.data for integer_attr in op.bounds.ub.array.data)
         new_shape = self.strategy.calc_resize(shape)
         op.bounds = stencil.StencilBoundsAttr.new(
             [
@@ -129,14 +119,10 @@ def _generate_single_axis_calc_and_check(
 
     return (
         [
-            offset_v := arith.ConstantOp.from_int_and_width(
-                offset_in_axis, _rank_dtype
-            ),
+            offset_v := arith.ConstantOp.from_int_and_width(offset_in_axis, _rank_dtype),
             dest := arith.AddiOp(pos_in_axis, offset_v),
             # get the bound we need to check:
-            bound := arith.ConstantOp.from_int_and_width(
-                0 if is_decrement else axis_size, _rank_dtype
-            ),
+            bound := arith.ConstantOp.from_int_and_width(0 if is_decrement else axis_size, _rank_dtype),
             # comparison == true <=> we have a valid dest positon
             cond_val := arith.CmpiOp(dest, bound, comparison),
         ],
@@ -145,9 +131,7 @@ def _generate_single_axis_calc_and_check(
     )
 
 
-def _grid_coords_from_rank(
-    my_rank: SSAValue, grid: dmp.RankTopoAttr
-) -> tuple[list[Operation], list[SSAValue]]:
+def _grid_coords_from_rank(my_rank: SSAValue, grid: dmp.RankTopoAttr) -> tuple[list[Operation], list[SSAValue]]:
     """
     Takes a rank and a dmp.grid, and returns operations to calculate
     the grid coordinates of the rank.
@@ -194,12 +178,8 @@ def _generate_dest_rank_computation(
     condition_vals: list[SSAValue] = []
     # save the grid-coordinates of the destination rank
     dest_pos_nd: list[SSAValue] = []
-    for pos_in_axis, offset_in_axis, axis_size in zip(
-        node_pos_nd, offsets, grid.as_tuple()
-    ):
-        ops, dest, is_valid = _generate_single_axis_calc_and_check(
-            pos_in_axis, offset_in_axis, axis_size
-        )
+    for pos_in_axis, offset_in_axis, axis_size in zip(node_pos_nd, offsets, grid.as_tuple()):
+        ops, dest, is_valid = _generate_single_axis_calc_and_check(pos_in_axis, offset_in_axis, axis_size)
         ret_ops.extend(ops)
         dest_pos_nd.append(dest)
         condition_vals.append(is_valid)
@@ -251,9 +231,7 @@ def generate_mpi_calls_for(
 
     yield from (req_cnt, reqs, rank, tag)
 
-    recv_buffers: list[
-        tuple[dmp.ExchangeDeclarationAttr, memref.AllocOp, SSAValue]
-    ] = []
+    recv_buffers: list[tuple[dmp.ExchangeDeclarationAttr, memref.AllocOp, SSAValue]] = []
 
     for i, ex in enumerate(exchanges):
         # generate a temp buffer to store the data in
@@ -265,9 +243,7 @@ def generate_mpi_calls_for(
         yield from (alloc_outbound, alloc_inbound)
 
         # calc dest rank and check if it's in-bounds
-        ops, dest_rank, is_in_bounds = _generate_dest_rank_computation(
-            rank.rank, ex.neighbor, grid
-        )
+        ops, dest_rank, is_in_bounds = _generate_dest_rank_computation(rank.rank, ex.neighbor, grid)
         yield from ops
 
         recv_buffers.append((ex, alloc_inbound, is_in_bounds))
@@ -290,9 +266,7 @@ def generate_mpi_calls_for(
             yield unwrap_out
 
             if emit_debug:
-                yield printf.PrintFormatOp(
-                    f"Rank {{}}: sending {ex.source_area()} -> {{}}", rank, dest_rank
-                )
+                yield printf.PrintFormatOp(f"Rank {{}}: sending {ex.source_area()} -> {{}}", rank, dest_rank)
 
             # isend call
             yield mpi.IsendOp(
@@ -435,13 +409,7 @@ class MpiLoopInvariantCodeMotion:
 
     def rewrite(
         self,
-        op: (
-            memref.AllocOp
-            | mpi.CommRankOp
-            | mpi.AllocateTypeOp
-            | mpi.UnwrapMemRefOp
-            | mpi.InitOp
-        ),
+        op: memref.AllocOp | mpi.CommRankOp | mpi.AllocateTypeOp | mpi.UnwrapMemRefOp | mpi.InitOp,
         rewriter: Rewriter,
         /,
     ):
@@ -450,9 +418,7 @@ class MpiLoopInvariantCodeMotion:
         self.seen_ops.add(op)
 
         # memref unwraps can always be moved to their allocation
-        if isinstance(op, mpi.UnwrapMemRefOp) and isinstance(
-            op.ref.owner, memref.AllocOp
-        ):
+        if isinstance(op, mpi.UnwrapMemRefOp) and isinstance(op.ref.owner, memref.AllocOp):
             op.detach()
             rewriter.insert_op(op, InsertPoint.after(op.ref.owner))
             return
@@ -495,13 +461,7 @@ class MpiLoopInvariantCodeMotion:
 
     def get_matcher(
         self,
-        worklist: list[
-            memref.AllocOp
-            | mpi.CommRankOp
-            | mpi.AllocateTypeOp
-            | mpi.UnwrapMemRefOp
-            | mpi.InitOp
-        ],
+        worklist: list[memref.AllocOp | mpi.CommRankOp | mpi.AllocateTypeOp | mpi.UnwrapMemRefOp | mpi.InitOp],
     ) -> Callable[[Operation], None]:
         """
         Returns a match() function that adds methods to a worklist
@@ -511,11 +471,7 @@ class MpiLoopInvariantCodeMotion:
         def match(op: Operation):
             if isinstance(
                 op,
-                memref.AllocOp
-                | mpi.CommRankOp
-                | mpi.AllocateTypeOp
-                | mpi.UnwrapMemRefOp
-                | mpi.InitOp,
+                memref.AllocOp | mpi.CommRankOp | mpi.AllocateTypeOp | mpi.UnwrapMemRefOp | mpi.InitOp,
             ):
                 worklist.append(op)
 
@@ -529,13 +485,7 @@ class MpiLoopInvariantCodeMotion:
         the operations we loop on them, which would throw of `op.walk`.
         """
         # collect all ops that should be rewritten
-        worklist: list[
-            memref.AllocOp
-            | mpi.CommRankOp
-            | mpi.AllocateTypeOp
-            | mpi.UnwrapMemRefOp
-            | mpi.InitOp
-        ] = list()
+        worklist: list[memref.AllocOp | mpi.CommRankOp | mpi.AllocateTypeOp | mpi.UnwrapMemRefOp | mpi.InitOp] = list()
         matcher = self.get_matcher(worklist)
         for o in op.walk():
             matcher(o)

@@ -290,13 +290,9 @@ class TblgenLoader:
         if "I" in rec.superclasses:
             return f"EqAttrConstraint(IntegerType({rec['bitwidth']}))"
         if "SI" in rec.superclasses:
-            return (
-                f"EqAttrConstraint(IntegerType({rec['bitwidth']}, Signedness.SIGNED))"
-            )
+            return f"EqAttrConstraint(IntegerType({rec['bitwidth']}, Signedness.SIGNED))"
         if "UI" in rec.superclasses:
-            return (
-                f"EqAttrConstraint(IntegerType({rec['bitwidth']}, Signedness.UNSIGNED))"
-            )
+            return f"EqAttrConstraint(IntegerType({rec['bitwidth']}, Signedness.UNSIGNED))"
         if "Complex" in rec.superclasses:
             return textwrap.dedent(f"""
             ParamAttrConstraint(
@@ -343,12 +339,7 @@ class TblgenLoader:
             )
             """)
 
-        if (
-            "IntegerAttrBase" in rec.superclasses
-            or "SignlessIntegerAttrBase" in rec.superclasses
-            or "SignedIntegerAttrBase" in rec.superclasses
-            or "UnsignedIntegerAttrBase" in rec.superclasses
-        ):
+        if "IntegerAttrBase" in rec.superclasses or "SignlessIntegerAttrBase" in rec.superclasses or "SignedIntegerAttrBase" in rec.superclasses or "UnsignedIntegerAttrBase" in rec.superclasses:
             return textwrap.dedent(f"""
             IntegerAttr.constr(type={self._resolve_type_constraint(rec["valueType"]["def"])})
             """)
@@ -414,7 +405,7 @@ class TblgenLoader:
 
         for [arg, orig_name] in tblgen_op.arguments:
             name = self._resolve_name(orig_name)
-            (variadicity, constraint) = self._resolve_constraint(arg)
+            variadicity, constraint = self._resolve_constraint(arg)
             match variadicity:
                 case self._ArgType.SINGLE:
                     fields[name] = f"operand_def({constraint})"
@@ -423,19 +414,15 @@ class TblgenLoader:
                 case self._ArgType.VARIADIC:
                     fields[name] = f"var_operand_def({constraint})"
                 case self._ArgType.PROP:
-                    name_str = (
-                        f', prop_name = "{orig_name}"' if iskeyword(orig_name) else ""
-                    )
+                    name_str = f', prop_name = "{orig_name}"' if iskeyword(orig_name) else ""
                     fields[name] = f"prop_def({constraint}{name_str})"
                 case self._ArgType.OPTIONAL_PROP:
-                    name_str = (
-                        f', prop_name = "{orig_name}"' if iskeyword(orig_name) else ""
-                    )
+                    name_str = f', prop_name = "{orig_name}"' if iskeyword(orig_name) else ""
                     fields[name] = f"opt_prop_def({constraint}{name_str})"
 
         for [res, name] in tblgen_op.results:
             name = self._resolve_name(name)
-            (variadicity, constraint) = self._resolve_constraint(res)
+            variadicity, constraint = self._resolve_constraint(res)
             match variadicity:
                 case self._ArgType.SINGLE:
                     fields[name] = f"result_def({constraint})"
@@ -450,10 +437,7 @@ class TblgenLoader:
             name = self._resolve_name(name)
             region = self._get_record(region)
             variadic = "VariadicRegion" in region.superclasses
-            single_block = (
-                "SizedRegion" in region.superclasses
-                and region.summary == "region with 1 blocks"
-            )
+            single_block = "SizedRegion" in region.superclasses and region.summary == "region with 1 blocks"
             match (variadic, single_block):
                 case (False, False):
                     fields[name] = "region_def()"
@@ -472,9 +456,7 @@ class TblgenLoader:
             else:
                 fields[name] = "successor_def()"
 
-        field_string = textwrap.indent(
-            "\n\n".join(f"{x} = {d}" for x, d in fields.items()), "    "
-        )
+        field_string = textwrap.indent("\n\n".join(f"{x} = {d}" for x, d in fields.items()), "    ")
         string = f"""
 @irdl_op_definition
 class {tblgen_op.name}(IRDLOperation):
@@ -517,9 +499,7 @@ def cull_json(output_file: IO[str] | None, loader: TblgenLoader):
         return {key: js_in[key] for key in js_in if key in required_fields}
 
     culled: dict[str, Any] = {key: cull_field(js[key]) for key in loader.used_records}
-    culled["!instanceof"] = {
-        key: js["!instanceof"][key] for key in ("TypeDef", "AttrDef", "Op", "Dialect")
-    }
+    culled["!instanceof"] = {key: js["!instanceof"][key] for key in ("TypeDef", "AttrDef", "Op", "Dialect")}
 
     print(json.dumps(culled, sort_keys=True, indent=2), file=output_file)
 
@@ -587,9 +567,7 @@ def tblgen_to_dialect(
     print(output.stdout, file=output_file, end="")
 
 
-def tblgen_to_py(
-    input_file: str | None, output: IO[str] | None = None, *, cull: bool = False
-):
+def tblgen_to_py(input_file: str | None, output: IO[str] | None = None, *, cull: bool = False):
     if input_file is None:
         in_file = stdin
     else:
@@ -610,15 +588,9 @@ def tblgen_to_py(
 
 def main():
     # Parse CLI arguments
-    arg_parser = argparse.ArgumentParser(
-        description="Convert tblgen json to a Python definition of a xDSL dialect."
-    )
-    arg_parser.add_argument(
-        "-o", "--output-file", required=False, type=str, help="path to output file"
-    )
-    arg_parser.add_argument(
-        "-i", "--input_file", required=False, type=str, help="path to input file"
-    )
+    arg_parser = argparse.ArgumentParser(description="Convert tblgen json to a Python definition of a xDSL dialect.")
+    arg_parser.add_argument("-o", "--output-file", required=False, type=str, help="path to output file")
+    arg_parser.add_argument("-i", "--input_file", required=False, type=str, help="path to input file")
     arg_parser.add_argument(
         "-c",
         "--cull",

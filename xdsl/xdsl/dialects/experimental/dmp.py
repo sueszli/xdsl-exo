@@ -16,31 +16,11 @@ from math import prod
 from typing import Literal, cast
 
 from xdsl.dialects import builtin, stencil
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    Operation,
-    ParametrizedAttribute,
-    SSAValue,
-)
-from xdsl.irdl import (
-    IRDLOperation,
-    ParameterDef,
-    attr_def,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_result_def,
-    traits_def,
-)
+from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, SSAValue
+from xdsl.irdl import IRDLOperation, ParameterDef, attr_def, irdl_attr_definition, irdl_op_definition, operand_def, opt_result_def, traits_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import (
-    EffectInstance,
-    HasShapeInferencePatternsTrait,
-    MemoryEffect,
-    MemoryEffectKind,
-)
+from xdsl.traits import EffectInstance, HasShapeInferencePatternsTrait, MemoryEffect, MemoryEffectKind
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -122,14 +102,9 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
             # calculated sizes
             sizes,
             # source_offset (opposite of exchange direction)
-            tuple(
-                0 if d != dim else -1 * dir_sign * sizes[dim] * neighbor_offset
-                for d in range(len(sizes))
-            ),
+            tuple(0 if d != dim else -1 * dir_sign * sizes[dim] * neighbor_offset for d in range(len(sizes))),
             # direction
-            tuple(
-                0 if d != dim else dir_sign * neighbor_offset for d in range(len(sizes))
-            ),
+            tuple(0 if d != dim else dir_sign * neighbor_offset for d in range(len(sizes))),
         )
 
     @property
@@ -175,9 +150,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
         # we set source_offset to all zero, so that repeated calls to source_area never
         # return the dest area
         return ExchangeDeclarationAttr(
-            offset=tuple(
-                val + offs for val, offs in zip(self.offset, self.source_offset)
-            ),
+            offset=tuple(val + offs for val, offs in zip(self.offset, self.source_offset)),
             size=self.size,
             source_offset=tuple(0 for _ in range(len(self.source_offset))),
             neighbor=self.neighbor,
@@ -196,28 +169,17 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
         parser.parse_characters("at")
-        offset = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_integer
-        )
+        offset = parser.parse_comma_separated_list(parser.Delimiter.SQUARE, parser.parse_integer)
         parser.parse_characters("size")
-        size = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_integer
-        )
+        size = parser.parse_comma_separated_list(parser.Delimiter.SQUARE, parser.parse_integer)
         parser.parse_characters("source")
         parser.parse_characters("offset")
-        source_offset = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_integer
-        )
+        source_offset = parser.parse_comma_separated_list(parser.Delimiter.SQUARE, parser.parse_integer)
         parser.parse_characters("to")
-        to = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_integer
-        )
+        to = parser.parse_comma_separated_list(parser.Delimiter.SQUARE, parser.parse_integer)
         parser.parse_characters(">")
 
-        return [
-            builtin.DenseArrayBase.from_list(builtin.i64, x)
-            for x in (offset, size, source_offset, to)
-        ]
+        return [builtin.DenseArrayBase.from_list(builtin.i64, x) for x in (offset, size, source_offset, to)]
 
 
 @irdl_attr_definition
@@ -307,12 +269,7 @@ class ShapeAttr(ParametrizedAttribute):
         buff_ub: stencil.IndexAttr | Sequence[int],
     ):
         data_type = builtin.i64
-        return ShapeAttr(
-            [
-                builtin.DenseArrayBase.from_list(data_type, tuple(data))
-                for data in (buff_lb, buff_ub, core_lb, core_ub)
-            ]
-        )
+        return ShapeAttr([builtin.DenseArrayBase.from_list(data_type, tuple(data)) for data in (buff_lb, buff_ub, core_lb, core_ub)])
 
     def buffer_start(self, dim: int) -> int:
         assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
@@ -386,10 +343,7 @@ class ShapeAttr(ParametrizedAttribute):
         parser.parse_characters(">")
 
         data_type = builtin.i64
-        return [
-            builtin.DenseArrayBase.from_list(data_type, data)
-            for data in (buff_lb, buff_ub, core_lb, core_ub)
-        ]
+        return [builtin.DenseArrayBase.from_list(data_type, data) for data in (buff_lb, buff_ub, core_lb, core_ub)]
 
 
 @irdl_attr_definition
@@ -423,15 +377,11 @@ class RankTopoAttr(ParametrizedAttribute):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
-        shape: list[int] = [
-            parser.parse_integer(allow_negative=False, allow_boolean=False)
-        ]
+        shape: list[int] = [parser.parse_integer(allow_negative=False, allow_boolean=False)]
 
         while parser.parse_optional_punctuation(">") is None:
             parser.parse_shape_delimiter()
-            shape.append(
-                parser.parse_integer(allow_negative=False, allow_boolean=False)
-            )
+            shape.append(parser.parse_integer(allow_negative=False, allow_boolean=False))
 
         return [builtin.DenseArrayBase.from_list(builtin.i64, shape)]
 
@@ -466,26 +416,17 @@ class GridSlice2dAttr(DomainDecompositionStrategy):
     diagonals: ParameterDef[builtin.BoolAttr]
 
     def __init__(self, topo: tuple[int, ...]):
-        super().__init__(
-            [RankTopoAttr(topo), builtin.BoolAttr.from_int_and_width(0, 1)]
-        )
+        super().__init__([RankTopoAttr(topo), builtin.BoolAttr.from_int_and_width(0, 1)])
 
     def _verify(self):
-        assert len(self.topology.as_tuple()) >= 2, (
-            "GridSlice2d requires at least two dimensions"
-        )
+        assert len(self.topology.as_tuple()) >= 2, "GridSlice2d requires at least two dimensions"
 
     def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
         assert len(shape) >= 2, "GridSlice2d requires at least two dimensions"
         for size, node_count in zip(shape, self.topology.as_tuple()):
-            assert size % node_count == 0, (
-                "GridSlice2d requires domain be neatly divisible by shape"
-            )
+            assert size % node_count == 0, "GridSlice2d requires domain be neatly divisible by shape"
         return (
-            *(
-                size // node_count
-                for size, node_count in zip(shape, self.topology.as_tuple())
-            ),
+            *(size // node_count for size, node_count in zip(shape, self.topology.as_tuple())),
             *(size for size in shape[2:]),
         )
 
@@ -514,26 +455,17 @@ class GridSlice3dAttr(DomainDecompositionStrategy):
     diagonals: ParameterDef[builtin.BoolAttr]
 
     def __init__(self, topo: tuple[int, ...]):
-        super().__init__(
-            [RankTopoAttr(topo), builtin.BoolAttr.from_int_and_width(0, 1)]
-        )
+        super().__init__([RankTopoAttr(topo), builtin.BoolAttr.from_int_and_width(0, 1)])
 
     def _verify(self):
-        assert len(self.topology.as_tuple()) >= 3, (
-            "GridSlice3d requires at least three dimensions"
-        )
+        assert len(self.topology.as_tuple()) >= 3, "GridSlice3d requires at least three dimensions"
 
     def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
         assert len(shape) >= 3, "GridSlice3d requires at least two dimensions"
         for size, node_count in zip(shape, self.topology.as_tuple()):
-            assert size % node_count == 0, (
-                "GridSlice3d requires domain be neatly divisible by shape"
-            )
+            assert size % node_count == 0, "GridSlice3d requires domain be neatly divisible by shape"
         return (
-            *(
-                size // node_count
-                for size, node_count in zip(shape, self.topology.as_tuple())
-            ),
+            *(size // node_count for size, node_count in zip(shape, self.topology.as_tuple())),
             *(size for size in shape[3:]),
         )
 
@@ -551,9 +483,7 @@ class GridSlice3dAttr(DomainDecompositionStrategy):
         return RankTopoAttr(self.topology.as_tuple())
 
 
-def _flat_face_exchanges_for_dim(
-    shape: ShapeAttr, axis: int
-) -> tuple[ExchangeDeclarationAttr, ...]:
+def _flat_face_exchanges_for_dim(shape: ShapeAttr, axis: int) -> tuple[ExchangeDeclarationAttr, ...]:
     """
     Generate the two exchange delcarations to exchange the faces on the
     axis "axis".
@@ -590,14 +520,10 @@ def _flat_face_exchanges_for_dim(
                         # the window of data we want to send starts here
                         start = shape.buffer_start(d)
                         # calculate where the current slice starts (lowest index, no lower than start)
-                        slice_start = max(
-                            start, shape.core_start(d) - (core_size * (slice + 1))
-                        )
+                        slice_start = max(start, shape.core_start(d) - (core_size * (slice + 1)))
                         # calculate where the current slice ends (highest index, no higher than core_start)
                         # because slice >= 0
-                        slice_end = max(
-                            start, shape.core_start(d) - (core_size * slice)
-                        )
+                        slice_end = max(start, shape.core_start(d) - (core_size * slice))
 
                         # stop swapping if swap is empty
                         if slice_end == slice_start:
@@ -612,9 +538,7 @@ def _flat_face_exchanges_for_dim(
                         # because slice >= 0, and no higher than end
                         slice_start = min(end, shape.core_end(d) + (core_size * slice))
                         # calculate where the current slice ends (highest index, no higher than core_start)
-                        slice_end = min(
-                            end, shape.core_end(d) + (core_size * (slice + 1))
-                        )
+                        slice_end = min(end, shape.core_end(d) + (core_size * (slice + 1)))
 
                         # stop swapping if swap is empty
                         if slice_end == slice_start:
@@ -656,10 +580,7 @@ def _flat_face_exchanges_for_dim(
 class SwapOpHasShapeInferencePatterns(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls):
-        from xdsl.transforms.shape_inference_patterns.dmp import (
-            DmpSwapShapeInference,
-            DmpSwapSwapsInference,
-        )
+        from xdsl.transforms.shape_inference_patterns.dmp import DmpSwapShapeInference, DmpSwapSwapsInference
 
         return (DmpSwapShapeInference(), DmpSwapSwapsInference())
 
@@ -705,14 +626,10 @@ class SwapOp(IRDLOperation):
     def verify_(self) -> None:
         if self.swapped_values:
             if isinstance(self.input_stencil.type, stencil.FieldType):
-                raise VerifyException(
-                    "dmp.swap_op cannot have a result if input is a field"
-                )
+                raise VerifyException("dmp.swap_op cannot have a result if input is a field")
         else:
             if isinstance(self.input_stencil.type, stencil.TempType):
-                raise VerifyException(
-                    "dmp.swap_op must have a result if input is a temporary"
-                )
+                raise VerifyException("dmp.swap_op must have a result if input is a temporary")
 
     @staticmethod
     def get(
@@ -722,9 +639,7 @@ class SwapOp(IRDLOperation):
     ):
         input_type = SSAValue.get(input_stencil).type
 
-        result_types = (
-            input_type if isa(input_type, stencil.TempType[Attribute]) else None
-        )
+        result_types = input_type if isa(input_type, stencil.TempType[Attribute]) else None
 
         if swaps is None:
             swaps = builtin.ArrayAttr[ExchangeDeclarationAttr](())

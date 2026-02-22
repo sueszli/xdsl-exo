@@ -10,15 +10,7 @@ from typing import ClassVar
 
 from xdsl.dialects.builtin import IntegerType
 from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
-from xdsl.irdl import (
-    AnyOf,
-    IRDLOperation,
-    VarConstraint,
-    irdl_attr_definition,
-    irdl_op_definition,
-    result_def,
-    var_operand_def,
-)
+from xdsl.irdl import AnyOf, IRDLOperation, VarConstraint, irdl_attr_definition, irdl_op_definition, result_def, var_operand_def
 
 
 @irdl_attr_definition

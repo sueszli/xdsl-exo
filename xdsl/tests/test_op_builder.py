@@ -45,22 +45,16 @@ def test_block_insertion_point_constructors():
 def test_block_insertion_init_incorrect():
     region = Region()
     block = Block()
-    with pytest.raises(
-        ValueError, match="Insertion point must be in the builder's `region`"
-    ):
+    with pytest.raises(ValueError, match="Insertion point must be in the builder's `region`"):
         BlockInsertPoint(region, block)
 
 
 def test_block_insertion_point_orphan():
     block = Block()
-    with pytest.raises(
-        ValueError, match="Block insertion point must have a parent region"
-    ):
+    with pytest.raises(ValueError, match="Block insertion point must have a parent region"):
         BlockInsertPoint.before(block)
 
-    with pytest.raises(
-        ValueError, match="Block insertion point must have a parent region"
-    ):
+    with pytest.raises(ValueError, match="Block insertion point must have a parent region"):
         BlockInsertPoint.after(block)
 
 
@@ -344,6 +338,4 @@ def test_build_implicit_region_fail():
             IfOp(cond, (), then_0)
 
         _ = region
-    assert e.value.args[0] == (
-        "Cannot insert operation explicitly when an implicit builder exists."
-    )
+    assert e.value.args[0] == ("Cannot insert operation explicitly when an implicit builder exists.")

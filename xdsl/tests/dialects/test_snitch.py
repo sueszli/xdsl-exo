@@ -14,23 +14,13 @@ def test_csr_op():
 
     snitch.SsrSetDimensionBoundOp(value=value, dm=stream, dimension=valid).verify()
     with pytest.raises(VerifyException):
-        snitch.SsrSetDimensionBoundOp(
-            value=value, dm=stream, dimension=invalid
-        ).verify()
+        snitch.SsrSetDimensionBoundOp(value=value, dm=stream, dimension=invalid).verify()
     snitch.SsrSetDimensionStrideOp(value=value, dm=stream, dimension=valid).verify()
     with pytest.raises(VerifyException):
-        snitch.SsrSetDimensionStrideOp(
-            value=value, dm=stream, dimension=invalid
-        ).verify()
+        snitch.SsrSetDimensionStrideOp(value=value, dm=stream, dimension=invalid).verify()
     snitch.SsrSetDimensionSourceOp(value=value, dm=stream, dimension=valid).verify()
     with pytest.raises(VerifyException):
-        snitch.SsrSetDimensionSourceOp(
-            value=value, dm=stream, dimension=invalid
-        ).verify()
-    snitch.SsrSetDimensionDestinationOp(
-        value=value, dm=stream, dimension=valid
-    ).verify()
+        snitch.SsrSetDimensionSourceOp(value=value, dm=stream, dimension=invalid).verify()
+    snitch.SsrSetDimensionDestinationOp(value=value, dm=stream, dimension=valid).verify()
     with pytest.raises(VerifyException):
-        snitch.SsrSetDimensionDestinationOp(
-            value=value, dm=stream, dimension=invalid
-        ).verify()
+        snitch.SsrSetDimensionDestinationOp(value=value, dm=stream, dimension=invalid).verify()

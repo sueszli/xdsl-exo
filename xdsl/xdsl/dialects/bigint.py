@@ -3,21 +3,8 @@
 import abc
 
 from xdsl.dialects.builtin import f64, i1
-from xdsl.ir import (
-    Dialect,
-    Operation,
-    ParametrizedAttribute,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    IRDLOperation,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    result_def,
-    traits_def,
-)
+from xdsl.ir import Dialect, Operation, ParametrizedAttribute, SSAValue, TypeAttribute
+from xdsl.irdl import IRDLOperation, irdl_attr_definition, irdl_op_definition, operand_def, result_def, traits_def
 from xdsl.traits import Commutative, Pure, SameOperandsAndResultType
 
 

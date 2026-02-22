@@ -3,45 +3,15 @@ from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import arith, func, memref
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    Float16Type,
-    Float32Type,
-    FloatAttr,
-    FunctionType,
-    IndexType,
-    IntegerAttr,
-    IntegerType,
-    MemRefType,
-    ModuleOp,
-    UnrealizedConversionCastOp,
-    i16,
-)
+from xdsl.dialects.builtin import AffineMapAttr, Float16Type, Float32Type, FloatAttr, FunctionType, IndexType, IntegerAttr, IntegerType, MemRefType, ModuleOp, UnrealizedConversionCastOp, i16
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
-from xdsl.ir import (
-    Attribute,
-    Block,
-    BlockArgument,
-    Operation,
-    OpResult,
-    Region,
-    SSAValue,
-)
+from xdsl.ir import Attribute, Block, BlockArgument, Operation, OpResult, Region, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import is_side_effect_free
-from xdsl.transforms.csl_stencil_set_global_coeffs import (
-    get_coeff_api_ops,
-    get_dir_and_distance_ops,
-)
+from xdsl.transforms.csl_stencil_set_global_coeffs import get_coeff_api_ops, get_dir_and_distance_ops
 from xdsl.utils.hints import isa
 
 
@@ -103,19 +73,13 @@ class LowerApplyOp(RewritePattern):
 
         parent_func = op.parent_op()
         while parent_func:
-            if isinstance(parent_func, func.FuncOp) or isinstance(
-                parent_func, csl.FuncOp
-            ):
+            if isinstance(parent_func, func.FuncOp) or isinstance(parent_func, csl.FuncOp):
                 break
             parent_func = op.parent_op()
-        assert parent_func, (
-            "Expected csl_stencil.apply to be inside a func.func or csl.func"
-        )
+        assert parent_func, "Expected csl_stencil.apply to be inside a func.func or csl.func"
 
         # set up csl funcs
-        chunk_fn = csl.FuncOp(
-            "receive_chunk_cb" + str(self.count), FunctionType.from_lists([i16], [])
-        )
+        chunk_fn = csl.FuncOp("receive_chunk_cb" + str(self.count), FunctionType.from_lists([i16], []))
         chunk_fn.body.block.args[0].name_hint = "offset"
         done_fn = csl.FuncOp(
             "done_exchange_cb" + str(self.count),
@@ -153,9 +117,7 @@ class LowerApplyOp(RewritePattern):
             InsertPoint.at_end(chunk_fn.body.block),
             chunk_arg_m,
         )
-        rewriter.inline_block(
-            op.done_exchange.block, InsertPoint.at_end(done_fn.body.block), done_arg_m
-        )
+        rewriter.inline_block(op.done_exchange.block, InsertPoint.at_end(done_fn.body.block), done_arg_m)
 
         # place both func next to the enclosing parent func
         rewriter.insert_op([chunk_fn, done_fn], InsertPoint.after(parent_func))
@@ -164,15 +126,10 @@ class LowerApplyOp(RewritePattern):
         assert isa(op.accumulator.type, memref.MemRefType[Attribute])
         assert isa(op.field.type, memref.MemRefType[Attribute])
         # the accumulator might have additional dims when used for holding prefetched data
-        send_buf_shape = op.accumulator.type.get_shape()[
-            -len(op.field.type.get_shape()) :
-        ]
+        send_buf_shape = op.accumulator.type.get_shape()[-len(op.field.type.get_shape()) :]
         send_buf = memref.SubviewOp.get(
             op.field,
-            [
-                (d - s) // 2  # symmetric offset
-                for s, d in zip(send_buf_shape, op.field.type.get_shape(), strict=True)
-            ],
+            [(d - s) // 2 for s, d in zip(send_buf_shape, op.field.type.get_shape(), strict=True)],  # symmetric offset
             (module_wrapper_op.get_param_value("chunk_size").value.data,),
             len(send_buf_shape) * [1],
             memref.MemRefType(op.field.type.get_element_type(), send_buf_shape),
@@ -196,9 +153,7 @@ class LowerApplyOp(RewritePattern):
         )
 
         # replace op with api call
-        rewriter.replace_matched_op(
-            [num_chunks, chunk_ref, done_ref, send_buf, api_call], []
-        )
+        rewriter.replace_matched_op([num_chunks, chunk_ref, done_ref, send_buf, api_call], [])
 
 
 @dataclass(frozen=True)
@@ -276,9 +231,7 @@ class InlineApplyOpArgs(RewritePattern):
     ):
         if isinstance(arg, OpResult) and arg.op.parent == apply.parent:
             if not (isinstance(arg.op, csl.LoadVarOp) or is_side_effect_free(arg.op)):
-                raise ValueError(
-                    "Can only promote csl.LoadVarOp or side_effect_free op"
-                )
+                raise ValueError("Can only promote csl.LoadVarOp or side_effect_free op")
             rewriter.insert_op(
                 new_arg := arg.op.clone(),
                 InsertPoint.at_start(region.block),
@@ -319,9 +272,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
         pattern = wrapper.get_param_value("pattern").value.data
 
         # get csl_stencil.access ops and offsets
-        access_ops: list[csl_stencil.AccessOp] = [
-            a for a in op.receive_chunk.walk() if isinstance(a, csl_stencil.AccessOp)
-        ]
+        access_ops: list[csl_stencil.AccessOp] = [a for a in op.receive_chunk.walk() if isinstance(a, csl_stencil.AccessOp)]
         offsets = set(tuple(a.offset) for a in access_ops)
 
         # this rewrite only works if all points in the stencil shape are accessed
@@ -356,11 +307,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
         if any(accumulator != r.ops[0] for r in reduction_ops):
             return
 
-        if (
-            not isa(accumulator.type, MemRefType)
-            or not isinstance(op.accumulator, OpResult)
-            or not isinstance(alloc := op.accumulator.op, memref.AllocOp)
-        ):
+        if not isa(accumulator.type, MemRefType) or not isinstance(op.accumulator, OpResult) or not isinstance(alloc := op.accumulator.op, memref.AllocOp):
             raise ValueError("Pass needs to be run on memref types")
 
         # Set up new accumulator GetMemDsd, with 0-stride in `direction` and `distance` dimensions.
@@ -381,22 +328,14 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
         acc_dsd = csl.GetMemDsdOp.build(
             operands=[alloc, [direction_count, neighbors, chunk_size]],
             result_types=[dsd_t],
-            properties={
-                "tensor_access": AffineMapAttr(
-                    AffineMap.from_callable(lambda x, y, z: (z,))
-                )
-            },
+            properties={"tensor_access": AffineMapAttr(AffineMap.from_callable(lambda x, y, z: (z,)))},
         )
         new_acc = acc_dsd
 
         # If the accumulator is a subview at an offset, generate IncrementDsdOffset op (and index_cast).
         new_ops.append(direction_count)
         new_ops.append(acc_dsd)
-        if (
-            isinstance(accumulator, OpResult)
-            and isinstance(subview := accumulator.op, memref.SubviewOp)
-            and subview.source == op.receive_chunk.block.args[2]
-        ):
+        if isinstance(accumulator, OpResult) and isinstance(subview := accumulator.op, memref.SubviewOp) and subview.source == op.receive_chunk.block.args[2]:
             assert isa(subview.source.type, memref.MemRefType[Attribute])
             new_ops.append(cast_op := arith.IndexCastOp(subview.offsets[0], i16))
             new_ops.append(
@@ -408,9 +347,7 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             )
 
         # get dsd iterator over all points in stencil
-        full_stencil_dsd = csl.MemberCallOp(
-            "getRecvBufDsd", dsd_t, wrapper.get_program_import("stencil_comms.csl"), []
-        )
+        full_stencil_dsd = csl.MemberCallOp("getRecvBufDsd", dsd_t, wrapper.get_program_import("stencil_comms.csl"), [])
 
         # rebuild compute func
         reduction_op = red_op_t.build(operands=[[new_acc, new_acc, full_stencil_dsd]])
@@ -424,19 +361,13 @@ class FullStencilAccessImmediateReductionOptimization(RewritePattern):
             rewriter.erase_op(e, safe_erase=False)
 
         # housekeeping: this strategy requires zeroing out the accumulator iff the apply is inside a loop
-        assert isinstance(
-            (elem_t := accumulator.type.get_element_type()), Float16Type | Float32Type
-        )
+        assert isinstance((elem_t := accumulator.type.get_element_type()), Float16Type | Float32Type)
         zero = arith.ConstantOp(FloatAttr(0.0, elem_t))
         mov_op = csl.FmovsOp if elem_t == Float32Type() else csl.FmovhOp
-        rewriter.insert_op(
-            [zero, mov_op(operands=[[op.accumulator, zero]])], InsertPoint.before(op)
-        )
+        rewriter.insert_op([zero, mov_op(operands=[[op.accumulator, zero]])], InsertPoint.before(op))
 
     @staticmethod
-    def is_full_2d_starshaped_access(
-        offsets: set[tuple[int, ...]], max_offset: int
-    ) -> bool:
+    def is_full_2d_starshaped_access(offsets: set[tuple[int, ...]], max_offset: int) -> bool:
         """Returns iff the offsets cover all points in a 2d star-shape without the (0,0) point."""
         x_set = set((x, 0) for x in range(-max_offset, max_offset + 1))
         y_set = set((0, y) for y in range(-max_offset, max_offset + 1))

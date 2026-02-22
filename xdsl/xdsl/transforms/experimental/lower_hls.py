@@ -8,36 +8,14 @@ from xdsl.context import Context
 from xdsl.dialects import builtin, func, llvm
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IndexType, f64, i32
-from xdsl.dialects.experimental.hls import (
-    HLSExtractStencilValueOp,
-    HLSStreamOp,
-    HLSStreamReadOp,
-    HLSStreamWriteOp,
-    HLSYieldOp,
-    PragmaDataflowOp,
-    PragmaPipelineOp,
-    PragmaUnrollOp,
-)
+from xdsl.dialects.experimental.hls import HLSExtractStencilValueOp, HLSStreamOp, HLSStreamReadOp, HLSStreamWriteOp, HLSYieldOp, PragmaDataflowOp, PragmaPipelineOp, PragmaUnrollOp
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
-from xdsl.dialects.llvm import (
-    AllocaOp,
-    GEPOp,
-    LLVMPointerType,
-    LLVMStructType,
-    LoadOp,
-    StoreOp,
-)
+from xdsl.dialects.llvm import AllocaOp, GEPOp, LLVMPointerType, LLVMStructType, LoadOp, StoreOp
 from xdsl.dialects.scf import ForOp, ParallelOp, YieldOp
 from xdsl.ir import Block, Operation, OpResult, Region, Use
 from xdsl.irdl import VarOperand, VarOpResult
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.utils.hints import isa
 
 
@@ -57,9 +35,7 @@ class LowerHLSStreamWrite(RewritePattern):
 
         if "duplicate" in op.attributes:
             if not self.push_duplicate_declaration:
-                push_func = func.FuncOp.external(
-                    "llvm.fpga.fifo.push.duplicate", [elem_type, p_elem_type], []
-                )
+                push_func = func.FuncOp.external("llvm.fpga.fifo.push.duplicate", [elem_type, p_elem_type], [])
 
                 self.module.body.block.add_op(push_func)
                 self.push_duplicate_declaration = True
@@ -69,9 +45,7 @@ class LowerHLSStreamWrite(RewritePattern):
 
         else:
             if not self.push_stencil_declaration:
-                push_func = func.FuncOp.external(
-                    "llvm.fpga.fifo.push.stencil", [elem_type, p_elem_type], []
-                )
+                push_func = func.FuncOp.external("llvm.fpga.fifo.push.stencil", [elem_type, p_elem_type], [])
 
                 self.module.body.block.add_op(push_func)
                 self.push_stencil_declaration = True
@@ -118,9 +92,7 @@ class LowerHLSStreamRead(RewritePattern):
 
             gep = GEPOp(op.stream, [0, 0], result_type=p_hls_elem_type)
 
-            pop_call = func.CallOp(
-                "llvm.fpga.fifo.pop.write_data", [gep], [op.res.type]
-            )
+            pop_call = func.CallOp("llvm.fpga.fifo.pop.write_data", [gep], [op.res.type])
 
         else:
             if not self.pop_stencil_declaration:
@@ -150,12 +122,8 @@ class LowerHLSStreamRead(RewritePattern):
         load = LoadOp(alloca)
 
         # rewriter.insert_op_at_start(alloca, current_parent.body.blocks[0])
-        current_parent.body.blocks[0].insert_op_before(
-            alloca, typing.cast(Operation, current_parent.body.blocks[0].first_op)
-        )
-        current_parent.body.blocks[0].insert_op_before(
-            size, typing.cast(Operation, current_parent.body.blocks[0].first_op)
-        )
+        current_parent.body.blocks[0].insert_op_before(alloca, typing.cast(Operation, current_parent.body.blocks[0].first_op))
+        current_parent.body.blocks[0].insert_op_before(size, typing.cast(Operation, current_parent.body.blocks[0].first_op))
 
         # rewriter.replace_matched_op([size, alloca, gep, pop_call, store, load])
         rewriter.replace_matched_op([gep, pop_call, store, load])
@@ -178,9 +146,7 @@ class LowerHLSStreamToAlloca(RewritePattern):
             uses.append(use)
 
         hls_elem_type = op.elem_type
-        stream_type = LLVMPointerType.typed(
-            LLVMStructType.from_type_list([hls_elem_type])
-        )
+        stream_type = LLVMPointerType.typed(LLVMStructType.from_type_list([hls_elem_type]))
 
         if not self.set_stream_depth_declaration:
             stream_depth_func = llvm.FuncOp(
@@ -202,23 +168,15 @@ class LowerHLSStreamToAlloca(RewritePattern):
         stream_size = ConstantOp.from_int_and_width(32, i32)
 
         if hls_elem_type == f64:
-            stream_size_call = CallOp(
-                "stream_size_qualifier_double", [op, stream_size], []
-            )
+            stream_size_call = CallOp("stream_size_qualifier_double", [op, stream_size], [])
             if not self.set_stream_size_qualifier_double_declaration:
-                stream_size_qualifier_double = FuncOp.external(
-                    "stream_size_qualifier_double", [stream_type, i32], []
-                )
+                stream_size_qualifier_double = FuncOp.external("stream_size_qualifier_double", [stream_type, i32], [])
                 self.module.body.block.add_op(stream_size_qualifier_double)
                 self.set_stream_size_qualifier_double_declaration = True
         else:
-            stream_size_call = CallOp(
-                "stream_size_qualifier_stencil", [op, stream_size], []
-            )
+            stream_size_call = CallOp("stream_size_qualifier_stencil", [op, stream_size], [])
             if not self.set_stream_size_qualifier_stencil_declaration:
-                stream_size_qualifier_double = FuncOp.external(
-                    "stream_size_qualifier_stencil", [stream_type, i32], []
-                )
+                stream_size_qualifier_double = FuncOp.external("stream_size_qualifier_stencil", [stream_type, i32], [])
                 self.module.body.block.add_op(stream_size_qualifier_double)
                 self.set_stream_size_qualifier_stencil_declaration = True
 
@@ -239,9 +197,7 @@ class LowerHLSStreamToAlloca(RewritePattern):
         rewriter.replace_matched_op([size, alloca])
 
         for use in uses:
-            rewriter.replace_value_with_new_type(
-                use.operation.operands[use.index], alloca.res.type
-            )
+            rewriter.replace_value_with_new_type(use.operation.operands[use.index], alloca.res.type)
 
             # This is specially important when the stream is an argument of ApplyOp
             if use.operation.regions:
@@ -365,34 +321,22 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
 
             for_region.block.insert_arg(IndexType(), 0)
 
-            for_region.block.insert_op_before(
-                cast(OpResult, lb[i + 1]).op, cast(Operation, for_region.block.first_op)
-            )
-            for_region.block.insert_op_after(
-                cast(OpResult, ub[i + 1]).op, cast(OpResult, lb[i + 1]).op
-            )
-            for_region.block.insert_op_after(
-                cast(OpResult, step[i + 1]).op, cast(OpResult, ub[i + 1]).op
-            )
+            for_region.block.insert_op_before(cast(OpResult, lb[i + 1]).op, cast(Operation, for_region.block.first_op))
+            for_region.block.insert_op_after(cast(OpResult, ub[i + 1]).op, cast(OpResult, lb[i + 1]).op)
+            for_region.block.insert_op_after(cast(OpResult, step[i + 1]).op, cast(OpResult, ub[i + 1]).op)
             yieldop = YieldOp()
             for_region.block.add_op(yieldop)
             for_op = ForOp(lb[i], ub[i], step[i], [], for_region)
 
-        for_region.block.insert_op_before(
-            hls_pipeline_op, cast(Operation, for_region.block.first_op)
-        )
+        for_region.block.insert_op_before(hls_pipeline_op, cast(Operation, for_region.block.first_op))
         for_region.block.insert_op_after(ii, cast(Operation, for_region.block.first_op))
 
         cast(Block, op.parent_block()).insert_op_before(
             cast(OpResult, lb[0]).op,
             cast(Operation, cast(Block, op.parent_block()).first_op),
         )
-        cast(Block, op.parent_block()).insert_op_after(
-            cast(OpResult, ub[0]).op, cast(OpResult, lb[0]).op
-        )
-        cast(Block, op.parent_block()).insert_op_after(
-            cast(OpResult, step[0]).op, cast(OpResult, ub[0]).op
-        )
+        cast(Block, op.parent_block()).insert_op_after(cast(OpResult, ub[0]).op, cast(OpResult, lb[0]).op)
+        cast(Block, op.parent_block()).insert_op_after(cast(OpResult, step[0]).op, cast(OpResult, ub[0]).op)
 
         rewriter.replace_matched_op([for_op])
 
@@ -419,9 +363,7 @@ class LowerDataflow(RewritePattern):
         rewriter.insert_op_before_matched_op(start_df_call)
         rewriter.insert_op_after_matched_op(end_df_call)
 
-        dataflow_ops = [
-            op for op in op.body.block.ops if not isinstance(op, HLSYieldOp)
-        ]
+        dataflow_ops = [op for op in op.body.block.ops if not isinstance(op, HLSYieldOp)]
         for df_op in reversed(dataflow_ops):
             df_op.detach()
             rewriter.insert_op_after_matched_op(df_op)
@@ -432,9 +374,7 @@ class LowerDataflow(RewritePattern):
 @dataclass
 class LowerHLSExtractStencilValue(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: HLSExtractStencilValueOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: HLSExtractStencilValueOp, rewriter: PatternRewriter, /):
         indices = op.position.get_values()
         assert isa(indices, Sequence[int])
 
@@ -456,9 +396,7 @@ class LowerHLSExtractStencilValue(RewritePattern):
         second_dim_type = first_dim_type.type
         assert isinstance(second_dim_type.type, builtin.TypeAttribute)
         third_dim_type = second_dim_type.type
-        first_array = GEPOp(
-            values, [0, indices[1]], result_type=LLVMPointerType.typed(first_dim_type)
-        )
+        first_array = GEPOp(values, [0, indices[1]], result_type=LLVMPointerType.typed(first_dim_type))
         second_array = GEPOp(
             first_array,
             [0, indices[2]],
@@ -471,9 +409,7 @@ class LowerHLSExtractStencilValue(RewritePattern):
         )
         point = LoadOp(third_array)
 
-        rewriter.replace_matched_op(
-            [values, first_array, second_array, third_array, point]
-        )
+        rewriter.replace_matched_op([values, first_array, second_array, third_array, point])
 
 
 @dataclass
@@ -505,11 +441,7 @@ class LowerHLSPass(ModulePass):
             walkers: list[PatternRewriteWalker] = []
 
             for i in range(len(passes)):
-                walkers.append(
-                    PatternRewriteWalker(
-                        GreedyRewritePatternApplier([passes[i]]), apply_recursively=True
-                    )
-                )
+                walkers.append(PatternRewriteWalker(GreedyRewritePatternApplier([passes[i]]), apply_recursively=True))
 
             return walkers
 

@@ -15,15 +15,7 @@ from typing import ClassVar
 
 from xdsl.dialects.builtin import IntAttr
 from xdsl.ir import Attribute, Dialect, SSAValue
-from xdsl.irdl import (
-    AnyAttr,
-    IRDLOperation,
-    VarConstraint,
-    irdl_op_definition,
-    opt_attr_def,
-    result_def,
-    var_operand_def,
-)
+from xdsl.irdl import AnyAttr, IRDLOperation, VarConstraint, irdl_op_definition, opt_attr_def, result_def, var_operand_def
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 EQSAT_COST_LABEL = "eqsat_cost"
@@ -65,10 +57,7 @@ class EClassOp(IRDLOperation):
         # In that case the two ops should have been merged into one.
         for operand in self.operands:
             if isinstance(operand.owner, EClassOp):
-                raise VerifyException(
-                    "A result of an eclass operation cannot be used as an operand of "
-                    "another eclass."
-                )
+                raise VerifyException("A result of an eclass operation cannot be used as an operand of " "another eclass.")
 
 
 EqSat = Dialect(

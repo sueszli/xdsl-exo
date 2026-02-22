@@ -7,9 +7,7 @@ def const_evaluate_operand_attribute(operand: SSAValue) -> IntegerAttr | None:
     """
     Try to constant evaluate an SSA value, returning None on failure.
     """
-    if isinstance(op := operand.owner, arith.ConstantOp) and isinstance(
-        val := op.value, IntegerAttr
-    ):
+    if isinstance(op := operand.owner, arith.ConstantOp) and isinstance(val := op.value, IntegerAttr):
         return val
 
 

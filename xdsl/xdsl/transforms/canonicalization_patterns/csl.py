@@ -1,16 +1,9 @@
 from xdsl.dialects import arith
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    IntegerAttr,
-)
+from xdsl.dialects.builtin import AffineMapAttr, IntegerAttr
 from xdsl.dialects.csl import csl
 from xdsl.ir import OpResult
 from xdsl.ir.affine import AffineMap
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 from xdsl.utils.hints import isa
 
 
@@ -22,23 +15,15 @@ class GetDsdAndOffsetFolding(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl.GetMemDsdOp, rewriter: PatternRewriter) -> None:
         # single use that is `@increment_dsd_offset`
-        if len(op.result.uses) != 1 or not isinstance(
-            offset_op := next(iter(op.result.uses)).operation, csl.IncrementDsdOffsetOp
-        ):
+        if len(op.result.uses) != 1 or not isinstance(offset_op := next(iter(op.result.uses)).operation, csl.IncrementDsdOffsetOp):
             return
         # only works on 1d
         if len(op.sizes) > 1:
             return
 
         # check if we can promote arith.const to property
-        if (
-            isinstance(offset_op.offset, OpResult)
-            and isinstance(cnst := offset_op.offset.op, arith.ConstantOp)
-            and isa(attr_val := cnst.value, IntegerAttr)
-        ):
-            tensor_access = AffineMap.from_callable(
-                lambda x: (x + attr_val.value.data,)
-            )
+        if isinstance(offset_op.offset, OpResult) and isinstance(cnst := offset_op.offset.op, arith.ConstantOp) and isa(attr_val := cnst.value, IntegerAttr):
+            tensor_access = AffineMap.from_callable(lambda x: (x + attr_val.value.data,))
             if op.tensor_access:
                 tensor_access = tensor_access.compose(op.tensor_access.data)
             rewriter.replace_matched_op(
@@ -62,9 +47,7 @@ class GetDsdAndLengthFolding(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl.GetMemDsdOp, rewriter: PatternRewriter) -> None:
         # single use that is `@set_dsd_length`
-        if len(op.result.uses) != 1 or not isinstance(
-            size_op := next(iter(op.result.uses)).operation, csl.SetDsdLengthOp
-        ):
+        if len(op.result.uses) != 1 or not isinstance(size_op := next(iter(op.result.uses)).operation, csl.SetDsdLengthOp):
             return
         # only works on 1d
         if len(op.sizes) > 1:
@@ -89,23 +72,15 @@ class GetDsdAndStrideFolding(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl.GetMemDsdOp, rewriter: PatternRewriter) -> None:
         # single use that is `@set_dsd_stride`
-        if len(op.result.uses) != 1 or not isinstance(
-            stride_op := next(iter(op.result.uses)).operation, csl.SetDsdStrideOp
-        ):
+        if len(op.result.uses) != 1 or not isinstance(stride_op := next(iter(op.result.uses)).operation, csl.SetDsdStrideOp):
             return
         # only works on 1d and default (unspecified) tensor_access
         if len(op.sizes) > 1 or op.tensor_access:
             return
 
         # check if we can promote arith.const to property
-        if (
-            isinstance(stride_op.stride, OpResult)
-            and isinstance(cnst := stride_op.stride.op, arith.ConstantOp)
-            and isa(attr_val := cnst.value, IntegerAttr)
-        ):
-            tensor_access = AffineMap.from_callable(
-                lambda x: (x * attr_val.value.data,)
-            )
+        if isinstance(stride_op.stride, OpResult) and isinstance(cnst := stride_op.stride.op, arith.ConstantOp) and isa(attr_val := cnst.value, IntegerAttr):
+            tensor_access = AffineMap.from_callable(lambda x: (x * attr_val.value.data,))
             rewriter.replace_matched_op(
                 new_op := csl.GetMemDsdOp.build(
                     operands=[op.base_addr, op.sizes],
@@ -125,13 +100,9 @@ class ChainedDsdOffsetFolding(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: csl.IncrementDsdOffsetOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: csl.IncrementDsdOffsetOp, rewriter: PatternRewriter) -> None:
         # single use that is `@increment_dsd_offset`
-        if len(op.result.uses) != 1 or not isinstance(
-            next_op := next(iter(op.result.uses)).operation, csl.IncrementDsdOffsetOp
-        ):
+        if len(op.result.uses) != 1 or not isinstance(next_op := next(iter(op.result.uses)).operation, csl.IncrementDsdOffsetOp):
             return
 
         # check if we can promote arith.const to property
@@ -156,13 +127,9 @@ class ChainedDsdLengthFolding(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: csl.SetDsdLengthOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: csl.SetDsdLengthOp, rewriter: PatternRewriter) -> None:
         # single use that is `@set_dsd_length`
-        if len(op.result.uses) != 1 or not isinstance(
-            next_op := next(iter(op.result.uses)).operation, csl.SetDsdLengthOp
-        ):
+        if len(op.result.uses) != 1 or not isinstance(next_op := next(iter(op.result.uses)).operation, csl.SetDsdLengthOp):
             return
 
         # check if we can promote arith.const to property
@@ -182,13 +149,9 @@ class ChainedDsdStrideFolding(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: csl.SetDsdStrideOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: csl.SetDsdStrideOp, rewriter: PatternRewriter) -> None:
         # single use that is `@set_dsd_stride`
-        if len(op.result.uses) != 1 or not isinstance(
-            next_op := next(iter(op.result.uses)).operation, csl.SetDsdStrideOp
-        ):
+        if len(op.result.uses) != 1 or not isinstance(next_op := next(iter(op.result.uses)).operation, csl.SetDsdStrideOp):
             return
 
         # check if we can promote arith.const to property

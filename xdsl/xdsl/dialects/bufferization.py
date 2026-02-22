@@ -2,58 +2,27 @@ from collections.abc import Sequence, Set
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
-from xdsl.dialects.builtin import (
-    AnyTensorTypeConstr,
-    AnyUnrankedMemRefTypeConstr,
-    AnyUnrankedTensorTypeConstr,
-    ContainerType,
-    IndexType,
-    MemRefType,
-    ShapedType,
-    TensorType,
-    UnitAttr,
-    UnrankedMemRefType,
-    UnrankedTensorType,
-)
+from xdsl.dialects.builtin import AnyTensorTypeConstr, AnyUnrankedMemRefTypeConstr, AnyUnrankedTensorTypeConstr, ContainerType, IndexType, MemRefType, ShapedType, TensorType, UnitAttr, UnrankedMemRefType, UnrankedTensorType
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    ConstraintContext,
-    GenericAttrConstraint,
-    IRDLOperation,
-    VarConstraint,
-    irdl_op_definition,
-    operand_def,
-    opt_operand_def,
-    opt_prop_def,
-    opt_result_def,
-    result_def,
-    var_operand_def,
-)
+from xdsl.irdl import AttrSizedOperandSegments, ConstraintContext, GenericAttrConstraint, IRDLOperation, VarConstraint, irdl_op_definition, operand_def, opt_operand_def, opt_prop_def, opt_result_def, result_def, var_operand_def
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 
 @dataclass(frozen=True)
-class TensorFromMemRefConstraint(
-    GenericAttrConstraint[TensorType[Attribute] | UnrankedTensorType[Attribute]]
-):
+class TensorFromMemRefConstraint(GenericAttrConstraint[TensorType[Attribute] | UnrankedTensorType[Attribute]]):
     """
     Converts an input memref constraint to the corresponding tensor constraint, i.e. the constraints
     on element type and shape are the same as the input constraint, but the attribute is verified to be
     a tensor instead of a memref.
     """
 
-    memref_constraint: GenericAttrConstraint[
-        MemRefType[Attribute] | UnrankedMemRefType[Attribute]
-    ]
+    memref_constraint: GenericAttrConstraint[MemRefType[Attribute] | UnrankedMemRefType[Attribute]]
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
         return self.memref_constraint.can_infer(var_constraint_names)
 
-    def infer(
-        self, context: ConstraintContext
-    ) -> TensorType[Attribute] | UnrankedTensorType[Attribute]:
+    def infer(self, context: ConstraintContext) -> TensorType[Attribute] | UnrankedTensorType[Attribute]:
         memref_type = self.memref_constraint.infer(context)
         if isinstance(memref_type, MemRefType):
             return TensorType(memref_type.element_type, memref_type.shape)
@@ -65,9 +34,7 @@ class TensorFromMemRefConstraint(
         elif isa(attr, UnrankedTensorType[Attribute]):
             memref_type = UnrankedMemRefType.from_type(attr.element_type)
         else:
-            raise VerifyException(
-                f"Expected tensor or unranked tensor type, got {attr}"
-            )
+            raise VerifyException(f"Expected tensor or unranked tensor type, got {attr}")
         return self.memref_constraint.verify(memref_type, constraint_context)
 
 
@@ -183,9 +150,7 @@ class ToTensorOp(IRDLOperation):
             properties["writable"] = UnitAttr()
         super().__init__(
             operands=(memref,),
-            result_types=(
-                TensorType[Any](memref_t.get_element_type(), memref_t.get_shape()),
-            ),
+            result_types=(TensorType[Any](memref_t.get_element_type(), memref_t.get_shape()),),
             properties=properties,
         )
 

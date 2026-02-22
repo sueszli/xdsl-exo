@@ -2,30 +2,16 @@ from typing import Any, cast
 
 from xdsl.context import Context
 from xdsl.dialects import bufferization, memref, ml_program
-from xdsl.dialects.builtin import (
-    ModuleOp,
-    TensorType,
-    UnitAttr,
-)
+from xdsl.dialects.builtin import ModuleOp, TensorType, UnitAttr
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
 class ConvertGlobalPattern(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: ml_program.GlobalOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: ml_program.GlobalOp, rewriter: PatternRewriter) -> None:
         if op.value is None:
-            raise NotImplementedError(
-                "Converting ml_program.global with no value not implemented"
-            )
+            raise NotImplementedError("Converting ml_program.global with no value not implemented")
         assert isinstance(op_type := op.type, TensorType)
         op_type = cast(TensorType[Any], op_type)
         new_type = memref.MemRefType(op_type.element_type, op_type.shape)
@@ -44,9 +30,7 @@ class ConvertGlobalPattern(RewritePattern):
 
 class ConvertGlobalLoadConst(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: ml_program.GlobalLoadConstantOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: ml_program.GlobalLoadConstantOp, rewriter: PatternRewriter) -> None:
         assert isinstance(op_type := op.result.type, TensorType)
         op_type = cast(TensorType[Any], op_type)
         new_type = memref.MemRefType(op_type.element_type, op_type.shape)

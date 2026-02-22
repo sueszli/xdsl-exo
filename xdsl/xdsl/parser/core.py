@@ -9,13 +9,7 @@ from typing import Literal, overload
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import DictionaryAttr, ModuleOp
-from xdsl.ir import (
-    Attribute,
-    Block,
-    Operation,
-    Region,
-    SSAValue,
-)
+from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 from xdsl.irdl import IRDLOperation
 from xdsl.utils.exceptions import MultipleSpansParseError
 from xdsl.utils.lexer import Input, Span
@@ -135,16 +129,10 @@ class Parser(AttrParser):
             if len(parsed_ops) == 0:
                 self.raise_error("Could not parse entire input!")
 
-            module_op = (
-                parsed_ops[0]
-                if isinstance(parsed_ops[0], ModuleOp) and len(parsed_ops) == 1
-                else ModuleOp(parsed_ops)
-            )
+            module_op = parsed_ops[0] if isinstance(parsed_ops[0], ModuleOp) and len(parsed_ops) == 1 else ModuleOp(parsed_ops)
 
         if self.forward_ssa_references:
-            value_names = ", ".join(
-                "%" + name for name in self.forward_ssa_references.keys()
-            )
+            value_names = ", ".join("%" + name for name in self.forward_ssa_references.keys())
             self.raise_error(f"values used but not defined: [{value_names}]")
 
         return module_op
@@ -156,11 +144,7 @@ class Parser(AttrParser):
             type-alias-def      ::= `!` bare-id `=` type
             attribute-alias-def ::= `#` `alias` bare-id `=` attribute
         """
-        if (
-            token := self._parse_optional_token_in(
-                [MLIRTokenKind.EXCLAMATION_IDENT, MLIRTokenKind.HASH_IDENT]
-            )
-        ) is None:
+        if (token := self._parse_optional_token_in([MLIRTokenKind.EXCLAMATION_IDENT, MLIRTokenKind.HASH_IDENT])) is None:
             self.raise_error("expected attribute name")
 
         type_or_attr_name = token.text
@@ -195,9 +179,7 @@ class Parser(AttrParser):
 
         def parse_argument() -> None:
             """Parse a single block argument with its type."""
-            arg_name = self._parse_token(
-                MLIRTokenKind.PERCENT_IDENT, "block argument expected"
-            ).span
+            arg_name = self._parse_token(MLIRTokenKind.PERCENT_IDENT, "block argument expected").span
             self.parse_punctuation(":")
             arg_type = self.parse_attribute()
             self.parse_optional_location()
@@ -225,9 +207,7 @@ class Parser(AttrParser):
           block-id       ::= caret-id
           block-arg-list ::= `(` ssa-id-and-type-list? `)`
         """
-        name_token = self._parse_token(
-            MLIRTokenKind.CARET_IDENT, " in block definition"
-        )
+        name_token = self._parse_token(MLIRTokenKind.CARET_IDENT, " in block definition")
 
         name = name_token.text[1:]
         if name not in self.blocks:
@@ -264,16 +244,12 @@ class Parser(AttrParser):
         index_token = self._parse_optional_token(MLIRTokenKind.HASH_IDENT)
         if index_token is not None:
             if re.fullmatch(self._decimal_integer_regex, index_token.text[1:]) is None:
-                self.raise_error(
-                    "Expected integer as SSA value tuple index", index_token.span
-                )
+                self.raise_error("Expected integer as SSA value tuple index", index_token.span)
             index = int(index_token.text[1:], 10)
 
         return UnresolvedOperand(name_token.span, index)
 
-    def parse_unresolved_operand(
-        self, msg: str = "operand expected"
-    ) -> UnresolvedOperand:
+    def parse_unresolved_operand(self, msg: str = "operand expected") -> UnresolvedOperand:
         """
         Parse an operand with format `%<value-id>(#<int-literal>)?`.
         The operand may be forward declared.
@@ -290,10 +266,7 @@ class Parser(AttrParser):
         name = operand.operand_name
 
         # If the indexed operand is already used as a forward reference, return it
-        if (
-            name in self.forward_ssa_references
-            and operand.index in self.forward_ssa_references[name]
-        ):
+        if name in self.forward_ssa_references and operand.index in self.forward_ssa_references[name]:
             return self.forward_ssa_references[name][operand.index]
 
         # If the operand is not yet defined, create a forward reference
@@ -307,8 +280,7 @@ class Parser(AttrParser):
         tuple_size = len(self.ssa_values[name])
         if operand.index >= tuple_size:
             self.raise_error(
-                "SSA value tuple index out of bounds. "
-                f"Tuple is of size {tuple_size} but tried to access element {operand.index}.",
+                "SSA value tuple index out of bounds. " f"Tuple is of size {tuple_size} but tried to access element {operand.index}.",
                 operand.span,
             )
 
@@ -316,8 +288,7 @@ class Parser(AttrParser):
         resolved = self.ssa_values[name][operand.index]
         if resolved.type != type:
             self.raise_error(
-                f"operand is used with type {type}, but has been "
-                f"previously used or defined with type {resolved.type}",
+                f"operand is used with type {type}, but has been " f"previously used or defined with type {resolved.type}",
                 operand.span,
             )
 
@@ -335,15 +306,12 @@ class Parser(AttrParser):
         index = unresolved_operand.index
 
         if name not in self.ssa_values.keys():
-            self.raise_error(
-                "SSA value used before assignment", unresolved_operand.span
-            )
+            self.raise_error("SSA value used before assignment", unresolved_operand.span)
 
         tuple_size = len(self.ssa_values[name])
         if index >= tuple_size:
             self.raise_error(
-                "SSA value tuple index out of bounds. "
-                f"Tuple is of size {tuple_size} but tried to access element {index}.",
+                "SSA value tuple index out of bounds. " f"Tuple is of size {tuple_size} but tried to access element {index}.",
                 unresolved_operand.span,
             )
 
@@ -353,9 +321,7 @@ class Parser(AttrParser):
         """Parse an operand with format `%<value-id>`."""
         return self.expect(self.parse_optional_operand, msg)
 
-    def _register_ssa_definition(
-        self, name: str, values: Sequence[SSAValue], span: Span
-    ) -> None:
+    def _register_ssa_definition(self, name: str, values: Sequence[SSAValue], span: Span) -> None:
         """
         Register an SSA definition in the parsing context.
         In the case the value was already used as a forward reference, the forward
@@ -376,8 +342,7 @@ class Parser(AttrParser):
             del self.forward_ssa_references[name]
             if any(index >= tuple_size for index in index_references):
                 self.raise_error(
-                    f"SSA value %{name} is referenced with an index "
-                    f"larger than its size",
+                    f"SSA value %{name} is referenced with an index " f"larger than its size",
                     span,
                 )
 
@@ -385,8 +350,7 @@ class Parser(AttrParser):
             for index, value in index_references.items():
                 if index >= tuple_size:
                     self.raise_error(
-                        f"SSA value tuple %{name} is referenced with index {index}, but "
-                        f"has size {tuple_size}",
+                        f"SSA value tuple %{name} is referenced with index {index}, but " f"has size {tuple_size}",
                         span,
                     )
 
@@ -396,8 +360,7 @@ class Parser(AttrParser):
                     if tuple_size != 1:
                         result_name = f"%{name}#{index}"
                     self.raise_error(
-                        f"Result {result_name} is defined with "
-                        f"type {result.type}, but used with type {value.type}",
+                        f"Result {result_name} is defined with " f"type {result.type}, but used with type {value.type}",
                         span,
                     )
                 value.replace_by(result)
@@ -433,23 +396,15 @@ class Parser(AttrParser):
         """The type of the argument, if any."""
 
     @overload
-    def parse_optional_argument(
-        self, expect_type: Literal[True] = True
-    ) -> Argument | None: ...
+    def parse_optional_argument(self, expect_type: Literal[True] = True) -> Argument | None: ...
 
     @overload
-    def parse_optional_argument(
-        self, expect_type: Literal[False]
-    ) -> UnresolvedArgument | None: ...
+    def parse_optional_argument(self, expect_type: Literal[False]) -> UnresolvedArgument | None: ...
 
     @overload
-    def parse_optional_argument(
-        self, expect_type: bool = True
-    ) -> UnresolvedArgument | Argument | None: ...
+    def parse_optional_argument(self, expect_type: bool = True) -> UnresolvedArgument | Argument | None: ...
 
-    def parse_optional_argument(
-        self, expect_type: bool = True
-    ) -> UnresolvedArgument | Argument | None:
+    def parse_optional_argument(self, expect_type: bool = True) -> UnresolvedArgument | Argument | None:
         """
         Parse a block argument, if present, with format:
           arg ::= percent-id `:` type
@@ -476,13 +431,9 @@ class Parser(AttrParser):
     def parse_argument(self, *, expect_type: Literal[False]) -> UnresolvedArgument: ...
 
     @overload
-    def parse_argument(
-        self, *, expect_type: bool = True
-    ) -> UnresolvedArgument | Argument: ...
+    def parse_argument(self, *, expect_type: bool = True) -> UnresolvedArgument | Argument: ...
 
-    def parse_argument(
-        self, *, expect_type: bool = True
-    ) -> UnresolvedArgument | Argument:
+    def parse_argument(self, *, expect_type: bool = True) -> UnresolvedArgument | Argument:
         """
         Parse a block argument with format:
           arg ::= percent-id `:` type
@@ -494,9 +445,7 @@ class Parser(AttrParser):
             self.raise_error("Expected block argument!")
         return arg
 
-    def parse_optional_region(
-        self, arguments: Iterable[Argument] | None = None
-    ) -> Region | None:
+    def parse_optional_region(self, arguments: Iterable[Argument] | None = None) -> Region | None:
         """
         Parse a region, if present, with format:
           region ::= `{` entry-block? block* `}`
@@ -565,9 +514,7 @@ class Parser(AttrParser):
             pos = self.pos
             raise MultipleSpansParseError(
                 Span(pos, pos + 1, self.lexer.input),
-                "region ends with missing block declarations for block(s) {}".format(
-                    ", ".join(self.forward_block_references.keys())
-                ),
+                "region ends with missing block declarations for block(s) {}".format(", ".join(self.forward_block_references.keys())),
                 "dangling block references:",
                 [
                     (
@@ -606,17 +553,13 @@ class Parser(AttrParser):
            regions-list ::= `(` region (`,` region)* `)`
         """
         if self._current_token.kind == MLIRTokenKind.L_PAREN:
-            return self.parse_comma_separated_list(
-                self.Delimiter.PAREN, self.parse_region, " in operation region list"
-            )
+            return self.parse_comma_separated_list(self.Delimiter.PAREN, self.parse_region, " in operation region list")
         return []
 
     def parse_op(self) -> Operation:
         return self.parse_operation()
 
-    def parse_optional_attr_dict_with_keyword(
-        self, reserved_attr_names: Iterable[str] = ()
-    ) -> DictionaryAttr | None:
+    def parse_optional_attr_dict_with_keyword(self, reserved_attr_names: Iterable[str] = ()) -> DictionaryAttr | None:
         """
         Parse a dictionary attribute, preceeded with `attributes` keyword, if the
         keyword is present.
@@ -627,13 +570,9 @@ class Parser(AttrParser):
         """
         if self.parse_optional_keyword("attributes") is None:
             return None
-        return self.parse_optional_attr_dict_with_reserved_attr_names(
-            reserved_attr_names
-        )
+        return self.parse_optional_attr_dict_with_reserved_attr_names(reserved_attr_names)
 
-    def parse_optional_attr_dict_with_reserved_attr_names(
-        self, reserved_attr_names: Iterable[str] = ()
-    ) -> DictionaryAttr | None:
+    def parse_optional_attr_dict_with_reserved_attr_names(self, reserved_attr_names: Iterable[str] = ()) -> DictionaryAttr | None:
         """
         Parse a dictionary attribute if present.
         This is intended to be used in operation custom assembly format.
@@ -647,8 +586,7 @@ class Parser(AttrParser):
         for reserved_name in reserved_attr_names:
             if reserved_name in attr.data:
                 self.raise_error(
-                    f"Attribute dictionary entry '{reserved_name}' is already passed "
-                    "through the operation custom assembly format.",
+                    f"Attribute dictionary entry '{reserved_name}' is already passed " "through the operation custom assembly format.",
                     Span(begin_pos, begin_pos, self.lexer.input),
                 )
         return attr
@@ -697,9 +635,7 @@ class Parser(AttrParser):
         op_loc = self._current_token.span
         bound_results = self._parse_op_result_list()
 
-        if (
-            op_name := self._parse_optional_token(MLIRTokenKind.BARE_IDENT)
-        ) is not None:
+        if (op_name := self._parse_optional_token(MLIRTokenKind.BARE_IDENT)) is not None:
             # Custom operation format
             op_type = self._get_op_by_name(op_name.text)
             dialect_name = op_type.dialect_name()
@@ -708,9 +644,7 @@ class Parser(AttrParser):
             self._parser_state.dialect_stack.pop()
         else:
             # Generic operation format
-            op_name = self.expect(
-                self.parse_optional_str_literal, "operation name expected"
-            )
+            op_name = self.expect(self.parse_optional_str_literal, "operation name expected")
             op_type = self._get_op_by_name(op_name)
             dialect_name = op_type.dialect_name()
             self._parser_state.dialect_stack.append(dialect_name)
@@ -720,8 +654,7 @@ class Parser(AttrParser):
         n_bound_results = sum(r[1] for r in bound_results)
         if (n_bound_results != 0) and (len(op.results) != n_bound_results):
             self.raise_error(
-                f"Operation has {len(op.results)} results, "
-                f"but was given {n_bound_results} to bind.",
+                f"Operation has {len(op.results)} results, " f"but was given {n_bound_results} to bind.",
                 at_position=op_loc,
             )
 
@@ -729,9 +662,7 @@ class Parser(AttrParser):
         res_idx = 0
         for res_span, res_size in bound_results:
             ssa_val_name = res_span.text[1:]  # Removing the leading '%'
-            self._register_ssa_definition(
-                ssa_val_name, op.results[res_idx : res_idx + res_size], res_span
-            )
+            self._register_ssa_definition(ssa_val_name, op.results[res_idx : res_idx + res_size], res_span)
             res_idx += res_size
 
         return op
@@ -742,9 +673,7 @@ class Parser(AttrParser):
         Raises an error if the operation is not registered, and if unregistered
         dialects are not allowed.
         """
-        if op_type := self.ctx.get_optional_op(
-            name, dialect_stack=self._parser_state.dialect_stack
-        ):
+        if op_type := self.ctx.get_optional_op(name, dialect_stack=self._parser_state.dialect_stack):
             return op_type
         self.raise_error(f"Operation {name} is not registered")
 
@@ -754,15 +683,11 @@ class Parser(AttrParser):
         Returns the span of the SSA value name (including the `%`), and the size of the
         value tuple (by default 1).
         """
-        value_token = self._parse_token(
-            MLIRTokenKind.PERCENT_IDENT, "Expected result SSA value!"
-        )
+        value_token = self._parse_token(MLIRTokenKind.PERCENT_IDENT, "Expected result SSA value!")
         if self._parse_optional_token(MLIRTokenKind.COLON) is None:
             return (value_token.span, 1)
 
-        size_token = self._parse_token(
-            MLIRTokenKind.INTEGER_LIT, "Expected SSA value tuple size"
-        )
+        size_token = self._parse_token(MLIRTokenKind.INTEGER_LIT, "Expected SSA value tuple size")
         size = size_token.kind.get_int_value(size_token.span)
         return (value_token.span, size)
 
@@ -774,9 +699,7 @@ class Parser(AttrParser):
         and the size of the value tuple (by default 1).
         """
         if self._current_token.kind == MLIRTokenKind.PERCENT_IDENT:
-            res = self.parse_comma_separated_list(
-                self.Delimiter.NONE, self._parse_op_result, " in operation result list"
-            )
+            res = self.parse_comma_separated_list(self.Delimiter.NONE, self._parse_op_result, " in operation result list")
             self.parse_punctuation("=", " after operation result list")
             return res
         return []
@@ -793,9 +716,7 @@ class Parser(AttrParser):
         if self.parse_optional_punctuation("<") is None:
             return dict()
 
-        entries = self.parse_comma_separated_list(
-            self.Delimiter.BRACES, self._parse_attribute_entry
-        )
+        entries = self.parse_comma_separated_list(self.Delimiter.BRACES, self._parse_attribute_entry)
         self.parse_punctuation(">")
 
         if (key := self._find_duplicated_key(entries)) is not None:
@@ -827,10 +748,7 @@ class Parser(AttrParser):
                 error_pos,
             )
 
-        return [
-            self.resolve_operand(operand, type)
-            for operand, type in zip(args, input_types)
-        ]
+        return [self.resolve_operand(operand, type) for operand, type in zip(args, input_types)]
 
     def _parse_generic_operation(self, op_type: type[Operation]) -> Operation:
         """

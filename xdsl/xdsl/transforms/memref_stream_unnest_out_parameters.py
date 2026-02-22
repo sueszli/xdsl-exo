@@ -2,25 +2,14 @@ from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects import memref_stream
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    ArrayAttr,
-    ModuleOp,
-)
+from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr, ModuleOp
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
 class UnnestOutParametersPattern(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: memref_stream.GenericOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: memref_stream.GenericOp, rewriter: PatternRewriter) -> None:
         if op.is_imperfectly_nested:
             # Already unnested
             return
@@ -31,12 +20,8 @@ class UnnestOutParametersPattern(RewritePattern):
 
         num_inputs = len(op.inputs)
 
-        num_parallel = sum(
-            i == memref_stream.IteratorTypeAttr.parallel() for i in op.iterator_types
-        )
-        num_reduction = sum(
-            i == memref_stream.IteratorTypeAttr.reduction() for i in op.iterator_types
-        )
+        num_parallel = sum(i == memref_stream.IteratorTypeAttr.parallel() for i in op.iterator_types)
+        num_reduction = sum(i == memref_stream.IteratorTypeAttr.reduction() for i in op.iterator_types)
         if num_parallel == len(op.iterator_types):
             return
 

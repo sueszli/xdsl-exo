@@ -3,24 +3,12 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import Field, dataclass, field
 from types import NoneType, UnionType
-from typing import (
-    Any,
-    ClassVar,
-    NamedTuple,
-    TypeVar,
-    Union,
-    get_args,
-    get_origin,
-)
+from typing import Any, ClassVar, NamedTuple, TypeVar, Union, get_args, get_origin
 
 from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.utils.hints import isa, type_repr
-from xdsl.utils.parse_pipeline import (
-    PassArgElementType,
-    PassArgListType,
-    PipelinePassSpec,
-)
+from xdsl.utils.parse_pipeline import PassArgElementType, PassArgListType, PipelinePassSpec
 
 ModulePassT = TypeVar("ModulePassT", bound="ModulePass")
 
@@ -67,14 +55,10 @@ class ModulePass(ABC):
         from the spec.
         """
         if spec.name != cls.name:
-            raise ValueError(
-                f"Cannot create Pass {cls.name} from pass arguments for pass {spec.name}"
-            )
+            raise ValueError(f"Cannot create Pass {cls.name} from pass arguments for pass {spec.name}")
 
         # normalize spec arg names:
-        spec_arguments_dict: dict[str, PassArgListType] = (
-            spec.normalize_arg_names().args
-        )
+        spec_arguments_dict: dict[str, PassArgListType] = spec.normalize_arg_names().args
 
         # get all dataclass fields
         fields: tuple[Field[Any], ...] = dataclasses.fields(cls)
@@ -107,10 +91,7 @@ class ModulePass(ABC):
         if len(spec_arguments_dict) != 0:
             arguments_str = ", ".join(f'"{arg}"' for arg in spec_arguments_dict)
             fields_str = ", ".join(f'"{field.name}"' for field in fields)
-            raise ValueError(
-                f"Provided arguments [{arguments_str}] not found in expected pass "
-                f"arguments [{fields_str}]"
-            )
+            raise ValueError(f"Provided arguments [{arguments_str}] not found in expected pass " f"arguments [{fields_str}]")
 
         # instantiate the dataclass using kwargs
         return cls(**arg_dict)
@@ -120,9 +101,7 @@ class ModulePass(ABC):
         """
         Inspects the definition of the pass for fields that do not have default values.
         """
-        return {
-            field.name for field in dataclasses.fields(cls) if not _is_optional(field)
-        }
+        return {field.name for field in dataclasses.fields(cls) if not _is_optional(field)}
 
     def pipeline_pass_spec(self, *, include_default: bool = False) -> PipelinePassSpec:
         """
@@ -188,9 +167,7 @@ def get_pass_option_infos(
 @dataclass(frozen=True)
 class PipelinePass(ModulePass):
     passes: tuple[ModulePass, ...]
-    callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None] | None = field(
-        default=None
-    )
+    callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None] | None = field(default=None)
     """
     Function called in between every pass, taking the pass that just ran, the module, and
     the next pass.
@@ -221,9 +198,7 @@ class PipelinePass(ModulePass):
             yield (available_passes[p.name](), p)
 
 
-def _convert_pass_arg_to_type(
-    value: PassArgListType, dest_type: Any
-) -> PassArgListType | PassArgElementType | None:
+def _convert_pass_arg_to_type(value: PassArgListType, dest_type: Any) -> PassArgListType | PassArgElementType | None:
     """
     Takes in a list of pass args, and converts them to the required type.
 
@@ -263,9 +238,7 @@ def _is_optional(field: Field[Any]):
     """
     Shorthand to check if the given type allows "None" as a value.
     """
-    can_be_none = get_origin(field.type) in [Union, UnionType] and NoneType in get_args(
-        field.type
-    )
+    can_be_none = get_origin(field.type) in [Union, UnionType] and NoneType in get_args(field.type)
     has_default_val = field.default is not dataclasses.MISSING
     has_default_factory = field.default_factory is not dataclasses.MISSING
 

@@ -14,10 +14,7 @@ from typing import BinaryIO
 
 from typing_extensions import Self
 
-from xdsl.irdl import (
-    IRDLOperation,
-    irdl_op_definition,
-)
+from xdsl.irdl import IRDLOperation, irdl_op_definition
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 

@@ -1,16 +1,7 @@
 import pytest
 
 from xdsl.dialects.builtin import IntegerType, i32
-from xdsl.dialects.comb import (
-    AddOp,
-    AndOp,
-    ConcatOp,
-    ICmpOp,
-    MulOp,
-    OrOp,
-    VariadicCombOperation,
-    XorOp,
-)
+from xdsl.dialects.comb import AddOp, AndOp, ConcatOp, ICmpOp, MulOp, OrOp, VariadicCombOperation, XorOp
 from xdsl.dialects.test import TestOp, TestType
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value

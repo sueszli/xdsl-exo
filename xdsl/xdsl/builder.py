@@ -16,14 +16,10 @@ from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 class BuilderListener:
     """A listener for builder events."""
 
-    operation_insertion_handler: list[Callable[[Operation], None]] = field(
-        default_factory=list[Callable[[Operation], None]], kw_only=True
-    )
+    operation_insertion_handler: list[Callable[[Operation], None]] = field(default_factory=list[Callable[[Operation], None]], kw_only=True)
     """Callbacks that are called when an operation is inserted by the builder."""
 
-    block_creation_handler: list[Callable[[Block], None]] = field(
-        default_factory=list[Callable[[Block], None]], kw_only=True
-    )
+    block_creation_handler: list[Callable[[Block], None]] = field(default_factory=list[Callable[[Block], None]], kw_only=True)
     """Callback that are called when a block is created by the builder."""
 
     def handle_operation_insertion(self, op: Operation) -> None:
@@ -60,9 +56,7 @@ class Builder(BuilderListener):
         implicit_builder = ImplicitBuilder.get()
 
         if implicit_builder is not None and implicit_builder is not self:
-            raise ValueError(
-                "Cannot insert operation explicitly when an implicit builder exists."
-            )
+            raise ValueError("Cannot insert operation explicitly when an implicit builder exists.")
 
         block = self.insertion_point.block
         insert_before = self.insertion_point.insert_before
@@ -74,9 +68,7 @@ class Builder(BuilderListener):
 
         return op
 
-    def create_block(
-        self, insert_point: BlockInsertPoint, arg_types: Iterable[Attribute] = ()
-    ) -> Block:
+    def create_block(self, insert_point: BlockInsertPoint, arg_types: Iterable[Attribute] = ()) -> Block:
         """
         Create a block at the given location, and set the operation insertion point
         at the end of the inserted block.
@@ -238,9 +230,7 @@ class Builder(BuilderListener):
     @staticmethod
     def assert_implicit():
         if ImplicitBuilder.get() is None:
-            raise ValueError(
-                "op_builder must be called within an implicit builder block"
-            )
+            raise ValueError("op_builder must be called within an implicit builder block")
 
 
 # Implicit builders
@@ -331,9 +321,7 @@ class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...
         return cls._stack.get()
 
 
-_CallableRegionFuncType: TypeAlias = Callable[
-    [Builder, tuple[BlockArgument, ...]], None
-]
+_CallableRegionFuncType: TypeAlias = Callable[[Builder, tuple[BlockArgument, ...]], None]
 _CallableImplicitRegionFuncType: TypeAlias = Callable[[tuple[BlockArgument, ...]], None]
 
 

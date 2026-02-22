@@ -2,9 +2,7 @@ from xdsl.dialects.experimental import dmp
 from xdsl.dialects.experimental.dmp import ExchangeDeclarationAttr, ShapeAttr
 
 
-def flat_face_exchanges(
-    shape: ShapeAttr, dim: int
-) -> tuple[ExchangeDeclarationAttr, ...]:
+def flat_face_exchanges(shape: ShapeAttr, dim: int) -> tuple[ExchangeDeclarationAttr, ...]:
     # we need access to the _flat_face_exchanges_for_dim method in order to test it
     # since this is a private function, and pyright will yell whenever it's accessed,
     # we have this wrapper function here that takes care of making the private publicly

@@ -1,8 +1,6 @@
 from xdsl.ir import Dialect
 
-from .ops import (
-    WasmModuleOp,
-)
+from .ops import WasmModuleOp
 
 Wasm = Dialect(
     "wasm",

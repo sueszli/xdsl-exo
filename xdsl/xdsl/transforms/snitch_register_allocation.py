@@ -5,13 +5,7 @@ from xdsl.context import Context
 from xdsl.dialects import riscv, riscv_snitch, snitch, snitch_stream
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
 class AllocateSnitchStreamingRegionRegisters(RewritePattern):
@@ -21,15 +15,11 @@ class AllocateSnitchStreamingRegionRegisters(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_stream.StreamingRegionOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch_stream.StreamingRegionOp, rewriter: PatternRewriter, /):
         block = op.body.block
 
         for index, input_stream in enumerate(block.args):
-            rewriter.replace_value_with_new_type(
-                input_stream, snitch.ReadableStreamType(riscv.Registers.FT[index])
-            )
+            rewriter.replace_value_with_new_type(input_stream, snitch.ReadableStreamType(riscv.Registers.FT[index]))
 
         input_count = len(op.inputs)
 
@@ -48,9 +38,7 @@ class AllocateRiscvSnitchReadRegisters(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_snitch.ReadOp, rewriter: PatternRewriter, /):
-        stream_type = cast(
-            snitch.ReadableStreamType[riscv.FloatRegisterType], op.stream.type
-        )
+        stream_type = cast(snitch.ReadableStreamType[riscv.FloatRegisterType], op.stream.type)
         rewriter.replace_value_with_new_type(op.res, stream_type.element_type)
 
 
@@ -62,9 +50,7 @@ class AllocateRiscvSnitchWriteRegisters(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_snitch.WriteOp, rewriter: PatternRewriter, /):
-        stream_type = cast(
-            snitch.WritableStreamType[riscv.FloatRegisterType], op.stream.type
-        )
+        stream_type = cast(snitch.WritableStreamType[riscv.FloatRegisterType], op.stream.type)
         rewriter.replace_value_with_new_type(op.value, stream_type.element_type)
 
 

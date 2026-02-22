@@ -8,31 +8,11 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, MuliOp
-from xdsl.dialects.builtin import (
-    Builtin,
-    IndexType,
-    IntegerAttr,
-    IntegerType,
-    ModuleOp,
-    StringAttr,
-    UnitAttr,
-    i32,
-    i64,
-)
+from xdsl.dialects.builtin import Builtin, IndexType, IntegerAttr, IntegerType, ModuleOp, StringAttr, UnitAttr, i32, i64
 from xdsl.ir import Block, Operation, SSAValue
 from xdsl.irdl import BaseAttr
 from xdsl.parser import Parser
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriterListener,
-    PatternRewriteWalker,
-    RewritePattern,
-    TypeConversionPattern,
-    attr_constr_rewrite_pattern,
-    attr_type_rewrite_pattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriterListener, PatternRewriteWalker, RewritePattern, TypeConversionPattern, attr_constr_rewrite_pattern, attr_type_rewrite_pattern, op_type_rewrite_pattern
 from xdsl.printer import Printer
 from xdsl.rewriter import BlockInsertPoint, InsertPoint
 
@@ -159,9 +139,7 @@ def test_non_recursive_rewrite_reversed():
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(
-            RewriteConst(), apply_recursively=False, walk_reverse=True
-        ),
+        PatternRewriteWalker(RewriteConst(), apply_recursively=False, walk_reverse=True),
         op_inserted=1,
         op_removed=1,
         op_replaced=1,
@@ -215,9 +193,7 @@ def test_op_type_rewrite_pattern_union_type():
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(
-            self, __op__: ConstantOp | AddiOp, rewriter: PatternRewriter
-        ):
+        def match_and_rewrite(self, __op__: ConstantOp | AddiOp, rewriter: PatternRewriter):
             rewriter.replace_matched_op(ConstantOp.from_int_and_width(42, i32))
 
     rewrite_and_compare(
@@ -697,9 +673,7 @@ def test_block_argument_type_change():
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
             if matched_op.regs and matched_op.regs[0].blocks:
-                rewriter.replace_value_with_new_type(
-                    matched_op.regs[0].blocks[0].args[0], i64
-                )
+                rewriter.replace_value_with_new_type(matched_op.regs[0].blocks[0].args[0], i64)
 
     rewrite_and_compare(
         prog,
@@ -739,9 +713,7 @@ def test_block_argument_erasure():
             if matched_op.regs and matched_op.regs[0].blocks:
                 rewriter.erase_block_argument(matched_op.regs[0].blocks[0].args[0])
 
-    rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
-    )
+    rewrite_and_compare(prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False))
 
 
 def test_block_argument_insertion():
@@ -772,9 +744,7 @@ def test_block_argument_insertion():
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
             if matched_op.regs and matched_op.regs[0].blocks:
-                rewriter.insert_block_argument(
-                    matched_op.regs[0].blocks[0], 0, test.TestType("int")
-                )
+                rewriter.insert_block_argument(matched_op.regs[0].blocks[0], 0, test.TestType("int"))
 
     rewrite_and_compare(
         prog,
@@ -902,9 +872,7 @@ def test_inline_block_at_before_when_op_is_matched_op():
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
             if matched_op.regs and matched_op.regs[0].blocks:
-                rewriter.inline_block(
-                    matched_op.regs[0].blocks[0], InsertPoint.before(matched_op)
-                )
+                rewriter.inline_block(matched_op.regs[0].blocks[0], InsertPoint.before(matched_op))
 
     rewrite_and_compare(
         prog,
@@ -958,9 +926,7 @@ def test_inline_block_before_with_args():
 
                 if isinstance(first_op, test.TestOp):
                     inner_block = first_op.regs[0].blocks[0]
-                    rewriter.inline_block(
-                        inner_block, InsertPoint.before(first_op), outer_block.args
-                    )
+                    rewriter.inline_block(inner_block, InsertPoint.before(first_op), outer_block.args)
 
     rewrite_and_compare(
         prog,
@@ -1062,9 +1028,7 @@ def test_inline_block_after_matched():
                 if first_op is not None and isinstance(first_op, test.TestOp):
                     if first_op.regs and first_op.regs[0].blocks:
                         inner_block = first_op.regs[0].blocks[0]
-                        rewriter.inline_block(
-                            inner_block, InsertPoint.after(matched_op)
-                        )
+                        rewriter.inline_block(inner_block, InsertPoint.after(matched_op))
 
     rewrite_and_compare(
         prog,
@@ -1327,9 +1291,7 @@ def test_inline_region_at_start():
             if parent_region is None:
                 return
 
-            rewriter.inline_region(
-                op.regions[0], BlockInsertPoint.at_start(parent_region)
-            )
+            rewriter.inline_region(op.regions[0], BlockInsertPoint.at_start(parent_region))
             rewriter.erase_matched_op()
 
     rewrite_and_compare(
@@ -1377,9 +1339,7 @@ def test_inline_region_at_end():
             if parent_region is None:
                 return
 
-            rewriter.inline_region(
-                op.regions[0], BlockInsertPoint.at_end(parent_region)
-            )
+            rewriter.inline_region(op.regions[0], BlockInsertPoint.at_end(parent_region))
             rewriter.erase_matched_op()
 
     rewrite_and_compare(
@@ -1447,9 +1407,7 @@ def test_pattern_rewriter_as_op_builder():
                 return
             with ImplicitBuilder(rewriter):
                 test.TestOp.create(attributes={"inserted": UnitAttr()})
-            rewriter.replace_matched_op(
-                test.TestOp.create(attributes={"replaced": UnitAttr()})
-            )
+            rewriter.replace_matched_op(test.TestOp.create(attributes={"replaced": UnitAttr()}))
 
     rewrite_and_compare(
         prog,
@@ -1517,9 +1475,7 @@ def test_type_conversion():
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(
-            Rewrite(recursive=True), apply_recursively=False, walk_reverse=True
-        ),
+        PatternRewriteWalker(Rewrite(recursive=True), apply_recursively=False, walk_reverse=True),
         op_inserted=5,
         op_removed=5,
         op_replaced=5,
@@ -1585,9 +1541,7 @@ def test_type_conversion():
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(
-            Rewrite(ops=(test.TestOp,), recursive=True), apply_recursively=False
-        ),
+        PatternRewriteWalker(Rewrite(ops=(test.TestOp,), recursive=True), apply_recursively=False),
         op_inserted=4,
         op_removed=4,
         op_replaced=4,
@@ -1596,9 +1550,7 @@ def test_type_conversion():
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(
-            Rewrite(ops=(test.TestOp,), recursive=True), apply_recursively=True
-        ),
+        PatternRewriteWalker(Rewrite(ops=(test.TestOp,), recursive=True), apply_recursively=True),
         op_inserted=4,
         op_removed=4,
         op_replaced=4,
@@ -1777,9 +1729,7 @@ Error while applying pattern: Expected operation to not be erroneous!
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
-            if matched_op.attributes.get(
-                "erroneous", IntegerAttr.from_int_and_width(0, 1)
-            ) == IntegerAttr.from_int_and_width(1, 1):
+            if matched_op.attributes.get("erroneous", IntegerAttr.from_int_and_width(0, 1)) == IntegerAttr.from_int_and_width(1, 1):
                 raise ValueError("Expected operation to not be erroneous!")
             return
 

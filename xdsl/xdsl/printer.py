@@ -8,72 +8,11 @@ from dataclasses import dataclass, field
 from itertools import chain
 from typing import Any, TypeVar, cast
 
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    AffineSetAttr,
-    AnyFloat,
-    AnyUnrankedMemRefType,
-    AnyUnrankedTensorType,
-    AnyVectorType,
-    ArrayAttr,
-    BFloat16Type,
-    BoolAttr,
-    BytesAttr,
-    ComplexElementT,
-    ComplexType,
-    DenseArrayBase,
-    DenseResourceAttr,
-    DictionaryAttr,
-    Float16Type,
-    Float32Type,
-    Float64Type,
-    Float80Type,
-    Float128Type,
-    FloatAttr,
-    FunctionType,
-    IndexType,
-    IntAttr,
-    IntegerAttr,
-    IntegerType,
-    LocationAttr,
-    MemRefType,
-    NoneAttr,
-    NoneType,
-    OpaqueAttr,
-    Signedness,
-    StridedLayoutAttr,
-    StringAttr,
-    SymbolRefAttr,
-    TensorType,
-    UnitAttr,
-    UnrankedMemRefType,
-    UnrankedTensorType,
-    UnregisteredAttr,
-    UnregisteredOp,
-    VectorType,
-    i1,
-)
-from xdsl.ir import (
-    Attribute,
-    Block,
-    BlockArgument,
-    Data,
-    OpaqueSyntaxAttribute,
-    Operation,
-    ParametrizedAttribute,
-    Region,
-    SpacedOpaqueSyntaxAttribute,
-    SSAValue,
-    TypeAttribute,
-    TypedAttribute,
-)
+from xdsl.dialects.builtin import AffineMapAttr, AffineSetAttr, AnyFloat, AnyUnrankedMemRefType, AnyUnrankedTensorType, AnyVectorType, ArrayAttr, BFloat16Type, BoolAttr, BytesAttr, ComplexElementT, ComplexType, DenseArrayBase, DenseResourceAttr, DictionaryAttr, Float16Type, Float32Type, Float64Type, Float80Type, Float128Type, FloatAttr, FunctionType, IndexType, IntAttr, IntegerAttr, IntegerType, LocationAttr, MemRefType, NoneAttr, NoneType, OpaqueAttr, Signedness, StridedLayoutAttr, StringAttr, SymbolRefAttr, TensorType, UnitAttr, UnrankedMemRefType, UnrankedTensorType, UnregisteredAttr, UnregisteredOp, VectorType, i1
+from xdsl.ir import Attribute, Block, BlockArgument, Data, OpaqueSyntaxAttribute, Operation, ParametrizedAttribute, Region, SpacedOpaqueSyntaxAttribute, SSAValue, TypeAttribute, TypedAttribute
 from xdsl.traits import IsolatedFromAbove, IsTerminator
 from xdsl.utils.base_printer import BasePrinter
-from xdsl.utils.bitwise_casts import (
-    convert_f16_to_u16,
-    convert_f32_to_u32,
-    convert_f64_to_u64,
-)
+from xdsl.utils.bitwise_casts import convert_f16_to_u16, convert_f32_to_u32, convert_f64_to_u64
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.hints import isa
 from xdsl.utils.mlir_lexer import MLIRLexer
@@ -86,18 +25,12 @@ class Printer(BasePrinter):
     print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
 
-    _ssa_values: dict[SSAValue, str] = field(
-        default_factory=dict[SSAValue, str], init=False
-    )
+    _ssa_values: dict[SSAValue, str] = field(default_factory=dict[SSAValue, str], init=False)
     """
     maps SSA Values to their "allocated" names
     """
-    _ssa_names: list[dict[str, int]] = field(
-        default_factory=lambda: [dict[str, int]()], init=False
-    )
-    _block_names: list[dict[Block, int]] = field(
-        default_factory=lambda: [dict[Block, int]()], init=False
-    )
+    _ssa_names: list[dict[str, int]] = field(default_factory=lambda: [dict[str, int]()], init=False)
+    _block_names: list[dict[Block, int]] = field(default_factory=lambda: [dict[Block, int]()], init=False)
     _next_valid_name_id: list[int] = field(default_factory=lambda: [0], init=False)
     _next_valid_block_id: list[int] = field(default_factory=lambda: [0], init=False)
 
@@ -235,9 +168,7 @@ class Printer(BasePrinter):
 
         with self.indented():
             for op in block.ops:
-                if not print_block_terminator and op.has_trait(
-                    IsTerminator, value_if_unregistered=False
-                ):
+                if not print_block_terminator and op.has_trait(IsTerminator, value_if_unregistered=False):
                     continue
                 self._print_new_line()
                 self.print_op(op)
@@ -275,9 +206,7 @@ class Printer(BasePrinter):
             self.print_string("}")
             return
 
-        print_entry_block_args = (
-            bool(entry_block.args) and print_entry_block_args
-        ) or (not entry_block.ops and print_empty_block)
+        print_entry_block_args = (bool(entry_block.args) and print_entry_block_args) or (not entry_block.ops and print_empty_block)
         self.print_block(
             entry_block,
             print_block_args=print_entry_block_args,
@@ -305,9 +234,7 @@ class Printer(BasePrinter):
         self.print_list(operands, self.print_operand)
         self.print_string(")")
 
-    def print_paramattr_parameters(
-        self, params: Sequence[Attribute], always_print_brackets: bool = False
-    ) -> None:
+    def print_paramattr_parameters(self, params: Sequence[Attribute], always_print_brackets: bool = False) -> None:
         if len(params) == 0 and not always_print_brackets:
             return
         self.print_string("<")
@@ -342,9 +269,7 @@ class Printer(BasePrinter):
     def print_float_attr(self, attribute: FloatAttr):
         self.print_float(attribute.value.data, attribute.type)
 
-    def print_complex_float(
-        self, value: tuple[float, float], type: ComplexType[ComplexElementT]
-    ):
+    def print_complex_float(self, value: tuple[float, float], type: ComplexType[ComplexElementT]):
         assert isinstance(type.element_type, AnyFloat)
         self.print_string("(")
         real, imag = value[0], value[1]
@@ -353,9 +278,7 @@ class Printer(BasePrinter):
         self.print_float(imag, type.element_type)
         self.print_string(")")
 
-    def print_complex_int(
-        self, value: tuple[int, int], type: ComplexType[ComplexElementT]
-    ):
+    def print_complex_int(self, value: tuple[int, int], type: ComplexType[ComplexElementT]):
         assert isinstance(type.element_type, IntegerType)
         self.print_string("(")
         real, imag = value[0], value[1]
@@ -385,9 +308,7 @@ class Printer(BasePrinter):
             elif isinstance(type, Float64Type):
                 self.print_string(f"{hex(convert_f64_to_u64(value))}")
             else:
-                raise NotImplementedError(
-                    f"Cannot print '{value}' value for float type {str(type)}"
-                )
+                raise NotImplementedError(f"Cannot print '{value}' value for float type {str(type)}")
         else:
             # to mirror mlir-opt, attempt to print scientific notation iff the value parses losslessly
             float_str = f"{value:.5e}"
@@ -552,11 +473,7 @@ class Printer(BasePrinter):
             self.print_string("tensor<")
             self.print_list(
                 attribute.shape.data,
-                lambda x: (
-                    self.print_string(f"{x.data}")
-                    if x.data != -1
-                    else self.print_string("?")
-                ),
+                lambda x: (self.print_string(f"{x.data}") if x.data != -1 else self.print_string("?")),
                 "x",
             )
             if len(attribute.shape.data) != 0:
@@ -596,9 +513,7 @@ class Printer(BasePrinter):
             self.print_string("strided<[")
 
             def print_int_or_question(value: IntAttr | NoneAttr) -> None:
-                self.print_string(
-                    f"{value.data}" if isinstance(value, IntAttr) else "?"
-                )
+                self.print_string(f"{value.data}" if isinstance(value, IntAttr) else "?")
 
             self.print_list(attribute.strides.data, print_int_or_question, ", ")
             self.print_string("]")
@@ -616,11 +531,7 @@ class Printer(BasePrinter):
             if attribute.shape.data:
                 self.print_list(
                     attribute.shape.data,
-                    lambda x: (
-                        self.print_string(f"{x.data}")
-                        if x.data != -1
-                        else self.print_string("?")
-                    ),
+                    lambda x: (self.print_string(f"{x.data}") if x.data != -1 else self.print_string("?")),
                     "x",
                 )
                 self.print_string("x")
@@ -676,9 +587,7 @@ class Printer(BasePrinter):
             # Do not print `!` or `#` for unregistered builtin attributes
             self.print_string("!" if attribute.is_type.data else "#")
             if attribute.is_opaque.data:
-                self.print_string(
-                    f"{attribute.attr_name.data.replace('.', '<', 1)}{attribute.value.data}>"
-                )
+                self.print_string(f"{attribute.attr_name.data.replace('.', '<', 1)}{attribute.value.data}>")
             else:
                 self.print_string(attribute.attr_name.data)
                 if attribute.value.data:
@@ -766,11 +675,7 @@ class Printer(BasePrinter):
             return False
 
         if reserved_attr_names:
-            attributes = {
-                name: attr
-                for name, attr in attributes.items()
-                if name not in reserved_attr_names
-            }
+            attributes = {name: attr for name, attr in attributes.items() if name not in reserved_attr_names}
 
         if not attributes:
             return False
@@ -791,9 +696,7 @@ class Printer(BasePrinter):
         if self.print_properties_as_attributes:
             clashing_names = op.properties.keys() & op.attributes.keys()
             if clashing_names:
-                raise ValueError(
-                    f"Properties {', '.join(clashing_names)} would overwrite the attributes of the same names."
-                )
+                raise ValueError(f"Properties {', '.join(clashing_names)} would overwrite the attributes of the same names.")
 
             self.print_op_attributes(op.attributes | op.properties)
         else:
@@ -801,9 +704,7 @@ class Printer(BasePrinter):
         self.print_string(" : ")
         self.print_operation_type(op)
 
-    def print_function_type(
-        self, input_types: Iterable[Attribute], output_types: Iterable[Attribute]
-    ):
+    def print_function_type(self, input_types: Iterable[Attribute], output_types: Iterable[Attribute]):
         """
         Prints a function type like `(i32, i64) -> (f32, f64)` with the following
         format:

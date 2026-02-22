@@ -5,63 +5,13 @@ from typing import Annotated, ClassVar, Generic, TypeVar
 import pytest
 
 from xdsl.context import Context
-from xdsl.dialects.builtin import (
-    BoolAttr,
-    DenseArrayBase,
-    IndexType,
-    IntAttr,
-    IntegerType,
-    StringAttr,
-    i32,
-    i64,
-)
+from xdsl.dialects.builtin import BoolAttr, DenseArrayBase, IndexType, IntAttr, IntegerType, StringAttr, i32, i64
 from xdsl.dialects.test import TestType
 from xdsl.ir import Attribute, Block, Region
-from xdsl.irdl import (
-    AnyAttr,
-    AnyInt,
-    AnyOf,
-    AttributeDef,
-    AttrSizedOperandSegments,
-    AttrSizedRegionSegments,
-    AttrSizedResultSegments,
-    BaseAttr,
-    ConstraintVar,
-    EqAttrConstraint,
-    IntVarConstraint,
-    IRDLOperation,
-    OpDef,
-    OperandDef,
-    PropertyDef,
-    RangeOf,
-    RangeVarConstraint,
-    RegionDef,
-    ResultDef,
-    VarConstraint,
-    attr_def,
-    base,
-    irdl_op_definition,
-    operand_def,
-    opt_attr_def,
-    opt_operand_def,
-    opt_prop_def,
-    opt_region_def,
-    opt_result_def,
-    prop_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-    var_region_def,
-    var_result_def,
-)
+from xdsl.irdl import AnyAttr, AnyInt, AnyOf, AttributeDef, AttrSizedOperandSegments, AttrSizedRegionSegments, AttrSizedResultSegments, BaseAttr, ConstraintVar, EqAttrConstraint, IntVarConstraint, IRDLOperation, OpDef, OperandDef, PropertyDef, RangeOf, RangeVarConstraint, RegionDef, ResultDef, VarConstraint, attr_def, base, irdl_op_definition, operand_def, opt_attr_def, opt_operand_def, opt_prop_def, opt_region_def, opt_result_def, prop_def, region_def, result_def, traits_def, var_operand_def, var_region_def, var_result_def
 from xdsl.parser import Parser
 from xdsl.traits import NoTerminator
-from xdsl.utils.exceptions import (
-    DiagnosticException,
-    PyRDLOpDefinitionError,
-    VerifyException,
-)
+from xdsl.utils.exceptions import DiagnosticException, PyRDLOpDefinitionError, VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
 ################################################################################
@@ -161,9 +111,7 @@ class AttrOp(IRDLOperation):
 
 def test_attr_verify():
     op = AttrOp.create(attributes={"attr": IntAttr(1)})
-    with pytest.raises(
-        VerifyException, match="#builtin.int<1> should be of base attribute string"
-    ):
+    with pytest.raises(VerifyException, match="#builtin.int<1> should be of base attribute string"):
         op.verify()
 
 
@@ -182,9 +130,7 @@ class ConstraintVarOp(IRDLOperation):
 def test_constraint_var():
     i32_operand = create_ssa_value(i32)
     index_operand = create_ssa_value(IndexType())
-    op = ConstraintVarOp.create(
-        operands=[i32_operand], result_types=[i32], attributes={"attribute": i32}
-    )
+    op = ConstraintVarOp.create(operands=[i32_operand], result_types=[i32], attributes={"attribute": i32})
     op.verify()
 
     op2 = ConstraintVarOp.create(
@@ -201,9 +147,7 @@ def test_constraint_var_fail_non_equal():
     index_operand = create_ssa_value(IndexType())
 
     # Fail because of operand
-    op = ConstraintVarOp.create(
-        operands=[index_operand], result_types=[i32], attributes={"attribute": i32}
-    )
+    op = ConstraintVarOp.create(operands=[index_operand], result_types=[i32], attributes={"attribute": i32})
     with pytest.raises(
         DiagnosticException,
         match="Operation does not verify: result at position 0 does not verify",
@@ -264,9 +208,7 @@ class GenericConstraintVarOp(IRDLOperation):
 def test_generic_constraint_var():
     i32_operand = create_ssa_value(i32)
     index_operand = create_ssa_value(IndexType())
-    op = GenericConstraintVarOp.create(
-        operands=[i32_operand], result_types=[i32], attributes={"attribute": i32}
-    )
+    op = GenericConstraintVarOp.create(operands=[i32_operand], result_types=[i32], attributes={"attribute": i32})
     op.verify()
 
     op2 = GenericConstraintVarOp.create(
@@ -283,9 +225,7 @@ def test_generic_constraint_var_fail_non_equal():
     index_operand = create_ssa_value(IndexType())
 
     # Fail because of operand
-    op = GenericConstraintVarOp.create(
-        operands=[index_operand], result_types=[i32], attributes={"attribute": i32}
-    )
+    op = GenericConstraintVarOp.create(operands=[index_operand], result_types=[i32], attributes={"attribute": i32})
     with pytest.raises(
         DiagnosticException,
         match="Operation does not verify: result at position 0 does not verify",
@@ -347,14 +287,10 @@ def test_range_var():
     op.verify()
     op = ConstraintRangeVarOp.create(operands=[i32_operand], result_types=[i32])
     op.verify()
-    op = ConstraintRangeVarOp.create(
-        operands=[i32_operand, i32_operand], result_types=[i32, i32]
-    )
+    op = ConstraintRangeVarOp.create(operands=[i32_operand, i32_operand], result_types=[i32, i32])
     op.verify()
 
-    op2 = ConstraintRangeVarOp.create(
-        operands=[index_operand], result_types=[IndexType()]
-    )
+    op2 = ConstraintRangeVarOp.create(operands=[index_operand], result_types=[IndexType()])
     op2.verify()
 
 
@@ -370,9 +306,7 @@ def test_range_var_fail_non_equal():
     ):
         op.verify()
 
-    op2 = ConstraintRangeVarOp.create(
-        operands=[i32_operand], result_types=[IndexType()]
-    )
+    op2 = ConstraintRangeVarOp.create(operands=[i32_operand], result_types=[IndexType()])
     with pytest.raises(
         VerifyException,
         match=r"attributes \('i32',\) expected from range variable 'T', but got \('index',\)",
@@ -397,9 +331,7 @@ def test_range_var_fail_non_equal():
 def test_range_var_fail_not_satisfy_constraint():
     """Check that all uses of a range variable are satisfying the constraint."""
     test_operand = create_ssa_value(TestType("foo"))
-    op = ConstraintRangeVarOp.create(
-        operands=[test_operand], result_types=[TestType("foo")]
-    )
+    op = ConstraintRangeVarOp.create(operands=[test_operand], result_types=[TestType("foo")])
     with pytest.raises(VerifyException, match='Unexpected attribute !test.type<"foo">'):
         op.verify()
 
@@ -456,9 +388,7 @@ class WithoutPropOp(IRDLOperation):
 # Check that an operation cannot accept properties that are not defined
 def test_unknown_property():
     op = WithoutPropOp.create(properties={"prop1": i32, "prop2": i32})
-    with pytest.raises(
-        VerifyException, match="property 'prop2' is not defined by the operation"
-    ):
+    with pytest.raises(VerifyException, match="property 'prop2' is not defined by the operation"):
         op.verify()
 
 
@@ -565,9 +495,7 @@ class AttributeOp(IRDLOperation):
 def test_attribute_accessors():
     """Test accessors for attributes."""
 
-    op = AttributeOp.create(
-        attributes={"attr": StringAttr("test"), "opt_attr": StringAttr("opt_test")}
-    )
+    op = AttributeOp.create(attributes={"attr": StringAttr("test"), "opt_attr": StringAttr("opt_test")})
     assert op.attr is op.attributes["attr"]
     assert op.opt_attr is op.attributes["opt_attr"]
 
@@ -601,9 +529,7 @@ class PropertyOp(IRDLOperation):
 def test_property_accessors():
     """Test accessors for properties."""
 
-    op = PropertyOp.create(
-        properties={"attr": StringAttr("test"), "opt_attr": StringAttr("opt_test")}
-    )
+    op = PropertyOp.create(properties={"attr": StringAttr("test"), "opt_attr": StringAttr("opt_test")})
     assert op.attr is op.properties["attr"]
     assert op.opt_attr is op.properties["opt_attr"]
 
@@ -889,9 +815,7 @@ class OptionlessMultipleVarOp(IRDLOperation):
 def test_no_multiple_var_option():
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="Operation test.multiple_var_op defines more than two variadic operands, "
-        "but do not define any of SameVariadicOperandSize or AttrSizedOperandSegments "
-        "PyRDL options.",
+        match="Operation test.multiple_var_op defines more than two variadic operands, " "but do not define any of SameVariadicOperandSize or AttrSizedOperandSegments " "PyRDL options.",
     ):
         irdl_op_definition(OptionlessMultipleVarOp)
 
@@ -934,9 +858,7 @@ def test_generic_accessors():
     ctx = Context()
     ctx.load_op(DefaultOp)
 
-    parsed = Parser(
-        ctx, '"test.default"() <{ "prop" = false }> {"attr" = false} : () -> ()'
-    ).parse_operation()
+    parsed = Parser(ctx, '"test.default"() <{ "prop" = false }> {"attr" = false} : () -> ()').parse_operation()
 
     assert isinstance(parsed, DefaultOp)
 

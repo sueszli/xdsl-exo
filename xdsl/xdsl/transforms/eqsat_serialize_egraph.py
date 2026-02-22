@@ -19,12 +19,8 @@ class _IDGenerator:
 
 
 def serialize_to_egraph(mod: builtin.ModuleOp):
-    enode_to_id: defaultdict[Operation | BlockArgument, str] = defaultdict(
-        _IDGenerator("enode_")
-    )
-    eclass_to_id: defaultdict[eqsat.EClassOp, str] = defaultdict(
-        _IDGenerator("eclass_")
-    )
+    enode_to_id: defaultdict[Operation | BlockArgument, str] = defaultdict(_IDGenerator("enode_"))
+    eclass_to_id: defaultdict[eqsat.EClassOp, str] = defaultdict(_IDGenerator("eclass_"))
     nodes: dict[str, dict[str, str | list[str]]] = dict()
     for op in mod.walk(reverse=True):
         if isinstance(op, eqsat.EClassOp):
@@ -41,12 +37,8 @@ def serialize_to_egraph(mod: builtin.ModuleOp):
         for res in op.results:
             for use in res.uses:
                 if isinstance(use.operation, eqsat.EClassOp):
-                    assert len(op.results) == 1, (
-                        "Only single result operations are supported"
-                    )
-                    assert len(res.uses) == 1, (
-                        "Only single use operations are supported"
-                    )
+                    assert len(op.results) == 1, "Only single result operations are supported"
+                    assert len(res.uses) == 1, "Only single use operations are supported"
                     eclass_id = eclass_to_id[use.operation]
         if eclass_id is None:
             continue

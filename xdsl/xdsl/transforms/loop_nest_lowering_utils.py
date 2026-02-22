@@ -39,18 +39,12 @@ def indices_for_map(
         else:
             used_dims = expr.used_dims()
             new_index_vals = input_index_vals
-            new_affine_map = AffineMap(
-                affine_map.num_dims, affine_map.num_symbols, (expr,)
-            )
+            new_affine_map = AffineMap(affine_map.num_dims, affine_map.num_symbols, (expr,))
             if len(used_dims) != affine_map.num_dims:
                 # Remove unused dims
                 # used_dims = affine_map.used_dims_bit_vector()
-                used_dims_vector = tuple(
-                    dim in used_dims for dim in range(affine_map.num_dims)
-                )
-                unused_dims_vector = tuple(
-                    not used_dim for used_dim in used_dims_vector
-                )
+                used_dims_vector = tuple(dim in used_dims for dim in range(affine_map.num_dims))
+                unused_dims_vector = tuple(not used_dim for used_dim in used_dims_vector)
                 new_index_vals = tuple(compress(new_index_vals, used_dims_vector))
                 new_affine_map = new_affine_map.drop_dims(unused_dims_vector)
 
@@ -144,13 +138,8 @@ def _insert_loop_nest(
                 iter_args,
             )
             if len(results) != len(iter_args):
-                raise ValueError(
-                    "Unexpected number of results from `make_body` helper "
-                    f"({len(results)}), expected {len(iter_args)}"
-                )
-            rewriter.insert_op(
-                scf.YieldOp(*results), InsertPoint.at_end(loop.body.block)
-            )
+                raise ValueError("Unexpected number of results from `make_body` helper " f"({len(results)}), expected {len(iter_args)}")
+            rewriter.insert_op(scf.YieldOp(*results), InsertPoint.at_end(loop.body.block))
 
         insertion_point = InsertPoint.at_start(loop.body.block)
 
@@ -228,9 +217,7 @@ def rewrite_generic_to_loops(
     # Create loop nest lb (0), step (1), and ubs
     # ubs are calculated from affine maps and memref dimensions
 
-    bound_constant_ops = tuple(
-        arith.ConstantOp(IntegerAttr.from_index_int_value(ub)) for ub in ubs
-    )
+    bound_constant_ops = tuple(arith.ConstantOp(IntegerAttr.from_index_int_value(ub)) for ub in ubs)
     rewriter.insert_op_before_matched_op(bound_constant_ops)
     bound_constant_values = tuple(op.result for op in bound_constant_ops)
 
@@ -314,12 +301,8 @@ def rewrite_generic_to_imperfect_loops(
     # Create loop nest lb (0), step (1), and ubs
     # ubs are calculated from affine maps and memref dimensions
 
-    outer_bound_constant_ops = tuple(
-        arith.ConstantOp(IntegerAttr.from_index_int_value(ub)) for ub in outer_ubs
-    )
-    inner_bound_constant_ops = tuple(
-        arith.ConstantOp(IntegerAttr.from_index_int_value(ub)) for ub in inner_ubs
-    )
+    outer_bound_constant_ops = tuple(arith.ConstantOp(IntegerAttr.from_index_int_value(ub)) for ub in outer_ubs)
+    inner_bound_constant_ops = tuple(arith.ConstantOp(IntegerAttr.from_index_int_value(ub)) for ub in inner_ubs)
     rewriter.insert_op(outer_bound_constant_ops, insertion_point)
     rewriter.insert_op(inner_bound_constant_ops, insertion_point)
     outer_bound_constant_values = tuple(op.result for op in outer_bound_constant_ops)

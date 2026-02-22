@@ -2,48 +2,19 @@ from collections.abc import Sequence
 
 import pytest
 
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    BoolAttr,
-    IndexType,
-    IntAttr,
-    MemRefType,
-    TensorType,
-    VectorType,
-    i1,
-    i32,
-    i64,
-)
-from xdsl.dialects.vector import (
-    BroadcastOp,
-    CreateMaskOp,
-    ExtractElementOp,
-    ExtractOp,
-    FMAOp,
-    InsertElementOp,
-    InsertOp,
-    LoadOp,
-    MaskedLoadOp,
-    MaskedStoreOp,
-    PrintOp,
-    StoreOp,
-    VectorTransferOperation,
-)
+from xdsl.dialects.builtin import ArrayAttr, BoolAttr, IndexType, IntAttr, MemRefType, TensorType, VectorType, i1, i32, i64
+from xdsl.dialects.vector import BroadcastOp, CreateMaskOp, ExtractElementOp, ExtractOp, FMAOp, InsertElementOp, InsertOp, LoadOp, MaskedLoadOp, MaskedStoreOp, PrintOp, StoreOp, VectorTransferOperation
 from xdsl.ir import Attribute, OpResult, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.utils.test_value import create_ssa_value
 
 
-def get_MemRef_SSAVal(
-    referenced_type: Attribute, shape: list[int | IntAttr]
-) -> SSAValue:
+def get_MemRef_SSAVal(referenced_type: Attribute, shape: list[int | IntAttr]) -> SSAValue:
     memref_type = MemRefType(referenced_type, shape)
     return create_ssa_value(memref_type)
 
 
-def get_Vector_SSAVal(
-    referenced_type: Attribute, shape: list[int | IntAttr]
-) -> SSAValue:
+def get_Vector_SSAVal(referenced_type: Attribute, shape: list[int | IntAttr]) -> SSAValue:
     vector_type = VectorType(referenced_type, shape)
     return create_ssa_value(vector_type)
 
@@ -124,9 +95,7 @@ def test_vector_load_verify_type_matching():
 
     load = LoadOp.build(operands=[memref_ssa_value, []], result_types=[res_vector_type])
 
-    with pytest.raises(
-        Exception, match="MemRef element type should match the Vector element type."
-    ):
+    with pytest.raises(Exception, match="MemRef element type should match the Vector element type."):
         load.verify()
 
 
@@ -170,9 +139,7 @@ def test_vector_store_verify_type_matching():
 
     store = StoreOp.get(vector_ssa_value, memref_ssa_value, [])
 
-    with pytest.raises(
-        Exception, match="MemRef element type should match the Vector element type."
-    ):
+    with pytest.raises(Exception, match="MemRef element type should match the Vector element type."):
         store.verify()
 
 
@@ -245,9 +212,7 @@ def test_vector_masked_load():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [1])
     passthrough_vector_ssa_value = get_Vector_SSAVal(i32, [1])
 
-    maskedload = MaskedLoadOp.get(
-        memref_ssa_value, [], mask_vector_ssa_value, passthrough_vector_ssa_value
-    )
+    maskedload = MaskedLoadOp.get(memref_ssa_value, [], mask_vector_ssa_value, passthrough_vector_ssa_value)
 
     assert type(maskedload.results[0]) is OpResult
     assert type(maskedload.results[0].type) is VectorType
@@ -292,10 +257,7 @@ def test_vector_masked_load_verify_memref_res_type_matching():
         result_types=[i64_res_vector_type],
     )
 
-    message = (
-        "MemRef element type should match the result vector and passthrough "
-        "vector element type. Found different element types for memref and result."
-    )
+    message = "MemRef element type should match the result vector and passthrough " "vector element type. Found different element types for memref and result."
     with pytest.raises(Exception, match=message):
         maskedload.verify()
 
@@ -317,10 +279,7 @@ def test_vector_masked_load_verify_memref_passthrough_type_matching():
         result_types=[i64_res_vector_type],
     )
 
-    message = (
-        "MemRef element type should match the result vector and passthrough "
-        "vector element type. Found different element types for memref and passthrough."
-    )
+    message = "MemRef element type should match the result vector and passthrough " "vector element type. Found different element types for memref and passthrough."
 
     with pytest.raises(Exception, match=message):
         maskedload.verify()
@@ -331,9 +290,7 @@ def test_vector_masked_load_verify_indexing_exception():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [2])
     passthrough_vector_ssa_value = get_Vector_SSAVal(i32, [1])
 
-    maskedload = MaskedLoadOp.get(
-        memref_ssa_value, [], mask_vector_ssa_value, passthrough_vector_ssa_value
-    )
+    maskedload = MaskedLoadOp.get(memref_ssa_value, [], mask_vector_ssa_value, passthrough_vector_ssa_value)
 
     with pytest.raises(Exception, match="Expected an index for each memref dimension."):
         maskedload.verify()
@@ -344,9 +301,7 @@ def test_vector_masked_store():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [1])
     value_to_store_vector_ssa_value = get_Vector_SSAVal(i32, [1])
 
-    maskedstore = MaskedStoreOp.get(
-        memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value
-    )
+    maskedstore = MaskedStoreOp.get(memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value)
 
     assert maskedstore.base is memref_ssa_value
     assert maskedstore.mask is mask_vector_ssa_value
@@ -381,14 +336,9 @@ def test_vector_masked_store_verify_memref_value_to_store_type_matching():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [1])
     value_to_store_vector_ssa_value = get_Vector_SSAVal(i64, [1])
 
-    maskedstore = MaskedStoreOp.get(
-        memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value
-    )
+    maskedstore = MaskedStoreOp.get(memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value)
 
-    message = (
-        "MemRef element type should match the stored vector type. "
-        "Obtained types were i32 and i64."
-    )
+    message = "MemRef element type should match the stored vector type. " "Obtained types were i32 and i64."
     with pytest.raises(Exception, match=message):
         maskedstore.verify()
 
@@ -398,9 +348,7 @@ def test_vector_masked_store_verify_indexing_exception():
     mask_vector_ssa_value = get_Vector_SSAVal(i1, [2])
     value_to_store_vector_ssa_value = get_Vector_SSAVal(i32, [1])
 
-    maskedstore = MaskedStoreOp.get(
-        memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value
-    )
+    maskedstore = MaskedStoreOp.get(memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value)
 
     with pytest.raises(Exception, match="Expected an index for each memref dimension."):
         maskedstore.verify()
@@ -501,9 +449,7 @@ def test_vector_extract_element_0d_verify_empty_position():
 
     extract_element = ExtractElementOp(vector, position)
 
-    with pytest.raises(
-        Exception, match="Expected position to be empty with 0-D vector."
-    ):
+    with pytest.raises(Exception, match="Expected position to be empty with 0-D vector."):
         extract_element.verify()
 
 
@@ -669,12 +615,8 @@ def test_infer_transfer_op_mask_type(
     output_shape: Sequence[int],
     output_scalable_dims: Sequence[bool],
 ):
-    vec_type = VectorType(
-        i32, input_shape, ArrayAttr(BoolAttr.from_bool(b) for b in input_scalable_dims)
-    )
-    assert VectorTransferOperation.infer_transfer_op_mask_type(
-        vec_type, perm_map
-    ) == VectorType(
+    vec_type = VectorType(i32, input_shape, ArrayAttr(BoolAttr.from_bool(b) for b in input_scalable_dims))
+    assert VectorTransferOperation.infer_transfer_op_mask_type(vec_type, perm_map) == VectorType(
         i1,
         output_shape,
         ArrayAttr(BoolAttr.from_bool(b) for b in output_scalable_dims),
@@ -727,7 +669,5 @@ def test_get_transfer_minor_identity_map(
     vector_type: VectorType,
     expected_map: AffineMap,
 ):
-    result_map = VectorTransferOperation.get_transfer_minor_identity_map(
-        shaped_type, vector_type
-    )
+    result_map = VectorTransferOperation.get_transfer_minor_identity_map(shaped_type, vector_type)
     assert result_map == expected_map

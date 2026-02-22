@@ -2,21 +2,13 @@ import ast
 import importlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import (
-    Any,
-    TypeAlias,
-    _GenericAlias,  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue]
-)
+from typing import _GenericAlias  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue]
+from typing import Any, TypeAlias
 
 import xdsl.dialects.builtin as xdsl_builtin
 import xdsl.frontend.pyast.dialects.builtin as frontend_builtin
-from xdsl.frontend.pyast.dialects.builtin import (
-    _FrontendType,  # pyright: ignore[reportPrivateUsage]
-)
-from xdsl.frontend.pyast.exception import (
-    CodeGenerationException,
-    FrontendProgramException,
-)
+from xdsl.frontend.pyast.dialects.builtin import _FrontendType  # pyright: ignore[reportPrivateUsage]
+from xdsl.frontend.pyast.exception import CodeGenerationException, FrontendProgramException
 from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
 
 TypeName: TypeAlias = str
@@ -64,16 +56,12 @@ class TypeConverter:
     function_registry: FunctionRegistry = field(default_factory=FunctionRegistry)
     """Mappings between methods on objects and their operations."""
 
-    name_to_xdsl_type_map: dict[TypeName, Attribute] = field(
-        default_factory=dict[TypeName, Attribute]
-    )
+    name_to_xdsl_type_map: dict[TypeName, Attribute] = field(default_factory=dict[TypeName, Attribute])
     """
     Map to cache xDSL types created so far to avoid repeated conversions.
     """
 
-    xdsl_to_frontend_type_map: dict[type[Attribute], type[_FrontendType]] = field(
-        default_factory=dict[type[Attribute], type[_FrontendType]]
-    )
+    xdsl_to_frontend_type_map: dict[type[Attribute], type[_FrontendType]] = field(default_factory=dict[type[Attribute], type[_FrontendType]])
     """
     Map to lookup frontend types based on xDSL type. Useful if we want to see
     what overloaded Python operations does this xDSL type support.
@@ -128,8 +116,7 @@ class TypeConverter:
                         self.file,
                         type_hint.lineno,
                         type_hint.col_offset,
-                        f"Expected 1 type argument for generic type '{type_name}', got "
-                        f"{len(materialized_arguments)} type arguments instead.",
+                        f"Expected 1 type argument for generic type '{type_name}', got " f"{len(materialized_arguments)} type arguments instead.",
                     )
                 arguments_for_constructor.append(materialized_arguments[0])
                 continue
@@ -224,9 +211,7 @@ class TypeConverter:
         for attr in function_name.split("."):
             function = getattr(function, attr, None)
         if function is None:
-            raise FrontendProgramException(
-                f"Unable to resolve function '{module_name}.{function_name}'"
-            )
+            raise FrontendProgramException(f"Unable to resolve function '{module_name}.{function_name}'")
         assert callable(function)  # Guaranteed by types a registration time
         return function
 

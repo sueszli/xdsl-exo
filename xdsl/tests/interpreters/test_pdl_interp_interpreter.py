@@ -3,14 +3,7 @@ import pytest
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, test
-from xdsl.dialects.builtin import (
-    FunctionType,
-    ModuleOp,
-    StringAttr,
-    UnitAttr,
-    i32,
-    i64,
-)
+from xdsl.dialects.builtin import FunctionType, ModuleOp, StringAttr, UnitAttr, i32, i64
 from xdsl.interpreter import Interpreter, Successor
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Block, Region
@@ -30,13 +23,9 @@ def test_getters():
     op = test.TestOp((c0, c1), (i32, i64), {"myattr": myattr}, {"myprop": myprop})
     op_res = op.results[0]
 
-    assert interpreter.run_op(
-        pdl_interp.GetOperandOp(1, create_ssa_value(pdl.OperationType())), (op,)
-    ) == (c1,)
+    assert interpreter.run_op(pdl_interp.GetOperandOp(1, create_ssa_value(pdl.OperationType())), (op,)) == (c1,)
 
-    assert interpreter.run_op(
-        pdl_interp.GetResultOp(1, create_ssa_value(pdl.OperationType())), (op,)
-    ) == (op.results[1],)
+    assert interpreter.run_op(pdl_interp.GetResultOp(1, create_ssa_value(pdl.OperationType())), (op,)) == (op.results[1],)
 
     assert (
         interpreter.run_op(
@@ -60,25 +49,17 @@ def test_getters():
         (op,),
     ) == (myprop,)
 
-    assert interpreter.run_op(
-        pdl_interp.GetValueTypeOp(create_ssa_value(pdl.ValueType())), (c0,)
-    ) == (i32,)
+    assert interpreter.run_op(pdl_interp.GetValueTypeOp(create_ssa_value(pdl.ValueType())), (c0,)) == (i32,)
 
-    assert interpreter.run_op(
-        pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())), (op_res,)
-    ) == (op,)
+    assert interpreter.run_op(pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())), (op_res,)) == (op,)
 
     # Negative cases
 
     # Test GetOperandOp with out-of-bounds index
-    assert interpreter.run_op(
-        pdl_interp.GetOperandOp(5, create_ssa_value(pdl.OperationType())), (op,)
-    ) == (None,)
+    assert interpreter.run_op(pdl_interp.GetOperandOp(5, create_ssa_value(pdl.OperationType())), (op,)) == (None,)
 
     # Test GetResultOp with out-of-bounds index
-    assert interpreter.run_op(
-        pdl_interp.GetResultOp(5, create_ssa_value(pdl.OperationType())), (op,)
-    ) == (None,)
+    assert interpreter.run_op(pdl_interp.GetResultOp(5, create_ssa_value(pdl.OperationType())), (op,)) == (None,)
 
     # Test GetResultsOp with single-SSA type but multiple results
     single_result_type_op = pdl_interp.GetResultsOp(
@@ -90,22 +71,16 @@ def test_getters():
 
     # Test GetAttributeOp with non-existent attribute
     assert interpreter.run_op(
-        pdl_interp.GetAttributeOp(
-            "non_existent", create_ssa_value(pdl.OperationType())
-        ),
+        pdl_interp.GetAttributeOp("non_existent", create_ssa_value(pdl.OperationType())),
         (op,),
     ) == (None,)
 
     # Test GetDefiningOpOp with non-OpResult value
     block_arg = Block((), arg_types=(i32,)).args[0]
-    assert interpreter.run_op(
-        pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())), (block_arg,)
-    ) == (None,)
+    assert interpreter.run_op(pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())), (block_arg,)) == (None,)
 
     # Test GetDefiningOpOp with None input
-    assert interpreter.run_op(
-        pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())), (None,)
-    ) == (None,)
+    assert interpreter.run_op(pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType())), (None,)) == (None,)
 
 
 def test_check_operation_name():
@@ -121,25 +96,17 @@ def test_check_operation_name():
     myattr = StringAttr("hello")
     op = test.TestOp((c0, c1), (i32, i64), {"myattr": myattr})
 
-    check_name_op = pdl_interp.CheckOperationNameOp(
-        "test.op", create_ssa_value(pdl.OperationType()), truedest, falsedest
-    )
+    check_name_op = pdl_interp.CheckOperationNameOp("test.op", create_ssa_value(pdl.OperationType()), truedest, falsedest)
 
-    trueresult = pdl_interp_functions.run_check_operation_name(
-        interpreter, check_name_op, (op,)
-    )
+    trueresult = pdl_interp_functions.run_check_operation_name(interpreter, check_name_op, (op,))
 
     assert isinstance(trueresult.terminator_value, Successor)
     assert isinstance(trueresult.terminator_value.block, Block)
     assert trueresult.terminator_value.block is truedest
 
-    check_name_op_false = pdl_interp.CheckOperationNameOp(
-        "test.other", create_ssa_value(pdl.OperationType()), truedest, falsedest
-    )
+    check_name_op_false = pdl_interp.CheckOperationNameOp("test.other", create_ssa_value(pdl.OperationType()), truedest, falsedest)
 
-    falseresult = pdl_interp_functions.run_check_operation_name(
-        interpreter, check_name_op_false, (op,)
-    )
+    falseresult = pdl_interp_functions.run_check_operation_name(interpreter, check_name_op_false, (op,))
 
     assert isinstance(falseresult.terminator_value, Successor)
     assert isinstance(falseresult.terminator_value.block, Block)
@@ -168,9 +135,7 @@ def test_check_operand_count():
         compareAtLeast=False,
     )
 
-    exact_result = pdl_interp_functions.run_check_operand_count(
-        interpreter, check_count_op, (op,)
-    )
+    exact_result = pdl_interp_functions.run_check_operand_count(interpreter, check_count_op, (op,))
 
     assert isinstance(exact_result.terminator_value, Successor)
     assert exact_result.terminator_value.block is truedest
@@ -184,9 +149,7 @@ def test_check_operand_count():
         compareAtLeast=True,
     )
 
-    at_least_result = pdl_interp_functions.run_check_operand_count(
-        interpreter, check_count_op_at_least, (op,)
-    )
+    at_least_result = pdl_interp_functions.run_check_operand_count(interpreter, check_count_op_at_least, (op,))
 
     assert isinstance(at_least_result.terminator_value, Successor)
     assert at_least_result.terminator_value.block is truedest
@@ -200,9 +163,7 @@ def test_check_operand_count():
         compareAtLeast=False,
     )
 
-    fail_result = pdl_interp_functions.run_check_operand_count(
-        interpreter, check_count_op_fail, (op,)
-    )
+    fail_result = pdl_interp_functions.run_check_operand_count(interpreter, check_count_op_fail, (op,))
 
     assert isinstance(fail_result.terminator_value, Successor)
     assert fail_result.terminator_value.block is falsedest
@@ -230,9 +191,7 @@ def test_check_result_count():
         compareAtLeast=False,
     )
 
-    exact_result = pdl_interp_functions.run_check_result_count(
-        interpreter, check_result_op, (op,)
-    )
+    exact_result = pdl_interp_functions.run_check_result_count(interpreter, check_result_op, (op,))
 
     assert isinstance(exact_result.terminator_value, Successor)
     assert exact_result.terminator_value.block is truedest
@@ -246,9 +205,7 @@ def test_check_result_count():
         compareAtLeast=True,
     )
 
-    at_least_result = pdl_interp_functions.run_check_result_count(
-        interpreter, check_result_op_at_least, (op,)
-    )
+    at_least_result = pdl_interp_functions.run_check_result_count(interpreter, check_result_op_at_least, (op,))
 
     assert isinstance(at_least_result.terminator_value, Successor)
     assert at_least_result.terminator_value.block is truedest
@@ -262,9 +219,7 @@ def test_check_result_count():
         compareAtLeast=False,
     )
 
-    fail_result = pdl_interp_functions.run_check_result_count(
-        interpreter, check_result_op_fail, (op,)
-    )
+    fail_result = pdl_interp_functions.run_check_result_count(interpreter, check_result_op_fail, (op,))
 
     assert isinstance(fail_result.terminator_value, Successor)
     assert fail_result.terminator_value.block is falsedest
@@ -286,17 +241,13 @@ def test_check_attribute():
         falsedest,
     )
 
-    match_result = pdl_interp_functions.run_check_attribute(
-        interpreter, check_attr_op, (StringAttr("hello"),)
-    )
+    match_result = pdl_interp_functions.run_check_attribute(interpreter, check_attr_op, (StringAttr("hello"),))
 
     assert isinstance(match_result.terminator_value, Successor)
     assert match_result.terminator_value.block is truedest
 
     # Test non-matching attribute
-    nomatch_result = pdl_interp_functions.run_check_attribute(
-        interpreter, check_attr_op, (StringAttr("world"),)
-    )
+    nomatch_result = pdl_interp_functions.run_check_attribute(interpreter, check_attr_op, (StringAttr("world"),))
 
     assert isinstance(nomatch_result.terminator_value, Successor)
     assert nomatch_result.terminator_value.block is falsedest
@@ -319,17 +270,13 @@ def test_is_not_null():
         falsedest,
     )
 
-    notnull_result = pdl_interp_functions.run_is_not_null(
-        interpreter, is_not_null_op, (c0,)
-    )
+    notnull_result = pdl_interp_functions.run_is_not_null(interpreter, is_not_null_op, (c0,))
 
     assert isinstance(notnull_result.terminator_value, Successor)
     assert notnull_result.terminator_value.block is truedest
 
     # Test with null value
-    null_result = pdl_interp_functions.run_is_not_null(
-        interpreter, is_not_null_op, (None,)
-    )
+    null_result = pdl_interp_functions.run_is_not_null(interpreter, is_not_null_op, (None,))
 
     assert isinstance(null_result.terminator_value, Successor)
     assert null_result.terminator_value.block is falsedest
@@ -354,17 +301,13 @@ def test_are_equal():
         falsedest,
     )
 
-    equal_result = pdl_interp_functions.run_are_equal(
-        interpreter, are_equal_op, (c0, c0)
-    )
+    equal_result = pdl_interp_functions.run_are_equal(interpreter, are_equal_op, (c0, c0))
 
     assert isinstance(equal_result.terminator_value, Successor)
     assert equal_result.terminator_value.block is truedest
 
     # Test with unequal values
-    unequal_result = pdl_interp_functions.run_are_equal(
-        interpreter, are_equal_op, (c0, c1)
-    )
+    unequal_result = pdl_interp_functions.run_are_equal(interpreter, are_equal_op, (c0, c1))
 
     assert isinstance(unequal_result.terminator_value, Successor)
     assert unequal_result.terminator_value.block is falsedest
@@ -465,9 +408,7 @@ def test_replace():
     assert target_op.parent is block
 
     # Create the replace op
-    replace_op = pdl_interp.ReplaceOp(
-        create_ssa_value(pdl.OperationType()), [create_ssa_value(pdl.ValueType())]
-    )
+    replace_op = pdl_interp.ReplaceOp(create_ssa_value(pdl.OperationType()), [create_ssa_value(pdl.ValueType())])
 
     # Execute the replace operation
     interpreter.run_op(replace_op, (target_op, repl_value))

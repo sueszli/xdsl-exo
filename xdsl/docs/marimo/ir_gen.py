@@ -16,21 +16,21 @@ app = marimo.App()
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
-
-    from sympy import S, symbols, Expr, Add, Mul, Sum, Integer, Float, E, I, re, im, Abs, Pow, Rational, Function, UnevaluatedExpr
+    from sympy import Abs, Add, E, Expr, Float, Function, I, Integer, Mul, Pow, Rational, S, Sum, UnevaluatedExpr, im, re, symbols
     from sympy.core.symbol import Symbol
 
-    from xdsl.ir import Attribute, Operation, SSAValue, Region, Block, ParametrizedAttribute
-    from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern, PatternRewriteWalker, GreedyRewritePatternApplier
-    from xdsl.transforms.dead_code_elimination import region_dce
-    from xdsl.traits import Pure
-    from xdsl.irdl import irdl_op_definition, traits_def, IRDLOperation, irdl_attr_definition, operand_def, result_def
-    from xdsl.dialects.builtin import ModuleOp, Float64Type, FloatAttr, IntegerType, IntegerAttr
-    from xdsl.dialects.func import FuncOp, ReturnOp
-    from xdsl.dialects.arith import AddfOp, SubfOp, MulfOp, ConstantOp, AddiOp, MuliOp, SIToFPOp, FloatingPointLikeBinaryOperation, DivfOp, SelectOp, CmpfOp
-    from xdsl.dialects.scf import ForOp, YieldOp, IfOp
-    from xdsl.dialects.math import PowFOp, SqrtOp
     from xdsl.builder import Builder, InsertPoint
+    from xdsl.dialects.arith import AddfOp, AddiOp, CmpfOp, ConstantOp, DivfOp, FloatingPointLikeBinaryOperation, MulfOp, MuliOp, SelectOp, SIToFPOp, SubfOp
+    from xdsl.dialects.builtin import Float64Type, FloatAttr, IntegerAttr, IntegerType, ModuleOp
+    from xdsl.dialects.func import FuncOp, ReturnOp
+    from xdsl.dialects.math import PowFOp, SqrtOp
+    from xdsl.dialects.scf import ForOp, IfOp, YieldOp
+    from xdsl.ir import Attribute, Block, Operation, ParametrizedAttribute, Region, SSAValue
+    from xdsl.irdl import IRDLOperation, irdl_attr_definition, irdl_op_definition, operand_def, result_def, traits_def
+    from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
+    from xdsl.traits import Pure
+    from xdsl.transforms.dead_code_elimination import region_dce
+
     return (
         Abs,
         Add,
@@ -100,14 +100,12 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         # Writing an IR emitter for SymPy
 
         SymPy is a Python library for symbolic mathematics. The goal here is to convert SymPy
         expressions to MLIR core dialects, namely `builtin`, `func`, and `arith`. In this exercise, we will only handle a subset of SymPy that only deals with real numbers for simplicity.
-        """
-    )
+        """)
     return
 
 
@@ -134,8 +132,7 @@ def _(symbols):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## Expected MLIR output
 
         We want to only output code from the `arith` dialect (and `math.powf`), which deals with arithmetic.
@@ -149,15 +146,13 @@ def _(mo):
           }
         }
         ```
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
         The operations you will have to use have the following constructors.:
 
         * arith.constant: ConstantOp(IntegerAttr(int_cst, IntegerType(64)))
@@ -178,15 +173,13 @@ def _(mo):
             * `first_acc` is the initial value of the accumulator
             * `region` should have a single block with two block arguments. One for the value we iterate on (we use `i64`), and the second for the accumulator (we use `f64` here).
             * `.results[0]` is used to get the result of `ForOp`
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## Introspecting SymPy expressions
 
         SymPy expressions all inherit from `Expr`. For all our examples, `Expr` are a tree of expressions, where nodes are function calls and leaves are either symbols or constants.
@@ -196,8 +189,7 @@ def _(mo):
         * Each symbol is a function argument.
 
         Here are some examples of SymPy introspection:
-        """
-    )
+        """)
     return
 
 
@@ -221,16 +213,14 @@ def _(x):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## Exercise: Emitting MLIR IR from SymPy
 
         Your goal is to convert SymPy AST nodes to MLIR IR, using xDSL.
         We are giving you most of the boilerplate, so you only have to focus on emitting IR for each SymPy AST node.
 
         The following function will print an expression, and print the resulting MLIR that you are emitting:
-        """
-    )
+        """)
     return
 
 
@@ -253,18 +243,17 @@ def _(Expr, emit_ir):
 
         # Print a separator
         print("\n\n")
+
     return (print_ir,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
         The following function returns the MLIR type of the expression result. As we are only handling integer and real types, we only returns either the `i64` or `f64` types, which correspond to 64bits integers and floating points.
 
         For instance, the type of `x + y` is `f64`, as `x` and `y` are floating points. The type of `a * b` is `i64`, as both `a` and `b` are integers.
-        """
-    )
+        """)
     return
 
 
@@ -278,6 +267,7 @@ def _(Attribute, Expr, Float64Type, IntegerType):
             return Float64Type()
         else:
             raise Exception(f"Unknown MLIR type for expression {expr}. Please make sure there cannot be a division by zero, or a power of a negative value.")
+
     return (get_mlir_type,)
 
 
@@ -327,6 +317,7 @@ def _(
         # Insert a return statement at the end of the function.
         builder.insert(ReturnOp(result))
         return module
+
     return (emit_ir,)
 
 
@@ -404,6 +395,7 @@ def _(
         # Hint: Implement here support for Add, Mul, and Pow (and later Abs and Sum)
 
         raise NotImplementedError(f"No IR emitter for float function {expr.func}")
+
     return emit_integer_op, emit_op, emit_real_op
 
 
@@ -434,7 +426,7 @@ def _(Float, Integer, a, b, print_ir, x, y):
     print_ir(x + x)
 
     # Square a real
-    print_ir(x ** 4)
+    print_ir(x**4)
     return
 
 
@@ -447,14 +439,13 @@ def _(mo):
 @app.cell
 def _(Abs, print_ir, x, y):
     print_ir(Abs(x + y))
-    print_ir((x ** 2) ** y)
+    print_ir((x**2) ** y)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## Supporting operations with regions
 
         Your next task is to handle operations that may have regions.
@@ -462,34 +453,31 @@ def _(mo):
         As a first step, rewrite the lowering to `Abs` to output an `scf.if` instead of an `arith.select`. Then, as an harder task, support the `Sum` operation using an `scf.for` loop.
 
         Here are a few examples:
-        """
-    )
+        """)
     return
 
 
 @app.cell
 def _(Abs, Sum, a, b, print_ir, x, y):
     print_ir(Abs(x + y))
-    print_ir((x ** 2) ** y)
+    print_ir((x**2) ** y)
 
     # The sum of all numbers from 0 to 10 (excluded)
     # You can access the Sum arguments with `args[0]`, and `args[1][0]`, `args[1][1]` and `args[1][2]`.
     print_ir(Sum(a, (a, 0, 10)))
 
     # The triangle sum from 0 to a (excluded)
-    print_ir(Sum(b+b, (b, 0, a)))
+    print_ir(Sum(b + b, (b, 0, a)))
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## Solutions
 
         Here is a solution for the implementation of `emit_real_op` and `emit_integer_op`.
-        """
-    )
+        """)
     return
 
 
@@ -539,9 +527,7 @@ def _(
 
             # Handle constants
             if isinstance(expr, Integer):
-                constant_op = builder.insert(
-                    ConstantOp(IntegerAttr(int(expr), IntegerType(64)))
-                )
+                constant_op = builder.insert(ConstantOp(IntegerAttr(int(expr), IntegerType(64))))
                 return constant_op.result
 
             if isinstance(expr, Add):
@@ -574,9 +560,7 @@ def _(
 
             # Handle constants
             if isinstance(expr, Float):
-                constant_op = builder.insert(
-                    ConstantOp(FloatAttr(float(expr), Float64Type()))
-                )
+                constant_op = builder.insert(ConstantOp(FloatAttr(float(expr), Float64Type())))
                 return constant_op
 
             # Handle symbolic values
@@ -625,9 +609,7 @@ def _(
                 builder3 = Builder(InsertPoint.at_end(rhs_region.block))
                 builder3.insert(YieldOp(neg))
 
-                if_res = builder.insert(
-                    IfOp(is_neg, Float64Type(), lhs_region, rhs_region)
-                ).results[0]
+                if_res = builder.insert(IfOp(is_neg, Float64Type(), lhs_region, rhs_region)).results[0]
 
                 return if_res
 
@@ -640,15 +622,14 @@ def _(
                 accumulator = region.block.args[1]
 
                 b2 = Builder(InsertPoint.at_end(region.block))
-                arg = emit_real_op(
-                    expr.args[0], b2, args | {expr.args[1][0]: region.block.args[0]}
-                )
+                arg = emit_real_op(expr.args[0], b2, args | {expr.args[1][0]: region.block.args[0]})
                 add = b2.insert(AddfOp(arg, accumulator)).result
                 b2.insert(YieldOp(add))
 
                 return builder.insert(ForOp(lb, ub, step, [zero], region)).results[0]
 
             raise NotImplementedError(f"No IR emitter for float function {expr.func}")
+
     return (solution,)
 
 

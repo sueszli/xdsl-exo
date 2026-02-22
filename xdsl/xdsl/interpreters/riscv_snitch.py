@@ -2,14 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from xdsl.dialects import riscv_snitch
-from xdsl.interpreter import (
-    Interpreter,
-    InterpreterFunctions,
-    ReturnedValues,
-    impl,
-    impl_terminator,
-    register_impls,
-)
+from xdsl.interpreter import Interpreter, InterpreterFunctions, ReturnedValues, impl, impl_terminator, register_impls
 from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.interpreters.snitch_stream import StridedPointerInputStream
 

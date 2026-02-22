@@ -14,78 +14,22 @@ app = marimo.App(width="medium")
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
-
-    from sympy import (
-        S,
-        symbols,
-        Expr,
-        Add,
-        Mul,
-        Sum,
-        Integer,
-        Float,
-        E,
-        I,
-        re,
-        im,
-        Abs,
-        Pow,
-        Rational,
-        Function,
-    )
+    from sympy import Abs, Add, E, Expr, Float, Function, I, Integer, Mul, Pow, Rational, S, Sum, im, re, symbols
     from sympy.core.symbol import Symbol
 
-    from xdsl.ir import (
-        Operation,
-        SSAValue,
-        Region,
-        Block,
-        ParametrizedAttribute,
-        Attribute,
-        TypeAttribute,
-    )
-    from xdsl.pattern_rewriter import (
-        PatternRewriter,
-        RewritePattern,
-        op_type_rewrite_pattern,
-        PatternRewriteWalker,
-        GreedyRewritePatternApplier,
-    )
-    from xdsl.transforms.dead_code_elimination import region_dce
-    from xdsl.traits import Pure
-    from xdsl.irdl import (
-        irdl_op_definition,
-        IRDLOperation,
-        irdl_attr_definition,
-        operand_def,
-        result_def,
-        ParameterDef,
-        traits_def,
-    )
-    from xdsl.dialects.builtin import (
-        ModuleOp,
-        Float64Type,
-        FloatAttr,
-        IntegerType,
-        IntegerAttr,
-    )
-    from xdsl.dialects.func import FuncOp, ReturnOp
-    from xdsl.dialects.arith import (
-        AddfOp,
-        SubfOp,
-        MulfOp,
-        ConstantOp,
-        AddiOp,
-        MuliOp,
-        SIToFPOp,
-        FloatingPointLikeBinaryOperation,
-        DivfOp,
-    )
-    from xdsl.dialects.scf import ForOp, YieldOp
-    from xdsl.dialects.math import PowFOp, SqrtOp
     from xdsl.builder import Builder, InsertPoint
+    from xdsl.dialects.arith import AddfOp, AddiOp, ConstantOp, DivfOp, FloatingPointLikeBinaryOperation, MulfOp, MuliOp, SIToFPOp, SubfOp
+    from xdsl.dialects.builtin import Float64Type, FloatAttr, IntegerAttr, IntegerType, ModuleOp
+    from xdsl.dialects.func import FuncOp, ReturnOp
+    from xdsl.dialects.math import PowFOp, SqrtOp
+    from xdsl.dialects.scf import ForOp, YieldOp
+    from xdsl.ir import Attribute, Block, Operation, ParametrizedAttribute, Region, SSAValue, TypeAttribute
+    from xdsl.irdl import IRDLOperation, ParameterDef, irdl_attr_definition, irdl_op_definition, operand_def, result_def, traits_def
+    from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
+    from xdsl.traits import Pure
     from xdsl.transforms.common_subexpression_elimination import cse
-    from xdsl.transforms.dead_code_elimination import dce
+    from xdsl.transforms.dead_code_elimination import dce, region_dce
+
     return (
         Abs,
         Add,
@@ -161,8 +105,7 @@ def _(Function):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
         # Exercise: Add a `complex` dialect
 
         Your task is to:
@@ -170,15 +113,13 @@ def _(mo):
         * Write a new set of `complex` operations
         * Add a lowering from `complex` to `arith`
         * Add optimizations for the `complex` dialect
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
         ## Defining the `complex` dialect
 
         You should write the following operations:
@@ -191,8 +132,7 @@ def _(mo):
         * "complex.norm": returns the norm of two complex numbers
 
         Here is the definition of the `!complex.complex` type, and the definition of `complex.re`. Complete it with the other ops:
-        """
-    )
+        """)
     return
 
 
@@ -275,18 +215,17 @@ def _(
 
         def __init__(self, arg: SSAValue):
             raise NotImplementedError("NormOp __init__ is not yet implemented")
+
     return AddcOp, ComplexType, CreateOp, ImOp, MulcOp, NormOp, ReOp
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
         ### Solution
 
         Hidden below is the definition of all operations
-        """
-    )
+        """)
     return
 
 
@@ -389,19 +328,18 @@ def _(
 
             def __init__(self, arg: SSAValue):
                 super().__init__(operands=[arg], result_types=[Float64Type()])
+
     return (dialect_solution,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## Filling the IR emitter with `complex` operations:
 
         Now that our new operations are defined, we can add support for them in the IR emitter.
         We completed this for you below.
-        """
-    )
+        """)
     return
 
 
@@ -464,6 +402,7 @@ def _(
             print("\n\n")
         except NotImplementedError as e:
             print("Error:", e)
+
     return emit_ir, print_ir
 
 
@@ -476,6 +415,7 @@ def _(Attribute, ComplexType, Expr, Float64Type, IntegerType):
             return Float64Type()
         else:
             return ComplexType()
+
     return (get_mlir_type,)
 
 
@@ -547,9 +487,7 @@ def _(
 
         # Handle constants
         if isinstance(expr, Integer):
-            constant_op = builder.insert(
-                ConstantOp(IntegerAttr(int(expr), IntegerType(64)))
-            )
+            constant_op = builder.insert(ConstantOp(IntegerAttr(int(expr), IntegerType(64))))
             return constant_op.result
 
         if isinstance(expr, Add):
@@ -611,9 +549,7 @@ def _(
 
         # Handle constants
         if isinstance(expr, Float):
-            constant_op = builder.insert(
-                ConstantOp(FloatAttr(float(expr), Float64Type()))
-            )
+            constant_op = builder.insert(ConstantOp(FloatAttr(float(expr), Float64Type())))
             return constant_op
 
         # Handle symbolic values
@@ -662,9 +598,7 @@ def _(
             builder3 = Builder(InsertPoint.at_end(rhs_region.block))
             builder3.insert(YieldOp(neg))
 
-            if_res = builder.insert(
-                IfOp(is_neg, Float64Type(), lhs_region, rhs_region)
-            ).results[0]
+            if_res = builder.insert(IfOp(is_neg, Float64Type(), lhs_region, rhs_region)).results[0]
 
             return if_res
 
@@ -677,9 +611,7 @@ def _(
             accumulator = region.block.args[1]
 
             b2 = Builder(InsertPoint.at_end(region.block))
-            arg = emit_real_op(
-                expr.args[0], b2, args | {expr.args[1][0]: region.block.args[0]}
-            )
+            arg = emit_real_op(expr.args[0], b2, args | {expr.args[1][0]: region.block.args[0]})
             add = b2.insert(AddfOp(arg, accumulator)).result
             b2.insert(YieldOp(add))
 
@@ -691,6 +623,7 @@ def _(
             return res
 
         raise NotImplementedError(f"No IR emitter for float function {expr.func}")
+
     return emit_complex_op, emit_integer_op, emit_op, emit_real_op
 
 
@@ -726,8 +659,7 @@ def _(I, Norm, print_ir, x, y):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
         ## Lowering the complex dialect
 
         Now that we emitted IR using the `complex` dialect, we can lower it to `arith`.
@@ -738,8 +670,7 @@ def _(mo):
         * Write patterns to rewrite `complex.add`, `complex.mul`, and `complex.norm` into `arith` and `complex.create`, `complex.re`, and `complex.im` ops. For instance, `add(x, y)` should be rewritten to `create(re(x) + re(y), im(x) + im(y))`.
 
         This will effectively lower the `complex` dialect, as all these patterns will be applied until convergence. We give you the pattern `re(create(x, y)) -> x` and the lowering of `complex.mul`
-        """
-    )
+        """)
     return
 
 
@@ -824,6 +755,7 @@ def _(
             # Implement the lowering of norm
             # The formula is `norm(z) = (re(z) * re(z) + im(z) * im(z)) ^ 0.5`
             return
+
     return (
         FoldImCreateOp,
         FoldReCreateOp,
@@ -865,6 +797,7 @@ def _(Expr, cse, emit_ir, lower_complex):
             print("\n\n")
         except NotImplementedError as e:
             print("Error:", e)
+
     return (print_ir_with_complex_lowering,)
 
 
@@ -876,13 +809,11 @@ def _(I, Norm, print_ir_with_complex_lowering, x, y):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
         ### Solution
 
         Hidden below is a possible lowering:
-        """
-    )
+        """)
     return
 
 
@@ -920,9 +851,7 @@ def _(
                 LowerMulOp(),
                 LowerNormOp(),
             ]
-            PatternRewriteWalker(GreedyRewritePatternApplier(rewrites)).rewrite_module(
-                op
-            )
+            PatternRewriteWalker(GreedyRewritePatternApplier(rewrites)).rewrite_module(op)
 
             # Run dce and cse after the rewritting
             cse(op)
@@ -1002,13 +931,13 @@ def _(
                 pow = rewriter.insert(PowFOp(add, half)).result
 
                 rewriter.replace_matched_op([], new_results=[pow])
+
     return (solution,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
         ## Optimizing our dialects
 
         As a last task, you have to write your own optimizations patterns to improve as much as possible the performance of the generated code. This includes reducing the amount of floating point power and multiplication functions.
@@ -1018,8 +947,7 @@ def _(mo):
         Your objective is to optimize the function `Norm(z1) * Norm(z2)`.
 
         As a hint, this expression is equivalent to `Norm(z1 * z2)`, which is much easier to express as a `complex` dialect optimization than an `arith` optimization. You may also add other `arith` and `complex` optimizations.
-        """
-    )
+        """)
     return
 
 
@@ -1061,6 +989,7 @@ def _(Expr, cse, dce, emit_ir, lower_complex, optimize):
             print("\n\n")
         except NotImplementedError as e:
             print("Error:", e)
+
     return (print_ir_with_pipeline,)
 
 

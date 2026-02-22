@@ -1,22 +1,10 @@
 from collections.abc import Sequence
 
-from xdsl.backend.register_allocatable import (
-    HasRegisterConstraints,
-    RegisterAllocatableOperation,
-    RegisterConstraints,
-)
+from xdsl.backend.register_allocatable import HasRegisterConstraints, RegisterAllocatableOperation, RegisterConstraints
 from xdsl.backend.register_type import RegisterType
 from xdsl.builder import Builder
 from xdsl.ir import Attribute, SSAValue
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    AttrSizedResultSegments,
-    IRDLOperation,
-    irdl_attr_definition,
-    irdl_op_definition,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.irdl import AttrSizedOperandSegments, AttrSizedResultSegments, IRDLOperation, irdl_attr_definition, irdl_op_definition, var_operand_def, var_result_def
 
 
 @irdl_attr_definition
@@ -68,9 +56,7 @@ def op(
     *out_result_types: Attribute,
     inouts: Sequence[SSAValue] = (),
 ):
-    return TestAllocatableOp(
-        ins, inouts, out_result_types, tuple(val.type for val in inouts)
-    )
+    return TestAllocatableOp(ins, inouts, out_result_types, tuple(val.type for val in inouts))
 
 
 def test_gather_allocated():
@@ -84,9 +70,7 @@ def test_gather_allocated():
         (v2,) = op((), u).results
         op((v1, v2), u)
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(no_preallocated_body)
-    )
+    pa_regs = set(RegisterAllocatableOperation.iter_all_used_registers(no_preallocated_body))
 
     assert pa_regs == set()
 
@@ -96,9 +80,7 @@ def test_gather_allocated():
         (v2,) = op((), x0).results
         op((v1, v2), u)
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(one_preallocated_body)
-    )
+    pa_regs = set(RegisterAllocatableOperation.iter_all_used_registers(one_preallocated_body))
 
     assert pa_regs == {x0}
 
@@ -109,9 +91,7 @@ def test_gather_allocated():
         (v3,) = op((), x0).results
         op((v1, v2, v3), u)
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(repeated_preallocated_body)
-    )
+    pa_regs = set(RegisterAllocatableOperation.iter_all_used_registers(repeated_preallocated_body))
 
     assert pa_regs == {x0}
 
@@ -122,8 +102,6 @@ def test_gather_allocated():
         (v3,) = op((), x1).results
         op((v1, v2, v3), u)
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(multiple_preallocated_body)
-    )
+    pa_regs = set(RegisterAllocatableOperation.iter_all_used_registers(multiple_preallocated_body))
 
     assert pa_regs == {x0, x1}

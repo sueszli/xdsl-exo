@@ -2,12 +2,7 @@ from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern
 from xdsl.traits import HasShapeInferencePatternsTrait
 
 

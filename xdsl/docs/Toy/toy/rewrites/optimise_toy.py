@@ -1,12 +1,6 @@
-from xdsl.dialects.builtin import (
-    DenseIntOrFPElementsAttr,
-)
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr
 from xdsl.ir import OpResult
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 from xdsl.utils.hints import isa
 
 from ..dialects.toy import ConstantOp, ReshapeOp, TensorTypeF64, TransposeOp
@@ -72,8 +66,6 @@ class FoldConstantReshapeOpPattern(RewritePattern):
 
         assert isa(op.res.type, TensorTypeF64)
 
-        new_value = DenseIntOrFPElementsAttr.create_dense_float(
-            type=op.res.type, data=reshape_input_op.value.get_float_values()
-        )
+        new_value = DenseIntOrFPElementsAttr.create_dense_float(type=op.res.type, data=reshape_input_op.value.get_float_values())
         new_op = ConstantOp(new_value)
         rewriter.replace_matched_op(new_op)

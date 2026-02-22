@@ -52,14 +52,8 @@ class IRGen:
         inputVars = jaxpr.jaxpr.invars[0]
         outputVars = jaxpr.jaxpr.outvars[0]
 
-        input_types = [
-            TensorType(f32, [inputVars.aval.size])
-            for _ in range(len(jaxpr.jaxpr.invars))
-        ]
-        output_types = [
-            TensorType(f32, [outputVars.aval.size])
-            for _ in range(len(jaxpr.jaxpr.outvars))
-        ]
+        input_types = [TensorType(f32, [inputVars.aval.size]) for _ in range(len(jaxpr.jaxpr.invars))]
+        output_types = [TensorType(f32, [outputVars.aval.size]) for _ in range(len(jaxpr.jaxpr.outvars))]
 
         block = Block(arg_types=input_types)
         self.builder = Builder(InsertPoint.at_end(block))
@@ -76,8 +70,6 @@ class IRGen:
 
         self.builder = parent_builder
 
-        self.builder.insert(
-            FuncOp("main", func_type, Region(block), visibility="public")
-        )
+        self.builder.insert(FuncOp("main", func_type, Region(block), visibility="public"))
 
         return self.module

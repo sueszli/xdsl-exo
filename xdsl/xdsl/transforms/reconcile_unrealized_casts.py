@@ -9,12 +9,7 @@ from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Use
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
 def _try_remove_cast_chain(
@@ -48,17 +43,9 @@ def _try_remove_cast_chain(
         for use in gen_all_uses_cast(cast):
             if isinstance(use.operation, builtin.UnrealizedConversionCastOp):
                 # early check, it's definitely not an unifiable cast
-                if any(
-                    r != i
-                    for r, i in itertools.zip_longest(
-                        use.operation.inputs, cast.results
-                    )
-                ):
+                if any(r != i for r, i in itertools.zip_longest(use.operation.inputs, cast.results)):
                     if warn_on_failure:
-                        warn(
-                            f"Unable to remove cast {cast} because "
-                            "it is not unifiable with its uses"
-                        )
+                        warn(f"Unable to remove cast {cast} because " "it is not unifiable with its uses")
                     return
                 casts_to_visit.append(use.operation)
             else:
@@ -72,11 +59,7 @@ def _try_remove_cast_chain(
         has_trivial_cycle = cast.result_types == op.inputs.types
         if is_live and not has_trivial_cycle:
             if warn_on_failure:
-                warn(
-                    "Unable to remove cast "
-                    f"{cast} because it is not unifiable "
-                    "with its uses"
-                )
+                warn("Unable to remove cast " f"{cast} because it is not unifiable " "with its uses")
             return
 
         if not has_any_uses or is_live:
@@ -104,9 +87,7 @@ class ReconcileUnrealizedCastsPattern(RewritePattern):
     warn_on_failure: bool = field(default=False, kw_only=True)
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: builtin.UnrealizedConversionCastOp, rewriter: PatternRewriter
-    ):
+    def match_and_rewrite(self, op: builtin.UnrealizedConversionCastOp, rewriter: PatternRewriter):
         _try_remove_cast_chain(op, rewriter, self.warn_on_failure)
 
 
@@ -116,9 +97,7 @@ def reconcile_unrealized_casts(module: ModuleOp, *, warn_on_failure: bool = True
     that are not needed anymore in a module.
     """
 
-    PatternRewriteWalker(
-        ReconcileUnrealizedCastsPattern(warn_on_failure=warn_on_failure)
-    ).rewrite_module(module)
+    PatternRewriteWalker(ReconcileUnrealizedCastsPattern(warn_on_failure=warn_on_failure)).rewrite_module(module)
 
 
 class ReconcileUnrealizedCastsPass(ModulePass):

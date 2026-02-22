@@ -3,31 +3,11 @@ from dataclasses import dataclass
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import arith, scf
-from xdsl.dialects.builtin import (
-    FunctionType,
-    IndexType,
-    IntegerAttr,
-    MemRefType,
-    ModuleOp,
-    SymbolRefAttr,
-    i32,
-)
+from xdsl.dialects.builtin import FunctionType, IndexType, IntegerAttr, MemRefType, ModuleOp, SymbolRefAttr, i32
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
-from xdsl.ir import (
-    Attribute,
-    Block,
-    Operation,
-    OpResult,
-    Region,
-)
+from xdsl.ir import Attribute, Block, Operation, OpResult, Region
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import PassFailedException
 from xdsl.utils.hints import isa
@@ -57,11 +37,7 @@ class HandleCslStencilApplyAsyncCF(RewritePattern):
         assert isinstance(terminator, csl_stencil.YieldOp)
 
         # case 2: apply is followed by call_op and return - move call_op to second callback of apply
-        if (
-            isinstance(call_op := op.next_op, csl.CallOp)
-            and op.next_op.next_op
-            and isinstance(op.next_op.next_op, csl.ReturnOp)
-        ):
+        if isinstance(call_op := op.next_op, csl.CallOp) and op.next_op.next_op and isinstance(op.next_op.next_op, csl.ReturnOp):
             rewriter.insert_op(call_op.clone(), InsertPoint.before(terminator))
             rewriter.erase_op(call_op)
             return
@@ -120,9 +96,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         # limitation: can yield iter_args in any order, but they cannot be modified in the loop body
         terminator = op.body.block.last_op
         assert isinstance(terminator, scf.YieldOp)
-        assert all(arg in op.body.block.args for arg in terminator.arguments), (
-            "Can only yield unmodified iter_args (in any order)"
-        )
+        assert all(arg in op.body.block.args for arg in terminator.arguments), "Can only yield unmodified iter_args (in any order)"
 
         # limitation: currently only loops built from arith.constant are supported
         assert isinstance(op.lb, OpResult)
@@ -139,19 +113,13 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         if op.iter_args:
             assert isa(op.iter_args[0].type, MemRefType[Attribute])
             element_type = op.iter_args[0].type.get_element_type()
-            assert all(
-                isa(a.type, MemRefType[Attribute])
-                and element_type == a.type.get_element_type()
-                for a in op.iter_args
-            )
+            assert all(isa(a.type, MemRefType[Attribute]) and element_type == a.type.get_element_type() for a in op.iter_args)
 
         no_params = FunctionType.from_lists([], [])
         if self.task_ids:
             cond_task_id = self.task_ids.pop(0)
         else:
-            raise PassFailedException(
-                "Insufficient number of task IDs supplied, please provide further IDs to be used."
-            )
+            raise PassFailedException("Insufficient number of task IDs supplied, please provide further IDs to be used.")
 
         pre_block = op.parent_block()
         if pre_block is None:
@@ -235,15 +203,11 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
             InsertPoint.at_end(body_func.body.block),
             [v.res for v in body_vars],
         )
-        rewriter.insert_op(
-            csl.CallOp(SymbolRefAttr(inc_func.sym_name)), InsertPoint.before(terminator)
-        )
+        rewriter.insert_op(csl.CallOp(SymbolRefAttr(inc_func.sym_name)), InsertPoint.before(terminator))
         rewriter.replace_op(terminator, csl.ReturnOp())
 
         # place funcs and erase now-empty for-loop
-        rewriter.insert_op(
-            [cond_func, body_func, inc_func, post_func], InsertPoint.after(parent_func)
-        )
+        rewriter.insert_op([cond_func, body_func, inc_func, post_func], InsertPoint.after(parent_func))
         rewriter.erase_matched_op()
 
     @staticmethod
@@ -316,6 +280,4 @@ class CslStencilHandleAsyncControlFlow(ModulePass):
             apply_recursively=False,
         )
         module_pass.rewrite_module(op)
-        PatternRewriteWalker(
-            CopyArithConstants(), apply_recursively=False
-        ).rewrite_module(op)
+        PatternRewriteWalker(CopyArithConstants(), apply_recursively=False).rewrite_module(op)

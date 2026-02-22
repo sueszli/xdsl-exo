@@ -5,23 +5,9 @@ from typing_extensions import Self
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import StringAttr
-from xdsl.dialects.riscv import (
-    AssemblyInstructionArg,
-    IntRegisterType,
-    RISCVInstruction,
-    RISCVRegisterType,
-)
+from xdsl.dialects.riscv import AssemblyInstructionArg, IntRegisterType, RISCVInstruction, RISCVRegisterType
 from xdsl.ir import Dialect, Operation, SSAValue
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    Successor,
-    irdl_op_definition,
-    operand_def,
-    opt_attr_def,
-    successor_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.irdl import AttrSizedOperandSegments, Successor, irdl_op_definition, operand_def, opt_attr_def, successor_def, traits_def, var_operand_def
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
@@ -46,9 +32,7 @@ def _parse_type_pair(parser: Parser) -> SSAValue:
 class ConditionalBranchOpCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv_cf import (
-            ElideConstantBranches,
-        )
+        from xdsl.transforms.canonicalization_patterns.riscv_cf import ElideConstantBranches
 
         return (ElideConstantBranches(),)
 
@@ -69,9 +53,7 @@ class ConditionalBranchOperation(RISCVInstruction, ABC):
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = traits_def(
-        IsTerminator(), ConditionalBranchOpCanonicalizationPatternTrait()
-    )
+    traits = traits_def(IsTerminator(), ConditionalBranchOpCanonicalizationPatternTrait())
 
     def __init__(
         self,
@@ -101,23 +83,17 @@ class ConditionalBranchOperation(RISCVInstruction, ABC):
         then_block_first_op = self.then_block.first_op
 
         if not isinstance(then_block_first_op, riscv.LabelOp):
-            raise VerifyException(
-                "riscv_cf branch op then block first op must be a label"
-            )
+            raise VerifyException("riscv_cf branch op then block first op must be a label")
 
         # Types of arguments must match arg types of blocks
 
         for op_arg, block_arg in zip(self.then_arguments, self.then_block.args):
             if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
+                raise VerifyException(f"Block arg types must match {op_arg.type} {block_arg.type}")
 
         for op_arg, block_arg in zip(self.else_arguments, self.else_block.args):
             if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
+                raise VerifyException(f"Block arg types must match {op_arg.type} {block_arg.type}")
 
         # The else block must be the one immediately following this one
 
@@ -130,9 +106,7 @@ class ConditionalBranchOperation(RISCVInstruction, ABC):
             return
 
         if parent_block.next_block is not self.else_block:
-            raise VerifyException(
-                "riscv_cf branch op else block must be immediately after op"
-            )
+            raise VerifyException("riscv_cf branch op else block must be immediately after op")
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         then_label = self.then_block.first_op
@@ -147,15 +121,11 @@ class ConditionalBranchOperation(RISCVInstruction, ABC):
         printer.print_string(", ")
         printer.print_block_name(self.then_block)
         printer.print_string("(")
-        printer.print_list(
-            self.then_arguments, lambda val: _print_type_pair(printer, val)
-        )
+        printer.print_list(self.then_arguments, lambda val: _print_type_pair(printer, val))
         printer.print_string("), ")
         printer.print_block_name(self.else_block)
         printer.print_string("(")
-        printer.print_list(
-            self.else_arguments, lambda val: _print_type_pair(printer, val)
-        )
+        printer.print_list(self.else_arguments, lambda val: _print_type_pair(printer, val))
         printer.print_string(")")
         if self.attributes:
             printer.print_op_attributes(
@@ -171,14 +141,10 @@ class ConditionalBranchOperation(RISCVInstruction, ABC):
         rs2 = _parse_type_pair(parser)
         parser.parse_punctuation(",")
         then_block = parser.parse_successor()
-        then_args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
-        )
+        then_args = parser.parse_comma_separated_list(parser.Delimiter.PAREN, lambda: _parse_type_pair(parser))
         parser.parse_punctuation(",")
         else_block = parser.parse_successor()
-        else_args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
-        )
+        else_args = parser.parse_comma_separated_list(parser.Delimiter.PAREN, lambda: _parse_type_pair(parser))
         attrs = parser.parse_optional_attr_dict_with_keyword()
         op = cls(rs1, rs2, then_args, else_args, then_block, else_block)
         if attrs is not None:
@@ -338,32 +304,23 @@ class BranchOp(riscv.RISCVAsmOperation):
         # Types of arguments must match arg types of blocks
         for op_arg, block_arg in zip(self.block_arguments, self.successor.args):
             if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
+                raise VerifyException(f"Block arg types must match {op_arg.type} {block_arg.type}")
 
         # The successor must immediately follow the parent block.
-        if (parent_block := self.parent) is None or (
-            parent_region := parent_block.parent
-        ) is None:
+        if (parent_block := self.parent) is None or (parent_region := parent_block.parent) is None:
             return
 
         parent_index = parent_region.get_block_index(parent_block)
         successor_index = parent_region.get_block_index(self.successor)
 
         if parent_index + 1 != successor_index:
-            raise VerifyException(
-                "Successor block must be immediately after parent block in the parent "
-                "region."
-            )
+            raise VerifyException("Successor block must be immediately after parent block in the parent " "region.")
 
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
         printer.print_block_name(self.successor)
         printer.print_string("(")
-        printer.print_list(
-            self.block_arguments, lambda val: _print_type_pair(printer, val)
-        )
+        printer.print_list(self.block_arguments, lambda val: _print_type_pair(printer, val))
         printer.print_string(")")
         if self.attributes:
             printer.print_op_attributes(self.attributes, print_keyword=True)
@@ -371,9 +328,7 @@ class BranchOp(riscv.RISCVAsmOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         successor = parser.parse_successor()
-        block_arguments = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
-        )
+        block_arguments = parser.parse_comma_separated_list(parser.Delimiter.PAREN, lambda: _parse_type_pair(parser))
         attrs = parser.parse_optional_attr_dict_with_keyword()
         op = cls(block_arguments, successor)
         if attrs is not None:
@@ -426,23 +381,16 @@ class JOp(RISCVInstruction):
 
         for op_arg, block_arg in zip(self.block_arguments, self.successor.args):
             if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
+                raise VerifyException(f"Block arg types must match {op_arg.type} {block_arg.type}")
 
         if not isinstance(self.successor.first_op, riscv.LabelOp):
-            raise VerifyException(
-                "riscv_cf.j operation successor must have a riscv.label operation as a "
-                f"first argument, found {self.successor.first_op}"
-            )
+            raise VerifyException("riscv_cf.j operation successor must have a riscv.label operation as a " f"first argument, found {self.successor.first_op}")
 
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
         printer.print_block_name(self.successor)
         printer.print_string("(")
-        printer.print_list(
-            self.block_arguments, lambda val: _print_type_pair(printer, val)
-        )
+        printer.print_list(self.block_arguments, lambda val: _print_type_pair(printer, val))
         printer.print_string(")")
         if self.attributes:
             printer.print_op_attributes(self.attributes, print_keyword=True)
@@ -450,9 +398,7 @@ class JOp(RISCVInstruction):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         successor = parser.parse_successor()
-        block_arguments = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
-        )
+        block_arguments = parser.parse_comma_separated_list(parser.Delimiter.PAREN, lambda: _parse_type_pair(parser))
         attrs = parser.parse_optional_attr_dict_with_keyword()
         op = cls(block_arguments, successor)
         if attrs is not None:

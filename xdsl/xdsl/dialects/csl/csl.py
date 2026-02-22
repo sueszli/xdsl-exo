@@ -15,78 +15,14 @@ from dataclasses import KW_ONLY, dataclass, field
 from typing import Annotated, ClassVar, Literal, TypeAlias
 
 from xdsl.dialects import builtin
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    ArrayAttr,
-    BoolAttr,
-    ContainerType,
-    DictionaryAttr,
-    Float16Type,
-    Float32Type,
-    FloatAttr,
-    FunctionType,
-    IntegerAttr,
-    IntegerType,
-    MemRefType,
-    ModuleOp,
-    Signedness,
-    StringAttr,
-    SymbolRefAttr,
-    TensorType,
-    i8,
-    i16,
-)
+from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr, BoolAttr, ContainerType, DictionaryAttr, Float16Type, Float32Type, FloatAttr, FunctionType, IntegerAttr, IntegerType, MemRefType, ModuleOp, Signedness, StringAttr, SymbolRefAttr, TensorType, i8, i16
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
-from xdsl.ir import (
-    Attribute,
-    Block,
-    Dialect,
-    EnumAttribute,
-    Operation,
-    Region,
-    SpacedOpaqueSyntaxAttribute,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    AnyOf,
-    BaseAttr,
-    IRDLOperation,
-    ParameterDef,
-    ParametrizedAttribute,
-    VarConstraint,
-    attr_def,
-    base,
-    eq,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_operand_def,
-    opt_prop_def,
-    opt_result_def,
-    prop_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.ir import Attribute, Block, Dialect, EnumAttribute, Operation, Region, SpacedOpaqueSyntaxAttribute, SSAValue, TypeAttribute
+from xdsl.irdl import AnyOf, BaseAttr, IRDLOperation, ParameterDef, ParametrizedAttribute, VarConstraint, attr_def, base, eq, irdl_attr_definition, irdl_op_definition, operand_def, opt_operand_def, opt_prop_def, opt_result_def, prop_def, region_def, result_def, traits_def, var_operand_def
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import (
-    HasAncestor,
-    HasCanonicalizationPatternsTrait,
-    HasParent,
-    IsolatedFromAbove,
-    IsTerminator,
-    MemoryReadEffect,
-    MemoryWriteEffect,
-    NoMemoryEffect,
-    NoTerminator,
-    OpTrait,
-    Pure,
-    SymbolOpInterface,
-)
+from xdsl.traits import HasAncestor, HasCanonicalizationPatternsTrait, HasParent, IsolatedFromAbove, IsTerminator, MemoryReadEffect, MemoryWriteEffect, NoMemoryEffect, NoTerminator, OpTrait, Pure, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
@@ -172,10 +108,7 @@ class _FuncBase(IRDLOperation, ABC):
         entry_block: Block = self.body.blocks[0]
         block_arg_types = entry_block.arg_types
         if self.function_type.inputs.data != tuple(block_arg_types):
-            raise VerifyException(
-                "Expected entry block arguments to have the same types as the function "
-                "input types"
-            )
+            raise VerifyException("Expected entry block arguments to have the same types as the function " "input types")
 
     def _print(self, printer: Printer):
         print_func_op_like(
@@ -218,20 +151,14 @@ class InModuleKind(OpTrait):
         direct = "direct" if direct_child else "indirect"
         parent_module = op.parent_op()
         if not direct_child:
-            while parent_module is not None and not isinstance(
-                parent_module, CslModuleOp | csl_wrapper.ModuleOp
-            ):
+            while parent_module is not None and not isinstance(parent_module, CslModuleOp | csl_wrapper.ModuleOp):
                 parent_module = parent_module.parent_op()
         if isinstance(parent_module, csl_wrapper.ModuleOp):
             return
         if not isinstance(parent_module, CslModuleOp):
-            raise VerifyException(
-                f"'{op.name}' expexts {direct} parent to be {CslModuleOp.name}, got {parent_module}"
-            )
+            raise VerifyException(f"'{op.name}' expexts {direct} parent to be {CslModuleOp.name}, got {parent_module}")
         if parent_module.kind.data != kind:
-            raise VerifyException(
-                f"'{op.name}' expexts {direct} parent to be {CslModuleOp.name} of kind {kind.value}"
-            )
+            raise VerifyException(f"'{op.name}' expexts {direct} parent to be {CslModuleOp.name} of kind {kind.value}")
 
 
 @irdl_attr_definition
@@ -347,39 +274,20 @@ class PtrCastOp(IRDLOperation):
         super().__init__(operands=[ptr], result_types=[result_type])
 
 
-DsdElementTypeConstr = (
-    base(Float16Type)
-    | base(Float32Type)
-    | eq(IntegerType(16, Signedness.SIGNED))
-    | eq(IntegerType(16, Signedness.UNSIGNED))
-    | eq(IntegerType(32, Signedness.SIGNED))
-    | eq(IntegerType(32, Signedness.UNSIGNED))
-)
+DsdElementTypeConstr = base(Float16Type) | base(Float32Type) | eq(IntegerType(16, Signedness.SIGNED)) | eq(IntegerType(16, Signedness.UNSIGNED)) | eq(IntegerType(32, Signedness.SIGNED)) | eq(IntegerType(32, Signedness.UNSIGNED))
 
 
-f16_pointer = PtrType(
-    [Float16Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
-)
-f32_pointer = PtrType(
-    [Float32Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
-)
+f16_pointer = PtrType([Float16Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)])
+f32_pointer = PtrType([Float32Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)])
 i8_value = IntegerType(8, Signedness.SIGNED)
 u16_value = IntegerType(16, Signedness.UNSIGNED)
 i16_value = IntegerType(16, Signedness.SIGNED)
 u32_value = IntegerType(32, Signedness.UNSIGNED)
 i32_value = IntegerType(32, Signedness.SIGNED)
-i16_pointer = PtrType(
-    [i16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
-)
-u16_pointer = PtrType(
-    [u16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
-)
-i32_pointer = PtrType(
-    [i32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
-)
-u32_pointer = PtrType(
-    [u32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
-)
+i16_pointer = PtrType([i16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)])
+u16_pointer = PtrType([u16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)])
+i32_pointer = PtrType([i32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)])
+u32_pointer = PtrType([u32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)])
 
 
 @irdl_attr_definition
@@ -413,8 +321,7 @@ class VarType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
 ColorIdAttr: TypeAlias = IntegerAttr[
     Annotated[
         IntegerType,
-        eq(IntegerType(5, Signedness.UNSIGNED))
-        | eq(IntegerType(6, Signedness.UNSIGNED)),
+        eq(IntegerType(5, Signedness.UNSIGNED)) | eq(IntegerType(6, Signedness.UNSIGNED)),
     ]
 ]
 
@@ -456,12 +363,8 @@ class VariableOp(IRDLOperation):
 
     def verify_(self) -> None:
         assert isinstance(self.res.type, VarType)
-        if self.default is not None and (
-            self.default.type != self.res.type.get_element_type()
-        ):
-            raise VerifyException(
-                "The type of the default value has to be the same as the type of the result, if the former is supplied"
-            )
+        if self.default is not None and (self.default.type != self.res.type.get_element_type()):
+            raise VerifyException("The type of the default value has to be the same as the type of the result, if the former is supplied")
         return super().verify_()
 
 
@@ -492,9 +395,7 @@ class LoadVarOp(IRDLOperation):
     def verify_(self) -> None:
         assert isinstance(self.var.type, VarType)
         if self.var.type.get_element_type() != self.res.type:
-            raise VerifyException(
-                "Result type of the load has to match the child type of the variable"
-            )
+            raise VerifyException("Result type of the load has to match the child type of the variable")
         return super().verify_()
 
 
@@ -516,9 +417,7 @@ class StoreVarOp(IRDLOperation):
     def verify_(self) -> None:
         assert isinstance(self.var.type, VarType)
         if self.var.type.get_element_type() != self.new_value.type:
-            raise VerifyException(
-                f"New value must match the element type of {self.var.type.name}"
-            )
+            raise VerifyException(f"New value must match the element type of {self.var.type.name}")
         return super().verify_()
 
 
@@ -573,9 +472,7 @@ class ImportModuleConstOp(IRDLOperation):
 
     result = result_def(ImportedModuleType)
 
-    def __init__(
-        self, name: str | StringAttr, params: SSAValue | Operation | None = None
-    ):
+    def __init__(self, name: str | StringAttr, params: SSAValue | Operation | None = None):
         if isinstance(name, str):
             name = StringAttr(name)
         super().__init__(
@@ -616,15 +513,11 @@ class ConstStructOp(IRDLOperation):
             if len(self.ssa_values) == len(self.ssa_fields):
                 return super().verify_()
 
-        raise VerifyException(
-            "Number of ssa_fields has to match the number of arguments"
-        )
+        raise VerifyException("Number of ssa_fields has to match the number of arguments")
 
 
 ZerosOpAttr: TypeAlias = IntegerType | Float32Type | Float16Type
-ZerosOpAttrConstr: AnyOf[ZerosOpAttr] = (
-    BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
-)
+ZerosOpAttrConstr: AnyOf[ZerosOpAttr] = BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
 
 
 @irdl_op_definition
@@ -668,9 +561,7 @@ class ConstantsOp(IRDLOperation):
 
     name = "csl.constants"
 
-    T: ClassVar = VarConstraint(
-        "T", BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
-    )
+    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type))
 
     size = operand_def(IntegerType)
 
@@ -769,9 +660,7 @@ class FuncOp(_FuncBase):
         arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
         res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     ):
-        properties, region = self._props_region(
-            name, function_type, region, arg_attrs=arg_attrs, res_attrs=res_attrs
-        )
+        properties, region = self._props_region(name, function_type, region, arg_attrs=arg_attrs, res_attrs=res_attrs)
         super().__init__(properties=properties, regions=[region])
 
     def verify_(self) -> None:
@@ -795,9 +684,7 @@ class FuncOp(_FuncBase):
         if res_attrs:
             raise NotImplementedError("res_attrs not implemented in csl FuncOp")
 
-        assert len(return_types) <= 1, (
-            f"{cls.name} can't have more than one result type!"
-        )
+        assert len(return_types) <= 1, f"{cls.name} can't have more than one result type!"
 
         func = cls(
             name=name,
@@ -843,19 +730,13 @@ class TaskOp(_FuncBase):
         res_attrs: ArrayAttr[DictionaryAttr] | None = None,
         id: ColorIdAttr | int | None,
     ):
-        properties, region = self._props_region(
-            name, function_type, region, arg_attrs=arg_attrs, res_attrs=res_attrs
-        )
+        properties, region = self._props_region(name, function_type, region, arg_attrs=arg_attrs, res_attrs=res_attrs)
         if isinstance(task_kind, TaskKind):
             task_kind = TaskKindAttr(task_kind)
         if isinstance(id, int):
-            id = IntegerAttr(
-                id, IntegerType(task_kind.get_color_bits(), Signedness.UNSIGNED)
-            )
+            id = IntegerAttr(id, IntegerType(task_kind.get_color_bits(), Signedness.UNSIGNED))
         if id is not None:
-            assert id.type.width.data == task_kind.get_color_bits(), (
-                f"{task_kind.data.value} task id has to have {task_kind.get_color_bits()} bits, got {id.type.width.data}"
-            )
+            assert id.type.width.data == task_kind.get_color_bits(), f"{task_kind.data.value} task id has to have {task_kind.get_color_bits()} bits, got {id.type.width.data}"
 
         properties |= {
             "kind": task_kind,
@@ -868,13 +749,8 @@ class TaskOp(_FuncBase):
         if len(self.function_type.outputs.data) != 0:
             raise VerifyException(f"{self.name} cannot have return values")
 
-        if (
-            self.id is not None
-            and self.id.type.width.data != self.kind.get_color_bits()
-        ):
-            raise VerifyException(
-                f"Type of the id has to be {self.kind.get_color_bits()}"
-            )
+        if self.id is not None and self.id.type.width.data != self.kind.get_color_bits():
+            raise VerifyException(f"Type of the id has to be {self.kind.get_color_bits()}")
 
         match self.kind.data:
             case TaskKind.LOCAL:
@@ -882,14 +758,10 @@ class TaskOp(_FuncBase):
                     raise VerifyException("Local tasks cannot have input argumentd")
             case TaskKind.DATA:
                 if not (0 < len(self.function_type.inputs.data) < 5):
-                    raise VerifyException(
-                        "Data tasks have to have between 1 and 4 arguments (both inclusive)"
-                    )
+                    raise VerifyException("Data tasks have to have between 1 and 4 arguments (both inclusive)")
             case TaskKind.CONTROL:
                 if not (len(self.function_type.inputs.data) < 5):
-                    raise VerifyException(
-                        "Control tasks have to have 4 or fewer arguments"
-                    )
+                    raise VerifyException("Control tasks have to have 4 or fewer arguments")
 
     @classmethod
     def parse(cls, parser: Parser) -> TaskOp:
@@ -908,11 +780,7 @@ class TaskOp(_FuncBase):
         )
         if res_attrs:
             raise NotImplementedError("res_attrs not implemented in csl TaskOp")
-        if (
-            extra_attrs is None
-            or "kind" not in extra_attrs.data
-            or not isinstance(kind := extra_attrs.data["kind"], TaskKindAttr)
-        ):
+        if extra_attrs is None or "kind" not in extra_attrs.data or not isinstance(kind := extra_attrs.data["kind"], TaskKindAttr):
             parser.raise_error(f"{cls.name} expected kind attribute")
         id = extra_attrs.data.get("id")
         if id is not None and not isa(id, ColorIdAttr):
@@ -922,9 +790,7 @@ class TaskOp(_FuncBase):
                 parser.pos,
             )
 
-        assert len(return_types) <= 1, (
-            f"{cls.name} can't have more than one result type!"
-        )
+        assert len(return_types) <= 1, f"{cls.name} can't have more than one result type!"
 
         task = cls(
             name=name,
@@ -966,9 +832,7 @@ class ActivateOp(IRDLOperation):
         if isinstance(kind, TaskKind):
             kind = TaskKindAttr(kind)
         if isinstance(id, int):
-            id = IntegerAttr(
-                id, IntegerType(kind.get_color_bits(), Signedness.UNSIGNED)
-            )
+            id = IntegerAttr(id, IntegerType(kind.get_color_bits(), Signedness.UNSIGNED))
 
         super().__init__(properties={"id": id, "kind": kind})
 
@@ -995,9 +859,7 @@ class ReturnOp(IRDLOperation):
         assert isinstance(func_op, FuncOp) or isinstance(func_op, TaskOp)
 
         if tuple(func_op.function_type.outputs.data) != self.operand_types:
-            raise VerifyException(
-                "Expected arguments to have the same types as the function output types"
-            )
+            raise VerifyException("Expected arguments to have the same types as the function output types")
 
 
 @irdl_op_definition
@@ -1086,11 +948,7 @@ class SetTileCodeOp(IRDLOperation):
 class DsdOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.csl import (
-            GetDsdAndLengthFolding,
-            GetDsdAndOffsetFolding,
-            GetDsdAndStrideFolding,
-        )
+        from xdsl.transforms.canonicalization_patterns.csl import GetDsdAndLengthFolding, GetDsdAndOffsetFolding, GetDsdAndStrideFolding
 
         return (
             GetDsdAndOffsetFolding(),
@@ -1099,14 +957,10 @@ class DsdOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         )
 
 
-class IncrementDsdOffsetOpHasCanonicalizationPatternsTrait(
-    HasCanonicalizationPatternsTrait
-):
+class IncrementDsdOffsetOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.csl import (
-            ChainedDsdOffsetFolding,
-        )
+        from xdsl.transforms.canonicalization_patterns.csl import ChainedDsdOffsetFolding
 
         return (ChainedDsdOffsetFolding(),)
 
@@ -1114,9 +968,7 @@ class IncrementDsdOffsetOpHasCanonicalizationPatternsTrait(
 class SetDsdLengthOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.csl import (
-            ChainedDsdLengthFolding,
-        )
+        from xdsl.transforms.canonicalization_patterns.csl import ChainedDsdLengthFolding
 
         return (ChainedDsdLengthFolding(),)
 
@@ -1124,9 +976,7 @@ class SetDsdLengthOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatterns
 class SetDsdStrideOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.csl import (
-            ChainedDsdStrideFolding,
-        )
+        from xdsl.transforms.canonicalization_patterns.csl import ChainedDsdStrideFolding
 
         return (ChainedDsdStrideFolding(),)
 
@@ -1163,20 +1013,12 @@ class GetMemDsdOp(_GetDsdOp):
         if self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
             raise VerifyException("DSD type must be memory DSD")
         if self.result.type.data == DsdKind.mem1d_dsd and len(self.sizes) != 1:
-            raise VerifyException(
-                "DSD of type mem1d_dsd must have exactly one dimension"
-            )
-        if self.result.type.data == DsdKind.mem4d_dsd and (
-            len(self.sizes) < 1 or len(self.sizes) > 4
-        ):
-            raise VerifyException(
-                "DSD of type mem4d_dsd must have between 1 and 4 dimensions"
-            )
+            raise VerifyException("DSD of type mem1d_dsd must have exactly one dimension")
+        if self.result.type.data == DsdKind.mem4d_dsd and (len(self.sizes) < 1 or len(self.sizes) > 4):
+            raise VerifyException("DSD of type mem4d_dsd must have between 1 and 4 dimensions")
         if self.tensor_access:
             if len(self.sizes) != self.tensor_access.data.num_dims:
-                raise VerifyException(
-                    "Dsd must have sizes specified for each dimension of the affine map"
-                )
+                raise VerifyException("Dsd must have sizes specified for each dimension of the affine map")
             if self.tensor_access.data.num_symbols != 0:
                 raise VerifyException("Symbols on affine map not supported")
 
@@ -1205,12 +1047,8 @@ class GetFabDsdOp(_GetDsdOp):
             raise VerifyException("DSD type must be fabric DSD")
         if len(self.sizes) != 1:
             raise VerifyException("Fabric DSDs must have exactly one dimension")
-        if self.result.type.data == DsdKind.fabin_dsd and (
-            self.control is not None or self.wavelet_index_offset is not None
-        ):
-            raise VerifyException(
-                "DSD of type fabin_dsd cannot specify control and wavelet_index_offset"
-            )
+        if self.result.type.data == DsdKind.fabin_dsd and (self.control is not None or self.wavelet_index_offset is not None):
+            raise VerifyException("DSD of type fabin_dsd cannot specify control and wavelet_index_offset")
 
 
 @irdl_op_definition
@@ -1226,27 +1064,16 @@ class SetDsdBaseAddrOp(IRDLOperation):
     name = "csl.set_dsd_base_addr"
 
     op = operand_def(DsdType)
-    base_addr = operand_def(
-        base(MemRefType[Attribute]) | base(TensorType[Attribute]) | base(PtrType)
-    )
+    base_addr = operand_def(base(MemRefType[Attribute]) | base(TensorType[Attribute]) | base(PtrType))
     result = result_def(DsdType)
 
     traits = traits_def(Pure())
 
     def verify_(self) -> None:
-        if (
-            not isinstance(self.op.type, DsdType)
-            or self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
-            or self.op.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
-        ):
+        if not isinstance(self.op.type, DsdType) or self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd] or self.op.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
             raise VerifyException(f"{self.name} must operate on mem1d_dsd or mem4d_dsd")
-        if (
-            isinstance(self.base_addr.type, PtrType)
-            and not self.base_addr.type.kind.data == PtrKind.MANY
-        ):
-            raise VerifyException(
-                f"{self.name} cannot operate on pointers of kind {self.base_addr.type}"
-            )
+        if isinstance(self.base_addr.type, PtrType) and not self.base_addr.type.kind.data == PtrKind.MANY:
+            raise VerifyException(f"{self.name} cannot operate on pointers of kind {self.base_addr.type}")
 
 
 @irdl_op_definition
@@ -1273,11 +1100,7 @@ class IncrementDsdOffsetOp(IRDLOperation):
     traits = traits_def(Pure(), IncrementDsdOffsetOpHasCanonicalizationPatternsTrait())
 
     def verify_(self) -> None:
-        if (
-            not isinstance(self.op.type, DsdType)
-            or self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
-            or self.op.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
-        ):
+        if not isinstance(self.op.type, DsdType) or self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd] or self.op.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
             raise VerifyException(f"{self.name} must operate on mem1d_dsd or mem4d_dsd")
 
 
@@ -1299,13 +1122,8 @@ class SetDsdLengthOp(IRDLOperation):
     traits = traits_def(Pure(), SetDsdLengthOpHasCanonicalizationPatternsTrait())
 
     def verify_(self) -> None:
-        if (
-            not isinstance(self.op.type, DsdType)
-            or self.result.type.data == DsdKind.mem4d_dsd
-        ):
-            raise VerifyException(
-                f"{self.name} must operate on one-dimensional DSD types"
-            )
+        if not isinstance(self.op.type, DsdType) or self.result.type.data == DsdKind.mem4d_dsd:
+            raise VerifyException(f"{self.name} must operate on one-dimensional DSD types")
 
 
 @irdl_op_definition
@@ -1326,10 +1144,7 @@ class SetDsdStrideOp(IRDLOperation):
     traits = traits_def(Pure(), SetDsdStrideOpHasCanonicalizationPatternsTrait())
 
     def verify_(self) -> None:
-        if (
-            not isinstance(self.op.type, DsdType)
-            or self.result.type.data != DsdKind.mem1d_dsd
-        ):
+        if not isinstance(self.op.type, DsdType) or self.result.type.data != DsdKind.mem1d_dsd:
             raise VerifyException(f"{self.name} can only operate on mem1d_dsd type")
 
 
@@ -1347,9 +1162,7 @@ class BuiltinDsdOp(IRDLOperation, ABC):
             sig_typ: Attribute | type[Attribute],
         ) -> bool:
             if isinstance(sig_typ, type):
-                return (sig_typ == DsdType and isa(op_typ, MemRefType)) or isinstance(
-                    op_typ, sig_typ
-                )
+                return (sig_typ == DsdType and isa(op_typ, MemRefType)) or isinstance(op_typ, sig_typ)
             else:
                 return op_typ == sig_typ
 
@@ -1484,27 +1297,21 @@ class Fh2xp16Op(BuiltinDsdOp):
 class FmachOp(BuiltinDsdOp):
     name = "csl.fmach"
 
-    SIGNATURES: ClassVar[FunctionSignatures] = [
-        (DsdType, DsdType, DsdType, Float16Type)
-    ]
+    SIGNATURES: ClassVar[FunctionSignatures] = [(DsdType, DsdType, DsdType, Float16Type)]
 
 
 @irdl_op_definition
 class FmachsOp(BuiltinDsdOp):
     name = "csl.fmachs"
 
-    SIGNATURES: ClassVar[FunctionSignatures] = [
-        (DsdType, DsdType, DsdType, Float16Type)
-    ]
+    SIGNATURES: ClassVar[FunctionSignatures] = [(DsdType, DsdType, DsdType, Float16Type)]
 
 
 @irdl_op_definition
 class FmacsOp(BuiltinDsdOp):
     name = "csl.fmacs"
 
-    SIGNATURES: ClassVar[FunctionSignatures] = [
-        (DsdType, DsdType, DsdType, Float32Type)
-    ]
+    SIGNATURES: ClassVar[FunctionSignatures] = [(DsdType, DsdType, DsdType, Float32Type)]
 
 
 @irdl_op_definition
@@ -1788,9 +1595,7 @@ class SymbolExportOp(IRDLOperation):
     type = prop_def(base(PtrType) | base(FunctionType))
 
     def __init__(self, sym_name: str | StringAttr, type_or_op: SSAValue | FunctionType):
-        var_name: StringAttr | SymbolRefAttr = (
-            StringAttr(sym_name) if isinstance(sym_name, str) else sym_name
-        )
+        var_name: StringAttr | SymbolRefAttr = StringAttr(sym_name) if isinstance(sym_name, str) else sym_name
 
         if isinstance(type_or_op, SSAValue):
             assert isinstance(type_or_op.type, PtrType)
@@ -1799,9 +1604,7 @@ class SymbolExportOp(IRDLOperation):
             var_name = SymbolRefAttr(var_name)
             sym_type, ops = type_or_op, list[list[SSAValue]]([[]])
 
-        super().__init__(
-            operands=ops, properties={"var_name": var_name, "type": sym_type}
-        )
+        super().__init__(operands=ops, properties={"var_name": var_name, "type": sym_type})
 
     def get_name(self) -> str:
         match self.var_name:
@@ -1813,26 +1616,16 @@ class SymbolExportOp(IRDLOperation):
     def verify_(self) -> None:
         if isinstance(self.var_name, StringAttr):
             if self.value is None:
-                raise VerifyException(
-                    "When passing var_name as a string, operand also has to be supplied"
-                )
+                raise VerifyException("When passing var_name as a string, operand also has to be supplied")
             if not isinstance(self.type, PtrType):
-                raise VerifyException(
-                    "When passing operand and name as string, type has to be a pointer type"
-                )
+                raise VerifyException("When passing operand and name as string, type has to be a pointer type")
             if self.value.type != self.type:
-                raise VerifyException(
-                    "Type of the operand has to match the type property"
-                )
+                raise VerifyException("Type of the operand has to match the type property")
         else:  # self.var_name is SymbolRefAttr
             if self.value is not None:
-                raise VerifyException(
-                    "When passing var_name as a symbol, operand cannot be supplied"
-                )
+                raise VerifyException("When passing var_name as a symbol, operand cannot be supplied")
             if not isinstance(self.type, FunctionType):
-                raise VerifyException(
-                    "When passing a symbol, type has to be a function type"
-                )
+                raise VerifyException("When passing a symbol, type has to be a function type")
 
         return super().verify_()
 
@@ -1917,18 +1710,12 @@ class AddressOfOp(IRDLOperation):
         res_elem_ty = res_ty.get_element_type()
         if res_elem_ty == val_ty.get_element_type():
             if res_ty.kind.data != PtrKind.MANY:
-                raise VerifyException(
-                    f"The kind of scalar pointer to array has to be {PtrKind.MANY.value}"
-                )
+                raise VerifyException(f"The kind of scalar pointer to array has to be {PtrKind.MANY.value}")
         elif res_elem_ty == val_ty:
             if res_ty.kind.data != PtrKind.SINGLE:
-                raise VerifyException(
-                    f"The kind of array pointer to array has to be {PtrKind.SINGLE.value}"
-                )
+                raise VerifyException(f"The kind of array pointer to array has to be {PtrKind.SINGLE.value}")
         else:
-            raise VerifyException(
-                "Contained type of the result pointer must match the contained type of the operand memref or the memref itself"
-            )
+            raise VerifyException("Contained type of the result pointer must match the contained type of the operand memref or the memref itself")
 
     def verify_(self) -> None:
         val_ty = self.value.type
@@ -1937,9 +1724,7 @@ class AddressOfOp(IRDLOperation):
             self._verify_memref_addr(val_ty, res_ty)
         else:
             if res_ty.get_element_type() != val_ty:
-                raise VerifyException(
-                    "Contained type of the result pointer must match the operand type"
-                )
+                raise VerifyException("Contained type of the result pointer must match the operand type")
         return super().verify_()
 
 
@@ -1958,25 +1743,9 @@ class RpcOp(IRDLOperation):
     id = operand_def(ColorType)
 
 
-ParamOpAttr: TypeAlias = (
-    Float16Type
-    | Float32Type
-    | IntegerType
-    | ColorType
-    | FunctionType
-    | ImportedModuleType
-    | ComptimeStructType
-)
+ParamOpAttr: TypeAlias = Float16Type | Float32Type | IntegerType | ColorType | FunctionType | ImportedModuleType | ComptimeStructType
 
-ParamOpAttrConstr = (
-    BaseAttr(Float16Type)
-    | BaseAttr(Float32Type)
-    | BaseAttr(IntegerType)
-    | BaseAttr(ColorType)
-    | BaseAttr(FunctionType)
-    | BaseAttr(ImportedModuleType)
-    | BaseAttr(ComptimeStructType)
-)
+ParamOpAttrConstr = BaseAttr(Float16Type) | BaseAttr(Float32Type) | BaseAttr(IntegerType) | BaseAttr(ColorType) | BaseAttr(FunctionType) | BaseAttr(ImportedModuleType) | BaseAttr(ComptimeStructType)
 
 
 @irdl_op_definition
@@ -2031,9 +1800,7 @@ class SignednessCastOp(IRDLOperation):
 
     assembly_format = "$inp attr-dict `:` type($inp) `to` type($result)"
 
-    def __init__(
-        self, op: SSAValue | Operation, result_type: IntegerType | None = None
-    ):
+    def __init__(self, op: SSAValue | Operation, result_type: IntegerType | None = None):
         """
         Create a signedness cast op.
 
@@ -2047,11 +1814,7 @@ class SignednessCastOp(IRDLOperation):
             assert isinstance(typ, IntegerType)
             result_type = IntegerType(
                 typ.width,
-                (
-                    Signedness.SIGNLESS
-                    if typ.signedness.data == Signedness.UNSIGNED
-                    else Signedness.UNSIGNED
-                ),
+                (Signedness.SIGNLESS if typ.signedness.data == Signedness.UNSIGNED else Signedness.UNSIGNED),
             )
         super().__init__(operands=[op], result_types=[result_type])
 
@@ -2061,9 +1824,7 @@ class SignednessCastOp(IRDLOperation):
         if self.inp.type.width != self.result.type.width:
             raise VerifyException("Input and output type must be of same bitwidth")
         if self.inp.type.signedness == self.result.type.signedness:
-            raise VerifyException(
-                "Input and output type must be of different signedness"
-            )
+            raise VerifyException("Input and output type must be of different signedness")
 
 
 @irdl_op_definition

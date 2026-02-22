@@ -7,22 +7,14 @@ app = marimo.App(width="medium")
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
+
     import xdsl.utils.marimo as xmo
+
     # Import all the necessary functionality from xDSL for this notebook
     # If you see an error about xdsl not being defined run this cell manually
-
-    from xdsl.backend.riscv.lowering import (
-        convert_arith_to_riscv,
-        convert_func_to_riscv_func,
-        convert_memref_to_riscv,
-        convert_scf_to_riscv_scf,
-    )
-    from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
-        ConvertRiscvScfToRiscvCfPass,
-    )
-    from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch import (
-        ConvertSnitchStreamToSnitch,
-    )
+    from xdsl.backend.riscv.lowering import convert_arith_to_riscv, convert_func_to_riscv_func, convert_memref_to_riscv, convert_scf_to_riscv_scf
+    from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import ConvertRiscvScfToRiscvCfPass
+    from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch import ConvertSnitchStreamToSnitch
     from xdsl.builder import ImplicitBuilder
     from xdsl.context import Context
     from xdsl.dialects import arith, func, linalg
@@ -32,27 +24,14 @@ def _():
     from xdsl.ir import Attribute, Block, Region, SSAValue
     from xdsl.passes import PipelinePass
     from xdsl.tools.command_line_tool import get_all_dialects
-    from xdsl.transforms import (
-        arith_add_fastmath,
-        convert_linalg_to_loops,
-        convert_linalg_to_memref_stream,
-        convert_memref_stream_to_loops,
-        convert_memref_stream_to_snitch_stream,
-        convert_riscv_scf_for_to_frep,
-        dead_code_elimination,
-        loop_hoist_memref,
-        lower_affine,
-        memref_streamify,
-        reconcile_unrealized_casts,
-    )
+    from xdsl.transforms import arith_add_fastmath, convert_linalg_to_loops, convert_linalg_to_memref_stream, convert_memref_stream_to_loops, convert_memref_stream_to_snitch_stream, convert_riscv_scf_for_to_frep, dead_code_elimination, loop_hoist_memref, lower_affine, memref_streamify, reconcile_unrealized_casts
     from xdsl.transforms.canonicalize import CanonicalizePass
     from xdsl.transforms.lower_snitch import LowerSnitchPass
     from xdsl.transforms.mlir_opt import MLIROptPass
     from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
-    from xdsl.transforms.riscv_scf_loop_range_folding import (
-        RiscvScfLoopRangeFoldingPass,
-    )
+    from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldingPass
     from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
+
     return (
         AffineMap,
         AffineMapAttr,
@@ -102,15 +81,13 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
         # Compiling `linalg` to Snitch
 
         This notebook walks through compiling micro-kernels defined in `linalg` to RISC-V and RISC-V with extensions for [Snitch](https://pulp-platform.github.io/snitch/), a neural network accelerator.
 
         _Toggle app view with `⌘` + `.` or `ctrl` + `.`_
-        """
-    )
+        """)
     return
 
 
@@ -143,7 +120,7 @@ def _(
         a.name_hint = "A"
         b.name_hint = "B"
         c.name_hint = "C"
-        body = Region(Block(arg_types = (f64, f64, f64)))
+        body = Region(Block(arg_types=(f64, f64, f64)))
         linalg.GenericOp(
             inputs=(a, b),
             outputs=(c,),
@@ -157,7 +134,7 @@ def _(
                 linalg.IteratorTypeAttr.parallel(),
                 linalg.IteratorTypeAttr.parallel(),
                 linalg.IteratorTypeAttr.reduction(),
-            )
+            ),
         )
         with ImplicitBuilder(body) as (a_val, b_val, acc_old_val):
             prod_val = arith.MulfOp(a_val, b_val).result
@@ -209,8 +186,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(k, m, mo, n):
-    mo.md(
-        f"""
+    mo.md(f"""
         We can parametrize the shapes of the matrices operated on:
 
         {m}{m.value}
@@ -218,8 +194,7 @@ def _(k, m, mo, n):
         {n}{n.value}
 
         {k}{k.value}
-        """
-    )
+        """)
     return
 
 
@@ -229,14 +204,12 @@ def _(k, m, mo, n):
     b_shape = (k.value, n.value)
     c_shape = (m.value, n.value)
 
-    mo.md(
-        f"""
+    mo.md(f"""
 
         ```
         A: {'x'.join(str(dim) for dim in a_shape)}xf64 B: {'x'.join(str(dim) for dim in b_shape)}xf64 C: {'x'.join(str(dim) for dim in c_shape)}xf64
         ```
-        """
-    )
+        """)
     return a_shape, b_shape, c_shape
 
 
@@ -285,9 +258,7 @@ def _(
         ]
     )
 
-    riscv_ctx, riscv_module, riscv_html = xmo.pipeline_html(
-        linalg_ctx, linalg_module, tuple(("", p) for p in lower_to_riscv.passes)
-    )
+    riscv_ctx, riscv_module, riscv_html = xmo.pipeline_html(linalg_ctx, linalg_module, tuple(("", p) for p in lower_to_riscv.passes))
 
     riscv_html
     return lower_to_riscv, riscv_ctx, riscv_html, riscv_module
@@ -295,13 +266,11 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
         #### Register allocation
 
         xDSL provides a register allocator for our RISC-V representation, that works on functions with structured control flow:
-        """
-    )
+        """)
     return
 
 
@@ -322,7 +291,9 @@ def _(
     )
 
     regalloc_ctx, regalloc_module, regalloc_html = xmo.pipeline_html(
-        riscv_ctx, riscv_module, tuple(("", p) for p in allocate_registers.passes),
+        riscv_ctx,
+        riscv_module,
+        tuple(("", p) for p in allocate_registers.passes),
     )
 
     regalloc_html
@@ -346,7 +317,9 @@ def _(
     )
 
     riscv_asm_ctx, riscv_asm_module, assembly_html = xmo.pipeline_html(
-        regalloc_ctx, regalloc_module, (("", lower_to_asm),),
+        regalloc_ctx,
+        regalloc_module,
+        (("", lower_to_asm),),
     )
 
     assembly_html
@@ -367,20 +340,17 @@ def _(mo, riscv_asm_module, riscv_code, xmo):
     **RISC-V Assembly:**
 
     {xmo.asm_html(riscv_asm)}
-    """
-    )
+    """)
     return (riscv_asm,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
         ### Compiling to Snitch
 
         xDSL is also capable of targeting Snitch, and making use of its streaming registers and fixed-repetition loop. We use a different lowering flow from the linalg.generic representation to represent a high-level, structured, but Snitch-specific representation of the code:
-        """
-    )
+        """)
     return
 
 
@@ -407,7 +377,9 @@ def _(
     )
 
     snitch_stream_ctx, snitch_stream_module, snitch_stream_html = xmo.pipeline_html(
-        linalg_ctx, linalg_module, tuple(("", p) for p in convert_linalg_to_snitch.passes),
+        linalg_ctx,
+        linalg_module,
+        tuple(("", p) for p in convert_linalg_to_snitch.passes),
     )
 
     snitch_stream_html
@@ -431,9 +403,7 @@ def _(mo):
 def _(snitch_stream_ctx, snitch_stream_module, xmo):
     from xdsl.transforms.test_lower_linalg_to_snitch import LOWER_SNITCH_STREAM_TO_ASM_PASSES
 
-    snitch_asm_ctx, snitch_asm_module, snitch_asm_html = xmo.pipeline_html(
-        snitch_stream_ctx, snitch_stream_module, tuple(("", p) for p in LOWER_SNITCH_STREAM_TO_ASM_PASSES)
-    )
+    snitch_asm_ctx, snitch_asm_module, snitch_asm_html = xmo.pipeline_html(snitch_stream_ctx, snitch_stream_module, tuple(("", p) for p in LOWER_SNITCH_STREAM_TO_ASM_PASSES))
 
     snitch_asm_html
     return (
@@ -446,8 +416,7 @@ def _(snitch_stream_ctx, snitch_stream_module, xmo):
 
 @app.cell
 def _(k, m, mo, n):
-    mo.md(
-        f"""
+    mo.md(f"""
         We can see how changing our input sizes affects the assembly produced:
 
         {m}{m.value}
@@ -455,8 +424,7 @@ def _(k, m, mo, n):
         {n}{n.value}
 
         {k}{k.value}
-        """
-    )
+        """)
     return
 
 
@@ -468,20 +436,17 @@ def _(mo, riscv_code, snitch_asm_module, xmo):
     **Snitch Assembly:**
 
     {xmo.asm_html(snitch_asm)}
-    """
-    )
+    """)
     return (snitch_asm,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
         ### Interpreting the assembly using xDSL
 
         One of the useful features of xDSL is its interpreter. Here we've implemented all the necessary functions to interpret the code at a low level, to check that our compilation is correct. Here's the slider modifying the shape variable defined above, we can slide it to see the result of the code compiled with different input shapes, and interpreted at the RISC-V level.
-        """
-    )
+        """)
     return
 
 
@@ -551,9 +516,7 @@ def _(
     snitch_stream_module,
 ):
     snitch_op_counter = OpCounter()
-    snitch_interpreter = Interpreter(
-        snitch_stream_module, listeners=(snitch_op_counter,)
-    )
+    snitch_interpreter = Interpreter(snitch_stream_module, listeners=(snitch_op_counter,))
 
     snitch_c_shaped = ShapedArray(TypedPtr.new_float64([0.0] * c_len), c_shape)
 
@@ -606,9 +569,7 @@ def _(k, m, mo, n, riscv_op_counter, snitch_op_counter):
 
         rv_str = str(rv_val) if rv_val else ZERO_VAL
         sn_str = str(sn_val) if sn_val else ZERO_VAL
-        diff_str = (
-            (f"+{diff_val}" if diff_val > 0 else f"{diff_val}") if diff_val else "="
-        )
+        diff_str = (f"+{diff_val}" if diff_val > 0 else f"{diff_val}") if diff_val else "="
 
         rows += key
         rows += " " * (max_len_key - len(key))
@@ -629,8 +590,7 @@ def _(k, m, mo, n, riscv_op_counter, snitch_op_counter):
 
     rows += format_row("total", str(rv_sum), str(sn_sum), str(total_diff))
 
-    mo.md(
-        f"""
+    mo.md(f"""
     The interpreter kept track of the number of times an operation was executed, which we can use as a proxy for performance.
 
     For example, we can see that one version has many more instructions executed overall ({rv_sum} vs {sn_sum}), and that one version uses explicit load and store instructions, while the other uses the streaming equivalents:
@@ -644,8 +604,7 @@ def _(k, m, mo, n, riscv_op_counter, snitch_op_counter):
     ```
     {rows}
     ```
-    """
-    )
+    """)
     return (
         ZERO_VAL,
         all_keys,

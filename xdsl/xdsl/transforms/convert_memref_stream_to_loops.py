@@ -5,19 +5,9 @@ from xdsl.dialects import arith, memref, memref_stream
 from xdsl.dialects.builtin import AffineMapAttr, IntegerAttr, ModuleOp, UnitAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
-from xdsl.transforms.loop_nest_lowering_utils import (
-    indices_for_map,
-    rewrite_generic_to_imperfect_loops,
-    rewrite_generic_to_loops,
-)
+from xdsl.transforms.loop_nest_lowering_utils import indices_for_map, rewrite_generic_to_imperfect_loops, rewrite_generic_to_loops
 
 
 def _insert_load(
@@ -29,9 +19,7 @@ def _insert_load(
     insertion_point: InsertPoint,
 ) -> SSAValue:
     if isinstance(source.type, memref.MemRefType):
-        indices = indices_for_map(
-            rewriter, insertion_point, affine_map_attr.data, ind_vars
-        )
+        indices = indices_for_map(rewriter, insertion_point, affine_map_attr.data, ind_vars)
         op = memref.LoadOp.get(source, indices)
     elif isinstance(source.type, memref_stream.ReadableStreamType):
         op = memref_stream.ReadOp(source)
@@ -43,17 +31,10 @@ def _insert_load(
 
 class LowerGenericOpPattern(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: memref_stream.GenericOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: memref_stream.GenericOp, rewriter: PatternRewriter) -> None:
         if memref_stream.IteratorTypeAttr.interleaved() in op.iterator_types:
             interleave_factor = op.bounds.data[-1].value.data
-            rewriter.insert_op_before_matched_op(
-                interleaved_index_ops := tuple(
-                    arith.ConstantOp(IntegerAttr.from_index_int_value(i))
-                    for i in range(interleave_factor)
-                )
-            )
+            rewriter.insert_op_before_matched_op(interleaved_index_ops := tuple(arith.ConstantOp(IntegerAttr.from_index_int_value(i)) for i in range(interleave_factor)))
             interleaved_index_vals = tuple(op.result for op in interleaved_index_ops)
 
             def extra_dim(source_index: int) -> tuple[SSAValue] | tuple[()]:
@@ -88,13 +69,9 @@ class LowerGenericOpPattern(RewritePattern):
                 divided by the interleave factor.
                 """
                 source = op.operands[source_index // interleave_factor]
-                affine_map_attr = op.indexing_maps.data[
-                    source_index // interleave_factor
-                ]
+                affine_map_attr = op.indexing_maps.data[source_index // interleave_factor]
                 if source_index >= ins_count:
-                    constant_val = constant_vals[
-                        (source_index - ins_count) // interleave_factor
-                    ]
+                    constant_val = constant_vals[(source_index - ins_count) // interleave_factor]
                     if constant_val is not None:
                         return constant_val
 
@@ -124,9 +101,7 @@ class LowerGenericOpPattern(RewritePattern):
                 divided by the interleave factor.
                 """
                 source = op.operands[source_index // interleave_factor]
-                affine_map_attr = op.indexing_maps.data[
-                    source_index // interleave_factor
-                ]
+                affine_map_attr = op.indexing_maps.data[source_index // interleave_factor]
                 return _insert_load(
                     source_index,
                     source,

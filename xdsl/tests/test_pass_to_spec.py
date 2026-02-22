@@ -96,8 +96,6 @@ def test_pass_to_spec_include_default(
         ),
     ],
 )
-def test_pass_to_spec_exclude_default(
-    test_pass: ModulePass, test_spec: PipelinePassSpec
-):
+def test_pass_to_spec_exclude_default(test_pass: ModulePass, test_spec: PipelinePassSpec):
     assert test_pass.pipeline_pass_spec(include_default=False) == test_spec
     assert test_pass.pipeline_pass_spec() == test_spec

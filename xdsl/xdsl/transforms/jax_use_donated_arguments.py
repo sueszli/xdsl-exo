@@ -10,17 +10,10 @@ from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FunctionType, Tenso
 from xdsl.dialects.func import FuncOp, ReturnOp
 from xdsl.ir import Attribute, BlockArgument, Operation, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
-def map_donated_input_by_output(
-    donatable_inputs: Sequence[BlockArgument], outputs: Sequence[SSAValue]
-) -> dict[SSAValue, BlockArgument]:
+def map_donated_input_by_output(donatable_inputs: Sequence[BlockArgument], outputs: Sequence[SSAValue]) -> dict[SSAValue, BlockArgument]:
     """
     Find suitable donated buffers for each of returned variables.
     Each buffer can be used only once.
@@ -33,17 +26,12 @@ def map_donated_input_by_output(
 
     outputs_by_type: dict[Attribute, list[SSAValue]] = defaultdict(list)
     for out in outputs:
-        if isinstance(out.owner, MaterializeInDestinationOp) and isinstance(
-            out.owner.dest, BlockArgument
-        ):
+        if isinstance(out.owner, MaterializeInDestinationOp) and isinstance(out.owner.dest, BlockArgument):
             # output has already been buffered
             continue
         outputs_by_type[out.type].append(out)
 
-    mapping_by_type = {
-        k: tuple(zip(donatable_inputs_by_type[k], outputs_by_type[k]))
-        for k in donatable_inputs_by_type.keys() & outputs_by_type.keys()
-    }
+    mapping_by_type = {k: tuple(zip(donatable_inputs_by_type[k], outputs_by_type[k])) for k in donatable_inputs_by_type.keys() & outputs_by_type.keys()}
 
     return {o: i for mapping in mapping_by_type.values() for (i, o) in mapping}
 
@@ -64,48 +52,29 @@ class SubstituteDonatedTensors(RewritePattern):
         if func_op.arg_attrs is None or len(func_op.body.blocks) > 1:
             return
 
-        donated_input_mask = tuple(
-            isinstance(inp.type, TensorType) and "tf.aliasing_output" in attr.data
-            for inp, attr in zip(func_op.args, func_op.arg_attrs, strict=True)
-        )
+        donated_input_mask = tuple(isinstance(inp.type, TensorType) and "tf.aliasing_output" in attr.data for inp, attr in zip(func_op.args, func_op.arg_attrs, strict=True))
         donated_inputs = tuple(itertools.compress(func_op.args, donated_input_mask))
 
         if not donated_inputs:
             return
 
-        donated_input_by_output = map_donated_input_by_output(
-            donated_inputs, op.arguments
-        )
+        donated_input_by_output = map_donated_input_by_output(donated_inputs, op.arguments)
         if not donated_input_by_output:
             return
 
-        ordered_buffered_outputs = tuple(
-            arg for arg in op.arguments if arg in donated_input_by_output
-        )
-        new_ops: list[Operation] = [
-            MaterializeInDestinationOp(
-                operands=[out, donated_input_by_output[out]], result_types=[out.type]
-            )
-            for out in ordered_buffered_outputs
-        ]
-        new_output_mapping = {
-            out: mater_ops.results[0]
-            for out, mater_ops in zip(ordered_buffered_outputs, new_ops, strict=True)
-        }
+        ordered_buffered_outputs = tuple(arg for arg in op.arguments if arg in donated_input_by_output)
+        new_ops: list[Operation] = [MaterializeInDestinationOp(operands=[out, donated_input_by_output[out]], result_types=[out.type]) for out in ordered_buffered_outputs]
+        new_output_mapping = {out: mater_ops.results[0] for out, mater_ops in zip(ordered_buffered_outputs, new_ops, strict=True)}
         new_outputs = tuple(new_output_mapping.get(out, out) for out in op.arguments)
 
         return_types = tuple(func_op.function_type.outputs.data)
         if self.remove_matched_outputs:
-            kept_outputs_mask = tuple(
-                out not in donated_input_by_output for out in op.arguments
-            )
+            kept_outputs_mask = tuple(out not in donated_input_by_output for out in op.arguments)
             return_types = list(itertools.compress(return_types, kept_outputs_mask))
             new_outputs = list(itertools.compress(new_outputs, kept_outputs_mask))
 
         new_ops.append(ReturnOp(*new_outputs))
-        func_op.function_type = FunctionType.from_lists(
-            func_op.function_type.inputs.data, return_types
-        )
+        func_op.function_type = FunctionType.from_lists(func_op.function_type.inputs.data, return_types)
         rewriter.replace_matched_op(new_ops)
 
         # remove the donation attribute to avoid their reuse if we run the pass multiple times on the same function
@@ -116,9 +85,7 @@ class SubstituteDonatedTensors(RewritePattern):
             if inp in used_donated_arguments:
                 del new_attr["tf.aliasing_output"]
 
-        func_op.arg_attrs = ArrayAttr(
-            [DictionaryAttr(attr) for attr in new_input_attrs]
-        )
+        func_op.arg_attrs = ArrayAttr([DictionaryAttr(attr) for attr in new_input_attrs])
 
 
 @dataclass(frozen=True)

@@ -6,21 +6,7 @@ from xdsl.utils.lexer import Input
 
 from .lexer import ToyLexer, ToyToken, ToyTokenKind
 from .location import loc
-from .toy_ast import (
-    BinaryExprAST,
-    CallExprAST,
-    ExprAST,
-    FunctionAST,
-    LiteralExprAST,
-    ModuleAST,
-    NumberExprAST,
-    PrintExprAST,
-    PrototypeAST,
-    ReturnExprAST,
-    VarDeclExprAST,
-    VariableExprAST,
-    VarType,
-)
+from .toy_ast import BinaryExprAST, CallExprAST, ExprAST, FunctionAST, LiteralExprAST, ModuleAST, NumberExprAST, PrintExprAST, PrototypeAST, ReturnExprAST, VarDeclExprAST, VariableExprAST, VarType
 
 
 class ToyParser(GenericParser[ToyTokenKind]):
@@ -160,17 +146,13 @@ class ToyParser(GenericParser[ToyTokenKind]):
         if any(type(val) is LiteralExprAST for val in values):
             allTensors = all(type(val) is LiteralExprAST for val in values)
             if not allTensors:
-                self.raise_error(
-                    "Expected uniform well-nested dimensions inside literal expression"
-                )
+                self.raise_error("Expected uniform well-nested dimensions inside literal expression")
 
             tensor_values = cast(list[LiteralExprAST], values)
             first = tensor_values[0].dims
             allEqual = all(val.dims == first for val in tensor_values)
             if not allEqual:
-                self.raise_error(
-                    "Expected uniform well-nested dimensions inside literal expression"
-                )
+                self.raise_error("Expected uniform well-nested dimensions inside literal expression")
 
             dims += first
 

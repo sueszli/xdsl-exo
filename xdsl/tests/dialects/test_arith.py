@@ -2,71 +2,8 @@ from typing import TypeVar
 
 import pytest
 
-from xdsl.dialects.arith import (
-    AddfOp,
-    AddiOp,
-    AddUIExtendedOp,
-    AndIOp,
-    BitcastOp,
-    CeilDivSIOp,
-    CeilDivUIOp,
-    CmpfOp,
-    CmpiOp,
-    ConstantOp,
-    DivfOp,
-    DivSIOp,
-    DivUIOp,
-    ExtFOp,
-    ExtSIOp,
-    ExtUIOp,
-    FastMathFlagsAttr,
-    FloatingPointLikeBinaryOperation,
-    FloorDivSIOp,
-    FPToSIOp,
-    FPToUIOp,
-    IndexCastOp,
-    MaximumfOp,
-    MaxSIOp,
-    MaxUIOp,
-    MinimumfOp,
-    MinSIOp,
-    MinUIOp,
-    MulfOp,
-    MulSIExtendedOp,
-    MulUIExtendedOp,
-    NegfOp,
-    OrIOp,
-    RemSIOp,
-    RemUIOp,
-    SelectOp,
-    ShLIOp,
-    ShRSIOp,
-    ShRUIOp,
-    SignlessIntegerBinaryOperation,
-    SIToFPOp,
-    SubfOp,
-    SubiOp,
-    TruncFOp,
-    TruncIOp,
-    UIToFPOp,
-    XOrIOp,
-)
-from xdsl.dialects.builtin import (
-    DenseIntOrFPElementsAttr,
-    FloatAttr,
-    IndexType,
-    IntegerAttr,
-    IntegerType,
-    MemRefType,
-    Signedness,
-    TensorType,
-    VectorType,
-    f32,
-    f64,
-    i1,
-    i32,
-    i64,
-)
+from xdsl.dialects.arith import AddfOp, AddiOp, AddUIExtendedOp, AndIOp, BitcastOp, CeilDivSIOp, CeilDivUIOp, CmpfOp, CmpiOp, ConstantOp, DivfOp, DivSIOp, DivUIOp, ExtFOp, ExtSIOp, ExtUIOp, FastMathFlagsAttr, FloatingPointLikeBinaryOperation, FloorDivSIOp, FPToSIOp, FPToUIOp, IndexCastOp, MaximumfOp, MaxSIOp, MaxUIOp, MinimumfOp, MinSIOp, MinUIOp, MulfOp, MulSIExtendedOp, MulUIExtendedOp, NegfOp, OrIOp, RemSIOp, RemUIOp, SelectOp, ShLIOp, ShRSIOp, ShRUIOp, SignlessIntegerBinaryOperation, SIToFPOp, SubfOp, SubiOp, TruncFOp, TruncIOp, UIToFPOp, XOrIOp
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, FloatAttr, IndexType, IntegerAttr, IntegerType, MemRefType, Signedness, TensorType, VectorType, f32, f64, i1, i32, i64
 from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
@@ -233,9 +170,7 @@ class Test_float_arith_construction:
         "func",
         [AddfOp, SubfOp, MulfOp, DivfOp, MaximumfOp, MinimumfOp],
     )
-    @pytest.mark.parametrize(
-        "flags", [FastMathFlagsAttr("none"), FastMathFlagsAttr("fast"), None]
-    )
+    @pytest.mark.parametrize("flags", [FastMathFlagsAttr("none"), FastMathFlagsAttr("fast"), None])
     def test_arith_ops(
         self,
         func: type[FloatingPointLikeBinaryOperation],
@@ -412,10 +347,7 @@ def test_cmpf_missmatch_type():
 
     with pytest.raises(TypeError) as e:
         _cmpf_op = CmpfOp(a, b, 1)
-    assert (
-        e.value.args[0]
-        == "Comparison operands must have same type, but provided f32 and f64"
-    )
+    assert e.value.args[0] == "Comparison operands must have same type, but provided f32 and f64"
 
 
 def test_cmpi_mismatch_type():
@@ -424,10 +356,7 @@ def test_cmpi_mismatch_type():
 
     with pytest.raises(TypeError) as e:
         _cmpi_op = CmpiOp(a, b, 1)
-    assert (
-        e.value.args[0]
-        == "Comparison operands must have same type, but provided i32 and i64"
-    )
+    assert e.value.args[0] == "Comparison operands must have same type, but provided i32 and i64"
 
 
 def test_cmpf_incorrect_comparison():

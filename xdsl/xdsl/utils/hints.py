@@ -1,19 +1,7 @@
 import types
 from collections.abc import Iterable, Sequence
 from inspect import isclass
-from typing import (
-    TYPE_CHECKING,
-    Annotated,
-    Any,
-    Generic,
-    Literal,
-    TypeGuard,
-    TypeVar,
-    Union,
-    cast,
-    get_args,
-    get_origin,
-)
+from typing import TYPE_CHECKING, Annotated, Any, Generic, Literal, TypeGuard, TypeVar, Union, cast, get_args, get_origin
 
 from xdsl.ir import ParametrizedAttribute, SSAValue
 from xdsl.utils.exceptions import VerifyException
@@ -63,19 +51,14 @@ def isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
         if len(elem_hints) == 2 and elem_hints[1] is ...:
             return all(isa(elem, elem_hints[0]) for elem in arg_tuple)
         else:
-            return len(elem_hints) == len(arg_tuple) and all(
-                isa(elem, hint) for elem, hint in zip(arg_tuple, elem_hints)
-            )
+            return len(elem_hints) == len(arg_tuple) and all(isa(elem, hint) for elem, hint in zip(arg_tuple, elem_hints))
 
     if origin is dict:
         if not isinstance(arg, dict):
             return False
         arg_dict: dict[Any, Any] = cast(dict[Any, Any], arg)
         key_hint, value_hint = get_args(hint)
-        return all(
-            isa(key, key_hint) and isa(value, value_hint)
-            for key, value in arg_dict.items()
-        )
+        return all(isa(key, key_hint) and isa(value, value_hint) for key, value in arg_dict.items())
 
     if origin in [Union, types.UnionType]:
         return any(isa(arg, union_arg) for union_arg in get_args(hint))
@@ -93,9 +76,7 @@ def isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
     from xdsl.irdl import GenericData, irdl_to_attr_constraint
 
     if (origin is not None) and issubclass(origin, GenericData | ParametrizedAttribute):
-        constraint = irdl_to_attr_constraint(
-            hint  # pyright: ignore[reportArgumentType]
-        )
+        constraint = irdl_to_attr_constraint(hint)  # pyright: ignore[reportArgumentType]
         try:
             constraint.verify(arg, ConstraintContext())
             return True
@@ -119,9 +100,7 @@ def assert_isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
     """
 
     if not isa(arg, hint):
-        raise ValueError(
-            f"Expected value of type {hint}, got value of type {type(arg).__name__}"
-        )
+        raise ValueError(f"Expected value of type {hint}, got value of type {type(arg).__name__}")
     return True
 
 
@@ -161,19 +140,14 @@ def get_type_var_mapping(
 
     # Get the generic parent
     orig_bases: Iterable[Any] = getattr(cls, "__orig_bases__")
-    orig_bases = [
-        orig_base
-        for orig_base in orig_bases
-        if (origin := get_origin(orig_base)) is not Generic and origin is not None
-    ]
+    orig_bases = [orig_base for orig_base in orig_bases if (origin := get_origin(orig_base)) is not Generic and origin is not None]
     # Do not handle more than one generic parent in the mro.
     # It is possible to handle more than one generic parent, but
     # the mapping of type variables will be more complex, especially for
     # generic parents inheriting from other generic parents.
     if len(orig_bases) != 1:
         raise ValueError(
-            "Class cannot have more than one generic class in its mro. This "
-            "restriction may be lifted in the future.",
+            "Class cannot have more than one generic class in its mro. This " "restriction may be lifted in the future.",
             orig_bases,
         )
 
@@ -185,10 +159,7 @@ def get_type_var_mapping(
     generic_args = get_type_var_from_generic_class(generic_parent)
 
     if len(generic_args) != len(specialized_args):
-        raise ValueError(
-            f"Generic class {generic_parent} class has {len(generic_args)} "
-            f"parameters, but {cls} specialize {len(specialized_args)} of them."
-        )
+        raise ValueError(f"Generic class {generic_parent} class has {len(generic_args)} " f"parameters, but {cls} specialize {len(specialized_args)} of them.")
 
     type_var_mapping = dict(zip(generic_args, specialized_args))
     return generic_parent, type_var_mapping

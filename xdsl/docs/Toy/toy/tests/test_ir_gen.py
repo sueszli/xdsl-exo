@@ -26,22 +26,16 @@ def test_convert_ast():
     def module_op():
         unrankedf64TensorType = toy.UnrankedTensorType(f64)
 
-        multiply_transpose_type = FunctionType.from_lists(
-            [unrankedf64TensorType, unrankedf64TensorType], [unrankedf64TensorType]
-        )
+        multiply_transpose_type = FunctionType.from_lists([unrankedf64TensorType, unrankedf64TensorType], [unrankedf64TensorType])
 
-        with ImplicitBuilder(
-            toy.FuncOp("multiply_transpose", multiply_transpose_type, private=True).body
-        ) as (a, b):
+        with ImplicitBuilder(toy.FuncOp("multiply_transpose", multiply_transpose_type, private=True).body) as (a, b):
             a_t = toy.TransposeOp(a).res
             b_t = toy.TransposeOp(b).res
             prod = toy.MulOp(a_t, b_t).res
             toy.ReturnOp(prod)
 
         def call_multiply_transpose(a: SSAValue, b: SSAValue) -> OpResult:
-            return toy.GenericCallOp(
-                "multiply_transpose", [a, b], [unrankedf64TensorType]
-            ).res[0]
+            return toy.GenericCallOp("multiply_transpose", [a, b], [unrankedf64TensorType]).res[0]
 
         main_type = FunctionType.from_lists([], [])
 

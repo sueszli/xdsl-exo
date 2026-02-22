@@ -1,9 +1,5 @@
 from xdsl.dialects import ptr
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 
 
 class RedundantFromPtr(RewritePattern):

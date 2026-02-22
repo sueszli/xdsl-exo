@@ -74,21 +74,15 @@ class LIFORegisterQueue(RegisterQueue):
     LIFO queue of registers available for allocation.
     """
 
-    next_infinite_indices: defaultdict[str, int] = field(
-        default_factory=lambda: defaultdict(lambda: 0)
-    )
+    next_infinite_indices: defaultdict[str, int] = field(default_factory=lambda: defaultdict(lambda: 0))
     """Next index for a given register set."""
 
-    reserved_registers: defaultdict[str, defaultdict[int, int]] = field(
-        default_factory=lambda: defaultdict(lambda: defaultdict[int, int](lambda: 0))
-    )
+    reserved_registers: defaultdict[str, defaultdict[int, int]] = field(default_factory=lambda: defaultdict(lambda: defaultdict[int, int](lambda: 0)))
     """
     Registers unavailable to be used by the register allocator for a given register set.
     """
 
-    available_registers: defaultdict[str, list[int]] = field(
-        default_factory=lambda: defaultdict(list[int])
-    )
+    available_registers: defaultdict[str, list[int]] = field(default_factory=lambda: defaultdict(list[int]))
     """
     Registers from a given register set that values can be allocated to in the current
     context.
@@ -154,9 +148,7 @@ class LIFORegisterQueue(RegisterQueue):
         reserved_registers = self.reserved_registers[reg_type.name]
 
         assert isinstance(reg.index, IntAttr)
-        assert reg.index.data not in reserved_registers, (
-            f"Cannot pop a reserved register ({reg.register_name.data}), it must have been reserved while available."
-        )
+        assert reg.index.data not in reserved_registers, f"Cannot pop a reserved register ({reg.register_name.data}), it must have been reserved while available."
         return reg
 
     def reserve_register(self, reg: RegisterType) -> None:

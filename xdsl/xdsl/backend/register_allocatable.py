@@ -18,12 +18,7 @@ class RegisterAllocatableOperation(Operation, abc.ABC):
         By default returns the types of operands and results that are allocated
         registers.
         """
-        return (
-            val.type
-            for vals in (self.operands, self.results)
-            for val in vals
-            if isinstance(val.type, RegisterType) and val.type.is_allocated
-        )
+        return (val.type for vals in (self.operands, self.results) for val in vals if isinstance(val.type, RegisterType) and val.type.is_allocated)
 
     @staticmethod
     def iter_all_used_registers(
@@ -32,12 +27,7 @@ class RegisterAllocatableOperation(Operation, abc.ABC):
         """
         All used registers of all operations within a region.
         """
-        return (
-            reg
-            for op in region.walk()
-            if isinstance(op, RegisterAllocatableOperation)
-            for reg in op.iter_used_registers()
-        )
+        return (reg for op in region.walk() if isinstance(op, RegisterAllocatableOperation) for reg in op.iter_used_registers())
 
 
 class RegisterConstraints(NamedTuple):

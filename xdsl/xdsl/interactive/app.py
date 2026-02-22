@@ -19,16 +19,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
 from textual.screen import Screen
-from textual.widgets import (
-    Button,
-    DataTable,
-    Footer,
-    Label,
-    ListItem,
-    ListView,
-    TextArea,
-    Tree,
-)
+from textual.widgets import Button, DataTable, Footer, Label, ListItem, ListView, TextArea, Tree
 from textual.widgets.tree import TreeNode
 
 from xdsl.dialects import get_all_dialects
@@ -37,15 +28,8 @@ from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.get_all_available_passes import get_available_pass_list
 from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.interactive.pass_list_item import PassListItem
-from xdsl.interactive.pass_metrics import (
-    count_number_of_operations,
-    get_diff_operation_count,
-)
-from xdsl.interactive.passes import (
-    AvailablePass,
-    apply_passes_to_module,
-    get_new_registered_context,
-)
+from xdsl.interactive.pass_metrics import count_number_of_operations, get_diff_operation_count
+from xdsl.interactive.passes import AvailablePass, apply_passes_to_module, get_new_registered_context
 from xdsl.ir import Dialect
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass
@@ -179,12 +163,8 @@ class InputApp(App[None]):
         self.selected_passes_list_view = ListView(id="selected_passes_list_view")
         self.passes_tree = Tree(label=".", id="passes_tree")
         self.passes_tree.auto_expand = False
-        self.input_operation_count_datatable = DataTable(
-            id="input_operation_count_datatable"
-        )
-        self.diff_operation_count_datatable = DataTable(
-            id="diff_operation_count_datatable"
-        )
+        self.input_operation_count_datatable = DataTable(id="input_operation_count_datatable")
+        self.diff_operation_count_datatable = DataTable(id="diff_operation_count_datatable")
 
         with Horizontal(id="top_container"):
             with Vertical(id="veritcal_tree_selected_passes_list_view"):
@@ -197,9 +177,7 @@ class InputApp(App[None]):
                 yield Button("Uncondense", id="uncondense_button")
                 yield Button("Remove Last Pass", id="remove_last_pass_button")
                 yield Button("Show Operation Count", id="show_operation_count_button")
-                yield Button(
-                    "Remove Operation Count", id="remove_operation_count_button"
-                )
+                yield Button("Remove Operation Count", id="remove_operation_count_button")
         with Horizontal(id="bottom_container"):
             with Horizontal(id="input_horizontal_container"):
                 with Vertical(id="input_container"):
@@ -281,9 +259,7 @@ class InputApp(App[None]):
             self.passes_tree.clear()
             self.expand_node(self.passes_tree.root, new_pass_list)
 
-    def get_root_to_child_pass_list(
-        self, expanded_node: TreeNode[type[ModulePass] | ModulePass]
-    ) -> tuple[ModulePass, ...]:
+    def get_root_to_child_pass_list(self, expanded_node: TreeNode[type[ModulePass] | ModulePass]) -> tuple[ModulePass, ...]:
         """
         Helper function that returns a pass_pipeline consisiting of the list of nodes
         from the root of the tree, not including the expanded_node child.
@@ -299,14 +275,7 @@ class InputApp(App[None]):
             pass_list_items.append(current.data)
             current = current.parent
 
-        root_to_child_pass_list = tuple(
-            (
-                selected_pass
-                if isinstance(selected_pass, ModulePass)
-                else selected_pass()
-            )
-            for selected_pass in reversed(pass_list_items)
-        )
+        root_to_child_pass_list = tuple((selected_pass if isinstance(selected_pass, ModulePass) else selected_pass()) for selected_pass in reversed(pass_list_items))
 
         return root_to_child_pass_list
 
@@ -402,9 +371,7 @@ class InputApp(App[None]):
         )
 
     @on(Tree.NodeSelected, "#passes_tree")
-    def update_pass_pipeline(
-        self, event: Tree.NodeSelected[type[ModulePass] | ModulePass]
-    ) -> None:
+    def update_pass_pipeline(self, event: Tree.NodeSelected[type[ModulePass] | ModulePass]) -> None:
         """
         When a new selection is made, the reactive variable storing the list of selected
         passes is updated.
@@ -438,9 +405,7 @@ class InputApp(App[None]):
             )
 
     @on(Tree.NodeExpanded, "#passes_tree")
-    def expand_tree_node(
-        self, event: Tree.NodeExpanded[type[ModulePass] | ModulePass]
-    ) -> None:
+    def expand_tree_node(self, event: Tree.NodeExpanded[type[ModulePass] | ModulePass]) -> None:
         """
         Function called when a user expands a node (i.e. a pass) and adds another level
         to the pass selection tree. Allow's multi-level tree traversal.
@@ -506,9 +471,7 @@ class InputApp(App[None]):
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
             self.update_input_operation_count_tuple(module)
-            self.current_module = apply_passes_to_module(
-                module, ctx, self.pass_pipeline
-            )
+            self.current_module = apply_passes_to_module(module, ctx, self.pass_pipeline)
         except Exception as e:
             self.current_module = e
             self.update_input_operation_count_tuple(ModuleOp([], None))
@@ -555,9 +518,7 @@ class InputApp(App[None]):
         names and counts in the input text area.
         """
         # sort tuples alphabetically by operation name
-        self.input_operation_count_tuple = tuple(
-            sorted(count_number_of_operations(input_module).items())
-        )
+        self.input_operation_count_tuple = tuple(sorted(count_number_of_operations(input_module).items()))
 
     def watch_input_operation_count_tuple(self) -> None:
         """
@@ -581,15 +542,8 @@ class InputApp(App[None]):
                 output_operation_count_tuple = ()
             case ModuleOp():
                 # sort tuples alphabetically by operation name
-                output_operation_count_tuple = tuple(
-                    (k, v)
-                    for (k, v) in sorted(
-                        count_number_of_operations(self.current_module).items()
-                    )
-                )
-        self.diff_operation_count_tuple = get_diff_operation_count(
-            self.input_operation_count_tuple, output_operation_count_tuple
-        )
+                output_operation_count_tuple = tuple((k, v) for (k, v) in sorted(count_number_of_operations(self.current_module).items()))
+        self.diff_operation_count_tuple = get_diff_operation_count(self.input_operation_count_tuple, output_operation_count_tuple)
 
     def watch_diff_operation_count_tuple(self) -> None:
         """
@@ -601,9 +555,7 @@ class InputApp(App[None]):
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
-        self.theme = (
-            "textual-dark" if self.theme == "textual-light" else "textual-light"
-        )
+        self.theme = "textual-dark" if self.theme == "textual-light" else "textual-light"
 
     def action_quit_app(self) -> None:
         """An action to quit the app."""
@@ -688,9 +640,7 @@ class InputApp(App[None]):
                         self.input_text_area.load_text(file_contents)
                     self.current_file_path = file_path
                 else:
-                    self.input_text_area.load_text(
-                        f"The file '{file_path}' does not exist."
-                    )
+                    self.input_text_area.load_text(f"The file '{file_path}' does not exist.")
             except Exception as e:
                 self.input_text_area.load_text(str(e))
 
@@ -699,9 +649,7 @@ class InputApp(App[None]):
 
 def main():
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument(
-        "input_file", type=str, nargs="?", help="path to input file"
-    )
+    arg_parser.add_argument("input_file", type=str, nargs="?", help="path to input file")
 
     available_passes = ",".join([name for name in get_all_passes()])
     arg_parser.add_argument(
@@ -724,12 +672,7 @@ def main():
 
     pass_spec_pipeline = list(parse_pipeline(args.passes))
     pass_list = get_all_passes()
-    pipeline = tuple(
-        pass_type.from_pass_spec(spec)
-        for pass_type, spec in PipelinePass.build_pipeline_tuples(
-            pass_list, pass_spec_pipeline
-        )
-    )
+    pipeline = tuple(pass_type.from_pass_spec(spec) for pass_type, spec in PipelinePass.build_pipeline_tuples(pass_list, pass_spec_pipeline))
 
     return InputApp(
         tuple(get_all_dialects().items()),

@@ -3,11 +3,7 @@ from io import StringIO
 import pytest
 
 from xdsl.dialects import stim
-from xdsl.dialects.stim.ops import (
-    QubitAttr,
-    QubitCoordsOp,
-    QubitMappingAttr,
-)
+from xdsl.dialects.stim.ops import QubitAttr, QubitCoordsOp, QubitMappingAttr
 from xdsl.dialects.stim.stim_parser import StimParseError, StimParser
 from xdsl.dialects.stim.stim_printer_parser import StimPrintable, StimPrinter
 from xdsl.dialects.test import TestOp

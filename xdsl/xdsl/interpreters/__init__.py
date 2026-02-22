@@ -1,28 +1,6 @@
 from xdsl.context import Context
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters import (
-    affine,
-    arith,
-    builtin,
-    cf,
-    func,
-    linalg,
-    memref,
-    memref_stream,
-    ml_program,
-    pdl,
-    printf,
-    riscv,
-    riscv_cf,
-    riscv_debug,
-    riscv_func,
-    riscv_libc,
-    riscv_scf,
-    riscv_snitch,
-    scf,
-    snitch_stream,
-    tensor,
-)
+from xdsl.interpreters import affine, arith, builtin, cf, func, linalg, memref, memref_stream, ml_program, pdl, printf, riscv, riscv_cf, riscv_debug, riscv_func, riscv_libc, riscv_scf, riscv_snitch, scf, snitch_stream, tensor
 
 
 def register_implementations(interpreter: Interpreter, ctx: Context):

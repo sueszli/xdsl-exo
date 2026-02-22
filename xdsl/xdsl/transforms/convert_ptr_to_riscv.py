@@ -1,29 +1,12 @@
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.backend.riscv.lowering.utils import (
-    cast_operands_to_regs,
-    register_type_for_type,
-)
+from xdsl.backend.riscv.lowering.utils import cast_operands_to_regs, register_type_for_type
 from xdsl.context import Context
 from xdsl.dialects import ptr, riscv
-from xdsl.dialects.builtin import (
-    AnyFloat,
-    Float32Type,
-    Float64Type,
-    ModuleOp,
-    UnrealizedConversionCastOp,
-)
+from xdsl.dialects.builtin import AnyFloat, Float32Type, Float64Type, ModuleOp, UnrealizedConversionCastOp
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    TypeConversionPattern,
-    attr_type_rewrite_pattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, TypeConversionPattern, attr_type_rewrite_pattern, op_type_rewrite_pattern
 from xdsl.utils.exceptions import DiagnosticException
 
 
@@ -49,9 +32,7 @@ class ConvertStoreOp(RewritePattern):
 
         match value.type:
             case riscv.IntRegisterType():
-                new_op = riscv.SwOp(
-                    addr, value, 0, comment="store int value to pointer"
-                )
+                new_op = riscv.SwOp(addr, value, 0, comment="store int value to pointer")
             case riscv.FloatRegisterType():
                 float_type = cast(AnyFloat, op.value.type)
                 match float_type:
@@ -70,9 +51,7 @@ class ConvertStoreOp(RewritePattern):
                             comment="store double value to pointer",
                         )
                     case _:
-                        raise DiagnosticException(
-                            f"Lowering memref.store op with floating point type {float_type} not yet implemented"
-                        )
+                        raise DiagnosticException(f"Lowering memref.store op with floating point type {float_type} not yet implemented")
             case _:
                 raise ValueError(f"Unexpected register type {op.value.type}")
 
@@ -98,24 +77,16 @@ class ConvertLoadOp(RewritePattern):
                 case Float64Type():
                     lw_op = riscv.FLdOp(addr, 0, comment="load double from pointer")
                 case _:
-                    raise DiagnosticException(
-                        f"Lowering memref.load op with floating point type {float_type} not yet implemented"
-                    )
+                    raise DiagnosticException(f"Lowering memref.load op with floating point type {float_type} not yet implemented")
 
-        rewriter.replace_matched_op(
-            (lw := lw_op, UnrealizedConversionCastOp.get(lw.results, (op.res.type,)))
-        )
+        rewriter.replace_matched_op((lw := lw_op, UnrealizedConversionCastOp.get(lw.results, (op.res.type,))))
 
 
 @dataclass
 class ConvertMemRefToPtrOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.ToPtrOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(
-            UnrealizedConversionCastOp.get(
-                (op.source,), (riscv.Registers.UNALLOCATED_INT,)
-            )
-        )
+        rewriter.replace_matched_op(UnrealizedConversionCastOp.get((op.source,), (riscv.Registers.UNALLOCATED_INT,)))
 
 
 class ConvertPtrToRiscvPass(ModulePass):

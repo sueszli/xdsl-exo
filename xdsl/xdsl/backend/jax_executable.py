@@ -20,12 +20,7 @@ R = TypeVar("R", bound=tuple[jnp.ndarray, ...] | jnp.ndarray)
 
 # JAX DTypeLike is currently broken
 # The np.dtype annotation in jax does not specify the generic parameter
-DTypeLike = (
-    str  # like 'float32', 'int32'
-    | type[Any]  # like np.float32, np.int32, float, int
-    | np.dtype[Any]  # like np.dtype('float32'), np.dtype('int32')
-    | SupportsDType  # like jnp.float32, jnp.int32
-)
+DTypeLike = str | type[Any] | np.dtype[Any] | SupportsDType  # like 'float32', 'int32'  # like np.float32, np.int32, float, int  # like np.dtype('float32'), np.dtype('int32')  # like jnp.float32, jnp.int32
 
 
 def array(object: Any, dtype: DTypeLike | None = None, copy: bool = True) -> Array:
@@ -65,9 +60,7 @@ class JaxExecutable:
     main_type: FunctionType
     loaded_executable: LoadedExecutable
 
-    def __init__(
-        self, main_type: FunctionType, loaded_executable: LoadedExecutable
-    ) -> None:
+    def __init__(self, main_type: FunctionType, loaded_executable: LoadedExecutable) -> None:
         self.main_type = main_type
         self.loaded_executable = loaded_executable
 
@@ -100,16 +93,12 @@ class JaxExecutable:
         sig = signature(stub)
 
         if len(sig.parameters) != len(operand_types):
-            raise ValueError(
-                f"Number of parameters ({len(sig.parameters)}) does not match the number of operand types ({len(operand_types)})"
-            )
+            raise ValueError(f"Number of parameters ({len(sig.parameters)}) does not match the number of operand types ({len(operand_types)})")
 
         # Check that all parameters are annotated as jnp.ndarray
         for param in sig.parameters.values():
             if param.annotation != jnp.ndarray:
-                raise NotImplementedError(
-                    f"Parameter {param.name} is not annotated as jnp.ndarray"
-                )
+                raise NotImplementedError(f"Parameter {param.name} is not annotated as jnp.ndarray")
 
         # Check return annotation
         sig_return = sig.return_annotation
@@ -117,23 +106,18 @@ class JaxExecutable:
 
         if sig_return_origin is not tuple:
             if sig.return_annotation is not jnp.ndarray:
-                raise NotImplementedError(
-                    f"Return annotation is must be jnp.ndarray or a tuple of jnp.ndarray, got {sig_return}."
-                )
+                raise NotImplementedError(f"Return annotation is must be jnp.ndarray or a tuple of jnp.ndarray, got {sig_return}.")
             if len(result_types) != 1:
-                raise ValueError(
-                    f"Number of return values ({len(result_types)}) does not match the stub's return annotation"
-                )
+                raise ValueError(f"Number of return values ({len(result_types)}) does not match the stub's return annotation")
 
             def func(*args: P.args, **kwargs: P.kwargs) -> R:
                 result = loaded.execute(args)
                 return result[0]
+
         else:
             return_args = get_args(sig_return)
             if not all(return_arg is jnp.ndarray for return_arg in return_args):
-                raise NotImplementedError(
-                    f"Return annotation is must be jnp.ndarray or a tuple of jnp.ndarray, got {sig_return}."
-                )
+                raise NotImplementedError(f"Return annotation is must be jnp.ndarray or a tuple of jnp.ndarray, got {sig_return}.")
 
             def func(*args: P.args, **kwargs: P.kwargs) -> R:
                 result = loaded.execute(args)

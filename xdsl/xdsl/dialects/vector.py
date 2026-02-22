@@ -5,50 +5,11 @@ from collections.abc import Sequence
 from typing import ClassVar, Literal, cast
 
 from xdsl.dialects.arith import FastMathFlagsAttr
-from xdsl.dialects.builtin import (
-    I1,
-    AffineMapAttr,
-    AnyFloatConstr,
-    ArrayAttr,
-    BoolAttr,
-    DenseArrayBase,
-    DenseI64ArrayConstr,
-    IndexType,
-    IndexTypeConstr,
-    MemRefType,
-    SignlessIntegerConstraint,
-    TensorType,
-    VectorBaseTypeAndRankConstraint,
-    VectorBaseTypeConstraint,
-    VectorRankConstraint,
-    VectorType,
-    i1,
-    i64,
-)
-from xdsl.dialects.utils import (
-    get_dynamic_index_list,
-    split_dynamic_index_list,
-    verify_dynamic_index_list,
-)
+from xdsl.dialects.builtin import I1, AffineMapAttr, AnyFloatConstr, ArrayAttr, BoolAttr, DenseArrayBase, DenseI64ArrayConstr, IndexType, IndexTypeConstr, MemRefType, SignlessIntegerConstraint, TensorType, VectorBaseTypeAndRankConstraint, VectorBaseTypeConstraint, VectorRankConstraint, VectorType, i1, i64
+from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list, verify_dynamic_index_list
 from xdsl.ir import Attribute, BitEnumAttribute, Dialect, Operation, SSAValue
 from xdsl.ir.affine import AffineMap
-from xdsl.irdl import (
-    AnyAttr,
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    ParsePropInAttrDict,
-    VarConstraint,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_operand_def,
-    opt_prop_def,
-    opt_result_def,
-    prop_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.irdl import AnyAttr, AttrSizedOperandSegments, IRDLOperation, ParsePropInAttrDict, VarConstraint, irdl_attr_definition, irdl_op_definition, operand_def, opt_operand_def, opt_prop_def, opt_result_def, prop_def, result_def, traits_def, var_operand_def
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import Pure
@@ -69,26 +30,20 @@ class LoadOp(IRDLOperation):
     nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
     irdl_options = [ParsePropInAttrDict()]
-    assembly_format = (
-        "$base `[` $indices `]` attr-dict `:` type($base) `,` type($result)"
-    )
+    assembly_format = "$base `[` $indices `]` attr-dict `:` type($base) `,` type($result)"
 
     def verify_(self):
         assert isa(self.base.type, MemRefType[Attribute])
         assert isa(self.result.type, VectorType[Attribute])
 
         if self.base.type.element_type != self.result.type.element_type:
-            raise VerifyException(
-                "MemRef element type should match the Vector element type."
-            )
+            raise VerifyException("MemRef element type should match the Vector element type.")
 
         if self.base.type.get_num_dims() != len(self.indices):
             raise VerifyException("Expected an index for each dimension.")
 
     @staticmethod
-    def get(
-        ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]
-    ) -> LoadOp:
+    def get(ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]) -> LoadOp:
         ref = SSAValue.get(ref)
         assert assert_isa(ref.type, MemRefType[Attribute])
 
@@ -107,18 +62,14 @@ class StoreOp(IRDLOperation):
     nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
     irdl_options = [ParsePropInAttrDict()]
-    assembly_format = (
-        "$vector `,` $base `[` $indices `]` attr-dict `:` type($base) `,` type($vector)"
-    )
+    assembly_format = "$vector `,` $base `[` $indices `]` attr-dict `:` type($base) `,` type($vector)"
 
     def verify_(self):
         assert isa(self.base.type, MemRefType[Attribute])
         assert isa(self.vector.type, VectorType[Attribute])
 
         if self.base.type.element_type != self.vector.type.element_type:
-            raise VerifyException(
-                "MemRef element type should match the Vector element type."
-            )
+            raise VerifyException("MemRef element type should match the Vector element type.")
 
         if self.base.type.get_num_dims() != len(self.indices):
             raise VerifyException("Expected an index for each dimension.")
@@ -145,9 +96,7 @@ class BroadcastOp(IRDLOperation):
         assert isa(self.vector.type, VectorType[Attribute])
 
         if self.source.type != self.vector.type.element_type:
-            raise VerifyException(
-                "Source operand and result vector must have the same element type."
-            )
+            raise VerifyException("Source operand and result vector must have the same element type.")
 
     @staticmethod
     def get(source: Operation | SSAValue) -> BroadcastOp:
@@ -172,9 +121,7 @@ class FMAOp(IRDLOperation):
     assembly_format = "$lhs `,` $rhs `,` $acc attr-dict `:` type($lhs)"
 
     @staticmethod
-    def get(
-        lhs: Operation | SSAValue, rhs: Operation | SSAValue, acc: Operation | SSAValue
-    ) -> FMAOp:
+    def get(lhs: Operation | SSAValue, rhs: Operation | SSAValue, acc: Operation | SSAValue) -> FMAOp:
         lhs = SSAValue.get(lhs)
         assert assert_isa(lhs.type, VectorType[Attribute])
 
@@ -209,15 +156,9 @@ class MaskedLoadOp(IRDLOperation):
         passthrough_element_type = passthrough_type.element_type
 
         if memref_element_type != res_element_type:
-            raise VerifyException(
-                "MemRef element type should match the result vector and passthrough vector "
-                "element type. Found different element types for memref and result."
-            )
+            raise VerifyException("MemRef element type should match the result vector and passthrough vector " "element type. Found different element types for memref and result.")
         elif memref_element_type != passthrough_element_type:
-            raise VerifyException(
-                "MemRef element type should match the result vector and passthrough vector "
-                "element type. Found different element types for memref and passthrough."
-            )
+            raise VerifyException("MemRef element type should match the result vector and passthrough vector " "element type. Found different element types for memref and passthrough.")
 
         if memref_type.get_num_dims() != len(self.indices):
             raise VerifyException("Expected an index for each memref dimension.")
@@ -260,14 +201,7 @@ class MaskedStoreOp(IRDLOperation):
         assert isa(mask_type, VectorType[Attribute])
 
         if memref_element_type != value_to_store_type.element_type:
-            raise VerifyException(
-                "MemRef element type should match the stored vector type. "
-                "Obtained types were "
-                + str(memref_element_type)
-                + " and "
-                + str(value_to_store_type.element_type)
-                + "."
-            )
+            raise VerifyException("MemRef element type should match the stored vector type. " "Obtained types were " + str(memref_element_type) + " and " + str(value_to_store_type.element_type) + ".")
 
         if memref_type.get_num_dims() != len(self.indices):
             raise VerifyException("Expected an index for each memref dimension.")
@@ -303,9 +237,7 @@ class CreateMaskOp(IRDLOperation):
     def verify_(self):
         assert isa(self.mask_vector.type, VectorType[Attribute])
         if self.mask_vector.type.get_num_dims() != len(self.mask_dim_sizes):
-            raise VerifyException(
-                "Expected an operand value for each dimension of resultant mask."
-            )
+            raise VerifyException("Expected an operand value for each dimension of resultant mask.")
 
     @staticmethod
     def get(mask_operands: list[Operation | SSAValue]) -> CreateMaskOp:
@@ -360,21 +292,11 @@ class ExtractOp(IRDLOperation):
         assert isa(vector_type, VectorType[Attribute])
         # Check that the number of dimensions match
         if isa(self.result.type, VectorType):
-            if (
-                num_indices + self.result.type.get_num_dims()
-                != vector_type.get_num_dims()
-            ):
-                raise VerifyException(
-                    f"Expected position attribute rank ({num_indices}) + result rank "
-                    f"({self.result.type.get_num_dims()}) to "
-                    f"match source vector rank ({vector_type.get_num_dims()})."
-                )
+            if num_indices + self.result.type.get_num_dims() != vector_type.get_num_dims():
+                raise VerifyException(f"Expected position attribute rank ({num_indices}) + result rank " f"({self.result.type.get_num_dims()}) to " f"match source vector rank ({vector_type.get_num_dims()}).")
         else:
             if num_indices != vector_type.get_num_dims():
-                raise VerifyException(
-                    f"Expected position attribute rank ({num_indices}) to match "
-                    f"source vector rank ({vector_type.get_num_dims()})."
-                )
+                raise VerifyException(f"Expected position attribute rank ({num_indices}) to match " f"source vector rank ({vector_type.get_num_dims()}).")
 
     def __init__(
         self,
@@ -382,16 +304,12 @@ class ExtractOp(IRDLOperation):
         positions: Sequence[SSAValue | int],
         result_type: Attribute,
     ):
-        static_positions, dynamic_positions = split_dynamic_index_list(
-            positions, ExtractOp.DYNAMIC_INDEX
-        )
+        static_positions, dynamic_positions = split_dynamic_index_list(positions, ExtractOp.DYNAMIC_INDEX)
 
         super().__init__(
             operands=[vector, dynamic_positions],
             result_types=[result_type],
-            properties={
-                "static_position": DenseArrayBase.from_list(i64, static_positions)
-            },
+            properties={"static_position": DenseArrayBase.from_list(i64, static_positions)},
         )
 
     @classmethod
@@ -409,9 +327,7 @@ class ExtractOp(IRDLOperation):
             parser.raise_error("Expected dimension as an integer or a value.")
 
         # Parse the positions
-        positions = parser.parse_comma_separated_list(
-            Parser.Delimiter.SQUARE, parse_int_or_value
-        )
+        positions = parser.parse_comma_separated_list(Parser.Delimiter.SQUARE, parse_int_or_value)
 
         # parse the attribute dictionary
         attr_dict = parser.parse_optional_attr_dict()
@@ -446,9 +362,7 @@ class ExtractElementOp(IRDLOperation):
         assert isa(self.vector.type, VectorType[Attribute])
 
         if self.result.type != self.vector.type.element_type:
-            raise VerifyException(
-                "Expected result type to match element type of vector operand."
-            )
+            raise VerifyException("Expected result type to match element type of vector operand.")
 
         if self.vector.type.get_num_dims() == 0:
             if self.position is not None:
@@ -519,21 +433,11 @@ class InsertOp(IRDLOperation):
         num_indices = len(self.static_position)
         # Check that the number of dimensions match
         if isa(self.source.type, VectorType):
-            if (
-                num_indices + self.source.type.get_num_dims()
-                != self.result.type.get_num_dims()
-            ):
-                raise VerifyException(
-                    f"Expected position attribute rank ({num_indices}) + source rank "
-                    f"({self.source.type.get_num_dims()}) to "
-                    f"match dest vector rank ({self.result.type.get_num_dims()})."
-                )
+            if num_indices + self.source.type.get_num_dims() != self.result.type.get_num_dims():
+                raise VerifyException(f"Expected position attribute rank ({num_indices}) + source rank " f"({self.source.type.get_num_dims()}) to " f"match dest vector rank ({self.result.type.get_num_dims()}).")
         else:
             if num_indices != self.result.type.get_num_dims():
-                raise VerifyException(
-                    f"Expected position attribute rank ({num_indices}) to match "
-                    f"dest vector rank ({self.result.type.get_num_dims()})."
-                )
+                raise VerifyException(f"Expected position attribute rank ({num_indices}) to match " f"dest vector rank ({self.result.type.get_num_dims()}).")
 
     def __init__(
         self,
@@ -542,9 +446,7 @@ class InsertOp(IRDLOperation):
         positions: Sequence[SSAValue | int],
         result_type: Attribute | None = None,
     ):
-        static_positions, dynamic_positions = split_dynamic_index_list(
-            positions, InsertOp.DYNAMIC_INDEX
-        )
+        static_positions, dynamic_positions = split_dynamic_index_list(positions, InsertOp.DYNAMIC_INDEX)
 
         if result_type is None:
             result_type = dest.type
@@ -552,9 +454,7 @@ class InsertOp(IRDLOperation):
         super().__init__(
             operands=[source, dest, dynamic_positions],
             result_types=[result_type],
-            properties={
-                "static_position": DenseArrayBase.from_list(i64, static_positions)
-            },
+            properties={"static_position": DenseArrayBase.from_list(i64, static_positions)},
         )
 
     @classmethod
@@ -576,9 +476,7 @@ class InsertOp(IRDLOperation):
             parser.raise_error("Expected dimension as an integer or a value.")
 
         # Parse the positions
-        positions = parser.parse_comma_separated_list(
-            Parser.Delimiter.SQUARE, parse_int_or_value
-        )
+        positions = parser.parse_comma_separated_list(Parser.Delimiter.SQUARE, parse_int_or_value)
 
         # parse the attribute dictionary
         attr_dict = parser.parse_optional_attr_dict()
@@ -615,13 +513,9 @@ class InsertElementOp(IRDLOperation):
         assert isa(self.dest.type, VectorType[Attribute])
 
         if self.result.type != self.dest.type:
-            raise VerifyException(
-                "Expected dest operand and result to have matching types."
-            )
+            raise VerifyException("Expected dest operand and result to have matching types.")
         if self.source.type != self.dest.type.element_type:
-            raise VerifyException(
-                "Expected source operand type to match element type of dest operand."
-            )
+            raise VerifyException("Expected source operand type to match element type of dest operand.")
 
         if self.dest.type.get_num_dims() == 0:
             if self.position is not None:
@@ -713,30 +607,21 @@ class VectorTransferOperation(IRDLOperation, ABC):
     """
 
     @staticmethod
-    def infer_transfer_op_mask_type(
-        vec_type: VectorType, perm_map: AffineMap
-    ) -> VectorType[I1]:
+    def infer_transfer_op_mask_type(vec_type: VectorType, perm_map: AffineMap) -> VectorType[I1]:
         """
         Given a resulting vector type and a permutation map from the dimensions of the
         shaped type to the vector type dimensions, return the vector type of the mask.
         """
-        unused_dims_bit_vector = tuple(
-            not dim for dim in perm_map.used_dims_bit_vector()
-        )
+        unused_dims_bit_vector = tuple(not dim for dim in perm_map.used_dims_bit_vector())
         inv_perm_map = perm_map.drop_dims(unused_dims_bit_vector).inverse_permutation()
         assert inv_perm_map is not None, "Inversed permutation map couldn't be computed"
         mask_shape = inv_perm_map.eval(vec_type.get_shape(), ())
-        scalable_dims = ArrayAttr(
-            BoolAttr.from_bool(bool(b))
-            for b in inv_perm_map.eval(vec_type.get_scalable_dims(), ())
-        )
+        scalable_dims = ArrayAttr(BoolAttr.from_bool(bool(b)) for b in inv_perm_map.eval(vec_type.get_scalable_dims(), ()))
         res = VectorType(i1, mask_shape, scalable_dims)
         return res
 
     @staticmethod
-    def get_transfer_minor_identity_map(
-        shaped_type: TensorType | MemRefType, vector_type: VectorType
-    ) -> AffineMap:
+    def get_transfer_minor_identity_map(shaped_type: TensorType | MemRefType, vector_type: VectorType) -> AffineMap:
         """
         Get the minor identity map for a transfer operation.
 
@@ -764,9 +649,7 @@ class VectorTransferOperation(IRDLOperation, ABC):
             reserved_attr_names.add("permutation_map")
         if not any(self.in_bounds):
             reserved_attr_names.add("in_bounds")
-        printer.print_op_attributes(
-            self.attributes | self.properties, reserved_attr_names=reserved_attr_names
-        )
+        printer.print_op_attributes(self.attributes | self.properties, reserved_attr_names=reserved_attr_names)
 
     @staticmethod
     def resolve_attrs(
@@ -786,11 +669,7 @@ class VectorTransferOperation(IRDLOperation, ABC):
             assert isinstance(permutation_map, AffineMapAttr)
         else:
             # Create identity permutation map for the shaped type's rank
-            permutation_map = AffineMapAttr(
-                VectorTransferOperation.get_transfer_minor_identity_map(
-                    shaped_type, vector_type
-                )
-            )
+            permutation_map = AffineMapAttr(VectorTransferOperation.get_transfer_minor_identity_map(shaped_type, vector_type))
 
         # Create in_bounds attribute if not provided
         in_bounds = None
@@ -798,9 +677,7 @@ class VectorTransferOperation(IRDLOperation, ABC):
             in_bounds = cast(ArrayAttr[BoolAttr], attributes_dict["in_bounds"])
         else:
             # Default: all dimensions are out-of-bounds
-            in_bounds = ArrayAttr(
-                (BoolAttr.from_bool(False),) * len(permutation_map.data.results)
-            )
+            in_bounds = ArrayAttr((BoolAttr.from_bool(False),) * len(permutation_map.data.results))
 
         if mask is not None:
             if isa(shaped_type.element_type, VectorType):
@@ -813,15 +690,12 @@ class VectorTransferOperation(IRDLOperation, ABC):
                 )
             if vector_type.get_num_dims() != len(permutation_map.data.results):
                 parser.raise_error(
-                    "expected the same rank for the vector and the "
-                    "results of the permutation map",
+                    "expected the same rank for the vector and the " "results of the permutation map",
                     types_pos,
                 )
             # Instead of adding the mask type as an op type, compute it based on the
             # vector type and the permutation map (to keep the type signature small).
-            mask_type = VectorTransferOperation.infer_transfer_op_mask_type(
-                vector_type, permutation_map.data
-            )
+            mask_type = VectorTransferOperation.infer_transfer_op_mask_type(vector_type, permutation_map.data)
             resolved_mask = parser.resolve_operand(mask, mask_type)
         else:
             resolved_mask = None
@@ -881,9 +755,7 @@ class TransferReadOp(VectorTransferOperation):
     @classmethod
     def parse(cls, parser: Parser) -> TransferReadOp:
         source = parser.parse_unresolved_operand()
-        indices = parser.parse_comma_separated_list(
-            Parser.Delimiter.SQUARE, parser.parse_operand
-        )
+        indices = parser.parse_comma_separated_list(Parser.Delimiter.SQUARE, parser.parse_operand)
         parser.parse_punctuation(",")
         padding = parser.parse_operand()
         if parser.parse_optional_punctuation(","):
@@ -905,9 +777,7 @@ class TransferReadOp(VectorTransferOperation):
         source = parser.resolve_operand(source, shaped_type)
 
         if not isa(shaped_type, MemRefType | TensorType):
-            parser.raise_error(
-                "requires memref or ranked tensor type", at_position=types_pos
-            )
+            parser.raise_error("requires memref or ranked tensor type", at_position=types_pos)
 
         if not isa(vector_type, VectorType):
             parser.raise_error("requires vector type", at_position=types_pos)
@@ -988,9 +858,7 @@ class TransferWriteOp(VectorTransferOperation):
         vector = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
         source = parser.parse_unresolved_operand()
-        indices = parser.parse_comma_separated_list(
-            Parser.Delimiter.SQUARE, parser.parse_operand
-        )
+        indices = parser.parse_comma_separated_list(Parser.Delimiter.SQUARE, parser.parse_operand)
         if parser.parse_optional_punctuation(","):
             mask_start_pos = parser.pos
             mask = parser.parse_unresolved_operand()
@@ -1011,9 +879,7 @@ class TransferWriteOp(VectorTransferOperation):
         source = parser.resolve_operand(source, shaped_type)
 
         if not isa(shaped_type, MemRefType | TensorType):
-            parser.raise_error(
-                "requires memref or ranked tensor type", at_position=types_pos
-            )
+            parser.raise_error("requires memref or ranked tensor type", at_position=types_pos)
 
         if not isa(vector_type, VectorType):
             parser.raise_error("requires vector type", at_position=types_pos)
@@ -1065,9 +931,7 @@ class BitCastOp(IRDLOperation):
         assert isa(result_type := self.result.type, VectorType[Attribute])
 
         if source_type.get_num_dims() != result_type.get_num_dims():
-            raise VerifyException(
-                f"Expected source rank ({source_type.get_num_dims()}) to match dest rank ({result_type.get_num_dims()})."
-            )
+            raise VerifyException(f"Expected source rank ({source_type.get_num_dims()}) to match dest rank ({result_type.get_num_dims()}).")
 
 
 class CombiningKindFlag(StrEnum):
@@ -1098,21 +962,23 @@ class CombiningKindAttr(BitEnumAttribute[CombiningKindFlag]):
 
     def __init__(
         self,
-        kind: None
-        | Sequence[CombiningKindFlag]
-        | Literal[
-            "add",
-            "mul",
-            "minui",
-            "minsi",
-            "minf",
-            "maxui",
-            "maxsi",
-            "maxf",
-            "and",
-            "or",
-            "xor",
-        ],
+        kind: (
+            None
+            | Sequence[CombiningKindFlag]
+            | Literal[
+                "add",
+                "mul",
+                "minui",
+                "minsi",
+                "minf",
+                "maxui",
+                "maxsi",
+                "maxf",
+                "and",
+                "or",
+                "xor",
+            ]
+        ),
     ):
         super().__init__(kind)
 

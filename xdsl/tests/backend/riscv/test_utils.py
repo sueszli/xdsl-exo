@@ -1,10 +1,4 @@
-from xdsl.backend.riscv.lowering.utils import (
-    a_regs,
-    cast_block_args_to_regs,
-    cast_matched_op_results,
-    cast_operands_to_regs,
-    register_type_for_type,
-)
+from xdsl.backend.riscv.lowering.utils import a_regs, cast_block_args_to_regs, cast_matched_op_results, cast_operands_to_regs, register_type_for_type
 from xdsl.builder import Builder
 from xdsl.dialects import builtin, memref, riscv, test
 from xdsl.ir import BlockArgument
@@ -17,14 +11,8 @@ REGISTER_TYPE = riscv.Registers.UNALLOCATED_INT
 
 def test_register_type_for_type():
     assert register_type_for_type(builtin.i32) == riscv.IntRegisterType
-    assert (
-        register_type_for_type(memref.MemRefType(builtin.f32, [1, 2, 3]))
-        == riscv.IntRegisterType
-    )
-    assert (
-        register_type_for_type(memref.MemRefType(builtin.i32, [1, 2, 3]))
-        == riscv.IntRegisterType
-    )
+    assert register_type_for_type(memref.MemRefType(builtin.f32, [1, 2, 3])) == riscv.IntRegisterType
+    assert register_type_for_type(memref.MemRefType(builtin.i32, [1, 2, 3])) == riscv.IntRegisterType
 
     assert register_type_for_type(builtin.f32) == riscv.FloatRegisterType
     assert register_type_for_type(builtin.f64) == riscv.FloatRegisterType
@@ -42,9 +30,7 @@ def test_op_cast_utils():
         )
         def inner(args: tuple[BlockArgument, ...]):
             v = test.TestOp.create(operands=args, result_types=[INDEX_TYPE, INDEX_TYPE])
-            test.TestTermOp.create(
-                operands=v.results, result_types=[INDEX_TYPE, INDEX_TYPE]
-            )
+            test.TestTermOp.create(operands=v.results, result_types=[INDEX_TYPE, INDEX_TYPE])
 
         test.TestOp.create(regions=(inner,))
 
@@ -53,13 +39,9 @@ def test_op_cast_utils():
     def expected():
         @Builder.implicit_region((INDEX_TYPE, INDEX_TYPE))
         def inner(args: tuple[BlockArgument, ...]):
-            (first_arg, second_arg) = args
-            first_arg_cast = builtin.UnrealizedConversionCastOp(
-                operands=(first_arg,), result_types=(REGISTER_TYPE,)
-            )
-            second_arg_cast = builtin.UnrealizedConversionCastOp(
-                operands=(second_arg,), result_types=(REGISTER_TYPE,)
-            )
+            first_arg, second_arg = args
+            first_arg_cast = builtin.UnrealizedConversionCastOp(operands=(first_arg,), result_types=(REGISTER_TYPE,))
+            second_arg_cast = builtin.UnrealizedConversionCastOp(operands=(second_arg,), result_types=(REGISTER_TYPE,))
             v = riscv.CustomAssemblyInstructionOp(
                 "foo",
                 (first_arg_cast.results[0], second_arg_cast.results[0]),
@@ -80,11 +62,9 @@ def test_op_cast_utils():
     target_op = next(filter(lambda op: len(op.results) == 2, input.walk()))
     assert target_op is not None
     rewriter = PatternRewriter(target_op)
-    (first_arg_cast, second_arg_cast) = cast_operands_to_regs(rewriter)
+    first_arg_cast, second_arg_cast = cast_operands_to_regs(rewriter)
     cast_matched_op_results(rewriter)
-    lowered_op = riscv.CustomAssemblyInstructionOp(
-        "foo", (first_arg_cast, second_arg_cast), (REGISTER_TYPE, REGISTER_TYPE)
-    )
+    lowered_op = riscv.CustomAssemblyInstructionOp("foo", (first_arg_cast, second_arg_cast), (REGISTER_TYPE, REGISTER_TYPE))
     rewriter.replace_op(target_op, lowered_op)
 
     # check that the lowered region is still valid
@@ -105,9 +85,7 @@ def test_block_cast_utils():
         )
         def inner(args: tuple[BlockArgument, ...]):
             v = test.TestOp.create(operands=args, result_types=[INDEX_TYPE, INDEX_TYPE])
-            test.TestTermOp.create(
-                operands=v.results, result_types=[INDEX_TYPE, INDEX_TYPE]
-            )
+            test.TestTermOp.create(operands=v.results, result_types=[INDEX_TYPE, INDEX_TYPE])
 
         test.TestOp.create(regions=(inner,))
 
@@ -121,13 +99,9 @@ def test_block_cast_utils():
             )
         )
         def inner(args: tuple[BlockArgument, ...]):
-            (first_arg, second_arg) = args
-            second_arg_cast = builtin.UnrealizedConversionCastOp(
-                operands=(second_arg,), result_types=(INDEX_TYPE,)
-            )
-            first_arg_cast = builtin.UnrealizedConversionCastOp(
-                operands=(first_arg,), result_types=(INDEX_TYPE,)
-            )
+            first_arg, second_arg = args
+            second_arg_cast = builtin.UnrealizedConversionCastOp(operands=(second_arg,), result_types=(INDEX_TYPE,))
+            first_arg_cast = builtin.UnrealizedConversionCastOp(operands=(first_arg,), result_types=(INDEX_TYPE,))
 
             v = test.TestOp.create(
                 operands=(
@@ -136,9 +110,7 @@ def test_block_cast_utils():
                 ),
                 result_types=[INDEX_TYPE, INDEX_TYPE],
             )
-            test.TestTermOp.create(
-                operands=v.results, result_types=[INDEX_TYPE, INDEX_TYPE]
-            )
+            test.TestTermOp.create(operands=v.results, result_types=[INDEX_TYPE, INDEX_TYPE])
 
         test.TestOp.create(regions=(inner,))
 

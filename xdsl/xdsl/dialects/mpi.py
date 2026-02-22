@@ -8,36 +8,9 @@ from typing import Generic
 from typing_extensions import TypeVar
 
 from xdsl.dialects import llvm
-from xdsl.dialects.builtin import (
-    AnyFloat,
-    IntegerType,
-    MemRefType,
-    Signedness,
-    StringAttr,
-    i32,
-)
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    Operation,
-    ParametrizedAttribute,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    IRDLOperation,
-    Operand,
-    ParameterDef,
-    attr_def,
-    base,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_attr_def,
-    opt_operand_def,
-    opt_result_def,
-    result_def,
-)
+from xdsl.dialects.builtin import AnyFloat, IntegerType, MemRefType, Signedness, StringAttr, i32
+from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, SSAValue, TypeAttribute
+from xdsl.irdl import IRDLOperation, Operand, ParameterDef, attr_def, base, irdl_attr_definition, irdl_op_definition, operand_def, opt_attr_def, opt_operand_def, opt_result_def, result_def
 from xdsl.utils.hints import isa
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
@@ -144,8 +117,6 @@ class MPIBaseOp(IRDLOperation, ABC):
     Base class for MPI Operations
     """
 
-    pass
-
 
 @irdl_op_definition
 class ReduceOp(MPIBaseOp):
@@ -239,9 +210,7 @@ class AllreduceOp(MPIBaseOp):
         datatype: SSAValue | Operation,
         operationtype: OperationType,
     ):
-        operands_to_add: Sequence[
-            SSAValue | Operation | Sequence[SSAValue | Operation]
-        ] = []
+        operands_to_add: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation]] = []
 
         if send_buffer is None:
             operands_to_add = [[], recv_buffer, count, datatype]
@@ -389,9 +358,7 @@ class SendOp(MPIBaseOp):
         dest: SSAValue | Operation,
         tag: SSAValue | Operation,
     ):
-        return super().__init__(
-            operands=[buffer, count, datatype, dest, tag], result_types=[]
-        )
+        return super().__init__(operands=[buffer, count, datatype, dest, tag], result_types=[])
 
 
 @irdl_op_definition
@@ -762,9 +729,7 @@ class VectorGetOp(MPIBaseOp):
         ssa_val = SSAValue.get(vect)
         assert isa(ssa_val.type, VectorType[VectorWrappable])
 
-        return super().__init__(
-            result_types=[ssa_val.type.wrapped_type], operands=[vect, element]
-        )
+        return super().__init__(result_types=[ssa_val.type.wrapped_type], operands=[vect, element])
 
 
 @irdl_op_definition

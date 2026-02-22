@@ -2,13 +2,7 @@ from xdsl.context import Context
 from xdsl.dialects import linalg, memref_stream
 from xdsl.dialects.builtin import ArrayAttr, IndexType, IntAttr, IntegerAttr, ModuleOp
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
 def iterator_type_attr(t: linalg.IteratorTypeAttr) -> memref_stream.IteratorTypeAttr:
@@ -23,13 +17,9 @@ def iterator_type_attr(t: linalg.IteratorTypeAttr) -> memref_stream.IteratorType
 
 class ConvertGenericOpPattern(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: linalg.GenericOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: linalg.GenericOp, rewriter: PatternRewriter) -> None:
         if op.res:
-            raise NotImplementedError(
-                "converting linalg.generic with results not supported"
-            )
+            raise NotImplementedError("converting linalg.generic with results not supported")
 
         # The memref_stream.generic op may take as arguments memrefs, scalars, or streams,
         # the latter of which does not carry shape information. linalg.generic constructs
@@ -68,8 +58,6 @@ class ConvertLinalgToMemRefStreamPass(ModulePass):
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [ConvertGenericOpPattern(), ConvertYieldOpPattern()]
-            ),
+            GreedyRewritePatternApplier([ConvertGenericOpPattern(), ConvertYieldOpPattern()]),
             apply_recursively=False,
         ).rewrite_module(op)

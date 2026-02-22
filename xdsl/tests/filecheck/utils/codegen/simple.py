@@ -1,39 +1,8 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.dialects.builtin import (
-    AnyTensorTypeConstr,
-    ComplexType,
-    Float32Type,
-    IndexType,
-    IntAttr,
-    IntegerAttr,
-    IntegerType,
-    NoneType,
-    Signedness,
-)
-from xdsl.irdl import (
-    AllOf,
-    AnyAttr,
-    AnyOf,
-    AttributeDef,
-    AttrSizedOperandSegments,
-    BaseAttr,
-    EqAttrConstraint,
-    OpDef,
-    OperandDef,
-    OptOperandDef,
-    ParamAttrConstraint,
-    ParamAttrDef,
-    PropertyDef,
-    ResultDef,
-    SameVariadicOperandSize,
-    VarOperandDef,
-    traits_def,
-)
-from xdsl.traits import (
-    ConstantLike,
-    Pure,
-)
+from xdsl.dialects.builtin import AnyTensorTypeConstr, ComplexType, Float32Type, IndexType, IntAttr, IntegerAttr, IntegerType, NoneType, Signedness
+from xdsl.irdl import AllOf, AnyAttr, AnyOf, AttributeDef, AttrSizedOperandSegments, BaseAttr, EqAttrConstraint, OpDef, OperandDef, OptOperandDef, ParamAttrConstraint, ParamAttrDef, PropertyDef, ResultDef, SameVariadicOperandSize, VarOperandDef, traits_def
+from xdsl.traits import ConstantLike, Pure
 from xdsl.utils.dialect_codegen import dump_dialect_pyfile, generate_dynamic_attr_class
 
 types = [
@@ -155,9 +124,7 @@ ops = [
         OpDef(
             name="test.properties",
             properties={
-                "int_attr": PropertyDef(
-                    IntegerAttr.constr(type=EqAttrConstraint(IntegerType(16)))
-                ),
+                "int_attr": PropertyDef(IntegerAttr.constr(type=EqAttrConstraint(IntegerType(16)))),
                 "in": PropertyDef(AnyAttr()),
             },
             accessor_names={"in_": ("in", "property")},

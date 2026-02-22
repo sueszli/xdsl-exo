@@ -7,14 +7,7 @@ from xdsl.ir import Block, Operation, Region, Use
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import Rewriter
-from xdsl.traits import (
-    IsolatedFromAbove,
-    IsTerminator,
-    MemoryEffectKind,
-    get_effects,
-    is_side_effect_free,
-    only_has_effect,
-)
+from xdsl.traits import IsolatedFromAbove, IsTerminator, MemoryEffectKind, get_effects, is_side_effect_free, only_has_effect
 from xdsl.transforms.dead_code_elimination import is_trivially_dead
 
 
@@ -31,11 +24,7 @@ class OperationInfo:
 
     @property
     def name(self):
-        return (
-            self.op.op_name.data
-            if isinstance(self.op, UnregisteredOp)
-            else self.op.name
-        )
+        return self.op.op_name.data if isinstance(self.op, UnregisteredOp) else self.op.name
 
     def __hash__(self):
         return hash(
@@ -49,19 +38,7 @@ class OperationInfo:
         )
 
     def __eq__(self, other: object):
-        return (
-            isinstance(other, OperationInfo)
-            and hash(self) == hash(other)
-            and self.name == other.name
-            and self.op.attributes == other.op.attributes
-            and self.op.properties == other.op.properties
-            and self.op.operands == other.op.operands
-            and self.op.result_types == other.op.result_types
-            and all(
-                s.is_structurally_equivalent(o)
-                for s, o in zip(self.op.regions, other.op.regions, strict=True)
-            )
-        )
+        return isinstance(other, OperationInfo) and hash(self) == hash(other) and self.name == other.name and self.op.attributes == other.op.attributes and self.op.properties == other.op.properties and self.op.operands == other.op.operands and self.op.result_types == other.op.result_types and all(s.is_structurally_equivalent(o) for s, o in zip(self.op.regions, other.op.regions, strict=True))
 
 
 _D = TypeVar("_D")
@@ -98,9 +75,7 @@ class KnownOps:
         return self._known_ops.pop(OperationInfo(k))
 
 
-def has_other_side_effecting_op_in_between(
-    from_op: Operation, to_op: Operation
-) -> bool:
+def has_other_side_effecting_op_in_between(from_op: Operation, to_op: Operation) -> bool:
     """
     Returns if there *may* be a 'write' effecting operation between `from_op` and
     `to_op`.
@@ -205,9 +180,7 @@ class CSEDriver:
     def _simplify_block(self, block: Block):
         for op in block.ops:
             if op.regions:
-                might_be_isolated = isinstance(op, UnregisteredOp) or (
-                    op.get_trait(IsolatedFromAbove) is not None
-                )
+                might_be_isolated = isinstance(op, UnregisteredOp) or (op.get_trait(IsolatedFromAbove) is not None)
                 # If we can't be sure the op isn't isolated, we assume it is for safety
                 if might_be_isolated:
                     # Then save the current scope for later, but continue inside with a

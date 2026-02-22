@@ -24,10 +24,7 @@ class AddArguments(Screen[ModulePass | None]):
     def __init__(self, selected_pass_type: type[ModulePass]):
         self.selected_pass_type = selected_pass_type
         self.argument_text_area = TextArea(
-            " ".join(
-                f"{n}={t if d is None else d}"
-                for n, t, d in get_pass_option_infos(selected_pass_type)
-            ),
+            " ".join(f"{n}={t if d is None else d}" for n, t, d in get_pass_option_infos(selected_pass_type)),
             id="argument_text_area",
         )
         self.enter_button = Button("Enter", id="enter_button")
@@ -44,9 +41,7 @@ class AddArguments(Screen[ModulePass | None]):
 
     def on_mount(self) -> None:
         """Configure widgets in this application before it is first shown."""
-        self.query_one(
-            "#argument_text_area"
-        ).border_title = "Provide arguments to apply to selected pass."
+        self.query_one("#argument_text_area").border_title = "Provide arguments to apply to selected pass."
         # Initialize parsed pass
         self.update_selected_pass_value()
         # Initialize enter button
@@ -57,27 +52,19 @@ class AddArguments(Screen[ModulePass | None]):
         concatenated_arg_val = self.argument_text_area.text
 
         try:
-            parsed_spec = list(
-                parse_pipeline(
-                    f"{self.selected_pass_type.name}{{{concatenated_arg_val}}}"
-                )
-            )[0]
+            parsed_spec = list(parse_pipeline(f"{self.selected_pass_type.name}{{{concatenated_arg_val}}}"))[0]
         except PassPipelineParseError:
             self.selected_pass_value = None
             return
 
-        missing_fields = self.selected_pass_type.required_fields().difference(
-            parsed_spec.args.keys()
-        )
+        missing_fields = self.selected_pass_type.required_fields().difference(parsed_spec.args.keys())
 
         if missing_fields:
             self.selected_pass_value = None
             return
 
         try:
-            self.selected_pass_value = self.selected_pass_type.from_pass_spec(
-                parsed_spec
-            )
+            self.selected_pass_value = self.selected_pass_type.from_pass_spec(parsed_spec)
         except ValueError:
             self.selected_pass_value = None
 

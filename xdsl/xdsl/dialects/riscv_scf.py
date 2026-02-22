@@ -10,34 +10,12 @@ from collections.abc import Sequence
 from typing_extensions import Self
 
 from xdsl.dialects.riscv import IntRegisterType, RISCVRegisterType
-from xdsl.dialects.utils import (
-    AbstractYieldOperation,
-    parse_for_op_like,
-    print_for_op_like,
-)
+from xdsl.dialects.utils import AbstractYieldOperation, parse_for_op_like, print_for_op_like
 from xdsl.ir import Attribute, Dialect
-from xdsl.irdl import (
-    Block,
-    IRDLOperation,
-    Operation,
-    Region,
-    SSAValue,
-    irdl_op_definition,
-    lazy_traits_def,
-    operand_def,
-    region_def,
-    traits_def,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.irdl import Block, IRDLOperation, Operation, Region, SSAValue, irdl_op_definition, lazy_traits_def, operand_def, region_def, traits_def, var_operand_def, var_result_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import (
-    HasParent,
-    IsTerminator,
-    SingleBlockImplicitTerminator,
-    ensure_terminator,
-)
+from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator, ensure_terminator
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -45,9 +23,7 @@ from xdsl.utils.exceptions import VerifyException
 class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
     name = "riscv_scf.yield"
 
-    traits = lazy_traits_def(
-        lambda: (IsTerminator(), HasParent(WhileOp, ForRofOperation))
-    )
+    traits = lazy_traits_def(lambda: (IsTerminator(), HasParent(WhileOp, ForRofOperation)))
 
 
 class ForRofOperation(IRDLOperation, ABC):
@@ -82,41 +58,19 @@ class ForRofOperation(IRDLOperation, ABC):
 
     def verify_(self):
         if (len(self.iter_args) + 1) != len(self.body.block.args):
-            raise VerifyException(
-                f"Wrong number of block arguments, expected {len(self.iter_args) + 1}, got "
-                f"{len(self.body.block.args)}. The body must have the induction "
-                f"variable and loop-carried variables as arguments."
-            )
+            raise VerifyException(f"Wrong number of block arguments, expected {len(self.iter_args) + 1}, got " f"{len(self.body.block.args)}. The body must have the induction " f"variable and loop-carried variables as arguments.")
         if self.body.block.args and (iter_var := self.body.block.args[0]):
             if not isinstance(iter_var.type, IntRegisterType):
-                raise VerifyException(
-                    f"The first block argument of the body is of type {iter_var.type}"
-                    " instead of riscv.IntRegisterType"
-                )
-        for idx, (arg, block_arg) in enumerate(
-            zip(self.iter_args, self.body.block.args[1:])
-        ):
+                raise VerifyException(f"The first block argument of the body is of type {iter_var.type}" " instead of riscv.IntRegisterType")
+        for idx, (arg, block_arg) in enumerate(zip(self.iter_args, self.body.block.args[1:])):
             if block_arg.type != arg.type:
-                raise VerifyException(
-                    f"Block argument {idx + 1} has wrong type, expected {arg.type}, "
-                    f"got {block_arg.type}. Arguments after the "
-                    f"induction variable must match the carried variables."
-                )
-        if len(self.body.ops) > 0 and isinstance(
-            yieldop := self.body.block.last_op, YieldOp
-        ):
+                raise VerifyException(f"Block argument {idx + 1} has wrong type, expected {arg.type}, " f"got {block_arg.type}. Arguments after the " f"induction variable must match the carried variables.")
+        if len(self.body.ops) > 0 and isinstance(yieldop := self.body.block.last_op, YieldOp):
             if len(yieldop.arguments) != len(self.iter_args):
-                raise VerifyException(
-                    f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
-                    f"The riscv_scf.for must yield its carried variables."
-                )
+                raise VerifyException(f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. " f"The riscv_scf.for must yield its carried variables.")
             for iter_arg, yield_arg in zip(self.iter_args, yieldop.arguments):
                 if iter_arg.type != yield_arg.type:
-                    raise VerifyException(
-                        f"Expected {iter_arg.type}, got {yield_arg.type}. The "
-                        f"riscv_scf.for's riscv_scf.yield must match carried"
-                        f"variables types."
-                    )
+                    raise VerifyException(f"Expected {iter_arg.type}, got {yield_arg.type}. The " f"riscv_scf.for's riscv_scf.yield must match carried" f"variables types.")
 
 
 @irdl_op_definition
@@ -182,9 +136,7 @@ class RofOp(ForRofOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        ub, lb, step, iter_arg_operands, body = parse_for_op_like(
-            parser, bound_words=["down", "to"]
-        )
+        ub, lb, step, iter_arg_operands, body = parse_for_op_like(parser, bound_words=["down", "to"])
         _, *iter_args = body.block.args
 
         rof_op = cls(lb, ub, step, iter_arg_operands, body)
@@ -228,11 +180,7 @@ class WhileOp(IRDLOperation):
             )
         ):
             if block_arg.type != arg.type:
-                raise VerifyException(
-                    f"Block arguments at {idx} has wrong type,"
-                    f" expected {arg.type},"
-                    f" got {block_arg.type}"
-                )
+                raise VerifyException(f"Block arguments at {idx} has wrong type," f" expected {arg.type}," f" got {block_arg.type}")
 
         for idx, (block_arg, res) in enumerate(
             zip(
@@ -242,11 +190,7 @@ class WhileOp(IRDLOperation):
             )
         ):
             if block_arg.type != res.type:
-                raise VerifyException(
-                    f"Block arguments at {idx} has wrong type,"
-                    f" expected {res.type},"
-                    f" got {block_arg.type}"
-                )
+                raise VerifyException(f"Block arguments at {idx} has wrong type," f" expected {res.type}," f" got {block_arg.type}")
 
     def print(self, printer: Printer):
         printer.print_string(" (")
@@ -288,17 +232,9 @@ class WhileOp(IRDLOperation):
                 parser.pos,
             )
 
-        block_args = tuple(
-            block_arg.resolve(t)
-            for ((block_arg, _), t) in zip(
-                tuples, function_type.inputs.data, strict=True
-            )
-        )
+        block_args = tuple(block_arg.resolve(t) for ((block_arg, _), t) in zip(tuples, function_type.inputs.data, strict=True))
 
-        arguments = tuple(
-            parser.resolve_operand(operand, t)
-            for ((_, operand), t) in zip(tuples, function_type.inputs.data, strict=True)
-        )
+        arguments = tuple(parser.resolve_operand(operand, t) for ((_, operand), t) in zip(tuples, function_type.inputs.data, strict=True))
 
         before_region = parser.parse_region(block_args)
         parser.parse_characters("do")
@@ -333,9 +269,7 @@ class ConditionOp(IRDLOperation):
             printer.print(" ")
             printer.print_list(self.arguments, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list(
-                self.arguments, lambda val: printer.print_attribute(val.type)
-            )
+            printer.print_list(self.arguments, lambda val: printer.print_attribute(val.type))
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -350,14 +284,10 @@ class ConditionOp(IRDLOperation):
         # scf.condition is a terminator, so the list of arguments cannot be confused with
         # the results of a hypothetical operation on the next line.
         pos = parser.pos
-        unresolved_arguments = parser.parse_optional_undelimited_comma_separated_list(
-            parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
-        )
+        unresolved_arguments = parser.parse_optional_undelimited_comma_separated_list(parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand)
         if unresolved_arguments is not None:
             parser.parse_punctuation(":")
-            types = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE, parser.parse_type
-            )
+            types = parser.parse_comma_separated_list(parser.Delimiter.NONE, parser.parse_type)
             arguments = parser.resolve_operands(unresolved_arguments, types, pos)
         else:
             arguments: Sequence[SSAValue] = ()

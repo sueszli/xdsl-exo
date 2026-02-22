@@ -3,13 +3,7 @@ from itertools import chain
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_scf, riscv_snitch, snitch
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.traits import Pure
 
 ALLOWED_FREP_OP_LOWERING_TYPES = (
@@ -27,20 +21,14 @@ class ScfForLowering(RewritePattern):
             # 1. Induction variable is used
             return
 
-        if not (
-            isinstance(step_op := op.step.owner, riscv.LiOp)
-            and isinstance(step_op.immediate, builtin.IntegerAttr)
-            and step_op.immediate.value.data == 1
-        ):
+        if not (isinstance(step_op := op.step.owner, riscv.LiOp) and isinstance(step_op.immediate, builtin.IntegerAttr) and step_op.immediate.value.data == 1):
             # 2. Step is 1
             return
 
         if not all(
             isinstance(
                 value.type,
-                riscv.FloatRegisterType
-                | snitch.ReadableStreamType
-                | snitch.WritableStreamType,
+                riscv.FloatRegisterType | snitch.ReadableStreamType | snitch.WritableStreamType,
             )
             for o in body_block.ops
             for value in chain(o.operands, o.results)
@@ -48,10 +36,7 @@ class ScfForLowering(RewritePattern):
             # 3. All operations in the loop operate on float registers
             return
 
-        if not all(
-            isinstance(o, ALLOWED_FREP_OP_LOWERING_TYPES) or o.has_trait(Pure)
-            for o in body_block.ops
-        ):
+        if not all(isinstance(o, ALLOWED_FREP_OP_LOWERING_TYPES) or o.has_trait(Pure) for o in body_block.ops):
             # 4. All operations are pure or one of
             #     a) riscv_snitch.read
             #     b) riscv_snitch.write
@@ -74,9 +59,7 @@ class ScfForLowering(RewritePattern):
 
 class ScfYieldLowering(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: riscv_scf.YieldOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: riscv_scf.YieldOp, rewriter: PatternRewriter) -> None:
         if isinstance(op.parent_op(), riscv_snitch.FRepOperation):
             rewriter.replace_matched_op(riscv_snitch.FrepYieldOp(*op.operands))
 

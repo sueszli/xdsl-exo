@@ -6,13 +6,15 @@ app = marimo.App(width="medium")
 
 @app.cell(hide_code=True)
 def _():
+    from typing import Any
+
     import marimo as mo
 
     from xdsl.context import Context
-    from xdsl.dialects import builtin, arith, func, scf
-    from xdsl.utils import marimo as xmo
+    from xdsl.dialects import arith, builtin, func, scf
     from xdsl.printer import Printer
-    from typing import Any
+    from xdsl.utils import marimo as xmo
+
     return Any, Context, Printer, arith, builtin, func, mo, scf, xmo
 
 
@@ -30,16 +32,14 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo, triangle_text):
-    mo.md(
-        rf"""
+    mo.md(rf"""
     MLIR and xDSL use a textual encoding of the IR for debugging, testing, and storing intermediate representations of programs.
     It can be very useful to take a program at some stage of compilation, and inspect it.
     The textual format makes this easy to do.
     Let's look at a representation of a function that sums the first `n` integers:
 
     {mo.ui.code_editor(triangle_text, language="javascript", disabled=True)}
-    """
-    )
+    """)
     return
 
 
@@ -66,16 +66,14 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo, swap_text, xmo):
-    mo.md(
-        rf"""
+    mo.md(rf"""
         The [func dialect](https://mlir.llvm.org/docs/Dialects/Func/) contains building blocks to model function definitions and calls.
 
         {xmo.module_html(swap_text)}
 
         The above function takes two 32-bit integers, and returns them in the opposite order.
         In this snippet, there are two operations, `func.func` for function definition and `func.return` to specify the returned values. All operations in MLIR are prefixed with their dialect name.
-        """
-    )
+        """)
     return
 
 
@@ -145,13 +143,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(add_one_text, mo, xmo):
-    mo.md(
-        rf"""
+    mo.md(rf"""
         The [arith dialect](https://mlir.llvm.org/docs/Dialects/ArithOps/) contains arithmetic operations on integers, floating-point values, and other numeric constructs. To start with, here is a function that adds one to its only argument:
 
         {xmo.module_html(add_one_text)}
-        """
-    )
+        """)
     return
 
 
@@ -173,13 +169,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(less_than_text, mo, xmo):
-    mo.md(
-        rf"""
+    mo.md(rf"""
         The `arith` dialect also contains operations for comparisons. The function below returns the value `true` if a is less than b when the 32-bit values passed in are interpreted as signed integers. Note that the signedness is communicated by the operation itself, not the types of the operands:
 
         {xmo.module_html(less_than_text)}
-        """
-    )
+        """)
     return
 
 
@@ -270,16 +264,14 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo, select_text, xmo):
-    mo.md(
-        rf"""
+    mo.md(rf"""
         Here is a function that returns the second argument if the first argument is `true`, and the third argument otherwise:
 
         {xmo.module_html(select_text)}
 
         Note that we did not put early returns in the branches of the `scf.if` operation.
         This is due to MLIR's SSA blocks adhering to a specific contract: operations within a block are executed sequentially from top to bottom, and each operation is guaranteed to complete and yield control back to the outer block.
-        """
-    )
+        """)
     return
 
 
@@ -390,8 +382,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo, triangle_text, xmo):
-    mo.md(
-        rf"""
+    mo.md(rf"""
         The `scf` dialect also contains abstractions to represent for loops, allowing us to implement the triangle function 1 + 2 + 3 + ... + n.
 
         {xmo.module_html(triangle_text)}
@@ -399,8 +390,7 @@ def _(mo, triangle_text, xmo):
         Due to the SSA contract, we cannot accumulate by updating a value.
         Instead, the loop body takes some number of immutable values and yields the same number of values to use for the next loop.
         When all iterations are complete, these values are returned by the operation.
-        """
-    )
+        """)
     return
 
 
@@ -413,9 +403,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo, triangle_text):
     second_input_text = mo.ui.text("5")
-    second_text_area = mo.ui.code_editor(
-        triangle_text.replace("triangle", "factorial"), language="javascript"
-    )
+    second_text_area = mo.ui.code_editor(triangle_text.replace("triangle", "factorial"), language="javascript")
     return second_input_text, second_text_area
 
 
@@ -498,15 +486,13 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo, triangle_text):
-    mo.md(
-        rf"""
+    mo.md(rf"""
     This notebook contains a very light overview of the most commonly used dialects and operations in MLIR and xDSL, as well as the key concepts of SSA and structured control flow.
 
     {mo.ui.code_editor(triangle_text, language="javascript", disabled=True)}
 
     The sections below are a deeper dive into some of the structures that were implicit in the IR snippets we looked at so far, reusing the `triangle` function from earlier.
-    """
-    )
+    """)
     return
 
 
@@ -518,8 +504,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         The [`builtin` dialect](https://mlir.llvm.org/docs/Dialects/Builtin/) contains the most commonly-used operation in MLIR and xDSL: the `builtin.module` operation.
 
         A module is a unit of code which holds a single region.
@@ -531,8 +516,7 @@ def _(mo):
         ```
 
         When the first operation in a file is not a `builtin.module`, it is implicitly assumed and can be omitted, as is the case for all the snippets above.
-        """
-    )
+        """)
     return
 
 
@@ -544,8 +528,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(builtin, mo):
-    mo.md(
-        rf"""
+    mo.md(rf"""
     Attributes hold compile-time data, such as constants, types, and other information.
 
     The IR for the `triangle` snippet contains four attributes: `@triangle`, `0`, `1` and `i32`.
@@ -569,8 +552,7 @@ def _(builtin, mo):
     ```
 
     The last entry denotes a key-value pair (i.e., `a_unit_attr: unit`) where the omitted value is the `unit` attribute.
-    """
-    )
+    """)
     return
 
 
@@ -582,13 +564,11 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         All the snippets presented so far are in IRs that follow the _custom format_, a format that allows operations to specify a pretty and concise representation.
         On the other hand, the _generic format_ is a more uniform and verbose representation that unambiguously shows the structure of an operation.
         Here is the above `triangle` function in generic format:
-        """
-    )
+        """)
     return
 
 
@@ -597,13 +577,11 @@ def _(Parser, Printer, StringIO, ctx, mo, triangle_text):
     _triangle_module = Parser(ctx, triangle_text).parse_module()
     _file = StringIO()
     Printer(print_generic_format=True, stream=_file).print(_triangle_module)
-    mo.md(
-        f"""
+    mo.md(f"""
     ```
     {_file.getvalue()}
     ```
-    """
-    )
+    """)
     return
 
 
@@ -619,6 +597,7 @@ def _(Printer, StringIO, builtin):
         io = StringIO()
         Printer(io, print_generic_format=True).print(module)
         return io.getvalue()
+
     return (print_generic,)
 
 
@@ -655,7 +634,7 @@ def _(ctx, triangle_text):
 
     from io import StringIO
 
-    from xdsl.parser import Parser, Input
+    from xdsl.parser import Input, Parser
 
     triangle_module = Parser(ctx, triangle_text, "").parse_module()
     # triangle_module
@@ -666,7 +645,7 @@ def _(ctx, triangle_text):
 def _(Any, builtin):
     def run_func(module: builtin.ModuleOp, name: str, args: tuple[Any, ...]):
         from xdsl.interpreter import Interpreter
-        from xdsl.interpreters import scf, arith, func
+        from xdsl.interpreters import arith, func, scf
 
         interpreter = Interpreter(module)
         interpreter.register_implementations(scf.ScfFunctions)
@@ -679,6 +658,7 @@ def _(Any, builtin):
             res = res[0]
 
         return res
+
     return (run_func,)
 
 
@@ -694,10 +674,7 @@ def _(Any, Parser, ctx, run_func):
         results_text = ""
         try:
             module = Parser(ctx, module_text).parse_module()
-            results_text = "\n".join(
-                format + str(run_func(module, function_name, input))
-                for format, input in zip(formats, inputs, strict=True)
-            )
+            results_text = "\n".join(format + str(run_func(module, function_name, input)) for format, input in zip(formats, inputs, strict=True))
         except Exception as e:
             error_text = str(e)
         if error_text:
@@ -717,6 +694,7 @@ def _(Any, Parser, ctx, run_func):
     ```
     """
         return info_text
+
     return (exercise_text,)
 
 

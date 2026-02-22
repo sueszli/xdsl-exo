@@ -7,12 +7,7 @@ from xdsl.dialects.test import Test, TestOp
 from xdsl.interactive.get_all_available_passes import get_available_pass_list
 from xdsl.interactive.passes import AvailablePass
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.transforms.individual_rewrite import ApplyIndividualRewritePass
 
 
@@ -24,9 +19,7 @@ class ReplacePattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: TestOp, rewriter: PatternRewriter):
         if op.attributes["key"] == StringAttr(self.before):
-            rewriter.replace_matched_op(
-                TestOp(attributes={"key": StringAttr(self.after)})
-            )
+            rewriter.replace_matched_op(TestOp(attributes={"key": StringAttr(self.after)}))
 
 
 class ReplacePass(ModulePass):

@@ -31,25 +31,15 @@ class RISCVRegisterAllocation(ModulePass):
         }
 
         if self.allocation_strategy not in allocator_strategies:
-            raise ValueError(
-                f"Unknown register allocation strategy {self.allocation_strategy}. "
-                f"Available allocation types: {allocator_strategies.keys()}"
-            )
+            raise ValueError(f"Unknown register allocation strategy {self.allocation_strategy}. " f"Available allocation types: {allocator_strategies.keys()}")
 
         if self.limit_registers is not None and self.limit_registers < 0:
-            raise ValueError(
-                "The limit of available registers cannot be less than 0."
-                "When set to 0 it signifies all available registers are used."
-            )
+            raise ValueError("The limit of available registers cannot be less than 0." "When set to 0 it signifies all available registers are used.")
 
         for inner_op in op.walk():
             if isinstance(inner_op, riscv_func.FuncOp):
                 riscv_register_queue = RiscvRegisterQueue.default()
                 if self.limit_registers is not None:
                     riscv_register_queue.limit_registers(self.limit_registers)
-                allocator = allocator_strategies[self.allocation_strategy](
-                    riscv_register_queue
-                )
-                allocator.allocate_func(
-                    inner_op, add_regalloc_stats=self.add_regalloc_stats
-                )
+                allocator = allocator_strategies[self.allocation_strategy](riscv_register_queue)
+                allocator.allocate_func(inner_op, add_regalloc_stats=self.add_regalloc_stats)

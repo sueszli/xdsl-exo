@@ -121,8 +121,6 @@ if __name__ == "__main__":
             "Dialects.cf_load": Benchmark(DIALECTS.ignore_time_cf_load),
             "Dialects.test_load": Benchmark(DIALECTS.ignore_time_test_load),
             "Dialects.all_constant_load": Benchmark(DIALECTS.time_all_constant_load),
-            "Interpreters.all_constant_load": Benchmark(
-                INTERPRETERS.time_all_constant_load
-            ),
+            "Interpreters.all_constant_load": Benchmark(INTERPRETERS.time_all_constant_load),
         }
     )

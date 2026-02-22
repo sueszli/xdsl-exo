@@ -19,18 +19,12 @@ def fold_fills_in_module(module_op: ModuleOp):
             continue
 
         if isinstance(op, memref_stream.GenericOp):
-            fill_ops = tuple(
-                fill_op_by_memref.get(output, None) for output in op.outputs
-            )
-            indices = tuple(
-                index for index, value in enumerate(fill_ops) if value is not None
-            )
+            fill_ops = tuple(fill_op_by_memref.get(output, None) for output in op.outputs)
+            indices = tuple(index for index, value in enumerate(fill_ops) if value is not None)
             if indices and op.is_imperfectly_nested:
                 # There are values to rewrite, replace the operation
                 init_indices = ArrayAttr(IntAttr(index) for index in indices)
-                inits = tuple(
-                    fill_op.value for fill_op in fill_ops if fill_op is not None
-                )
+                inits = tuple(fill_op.value for fill_op in fill_ops if fill_op is not None)
                 Rewriter.replace_op(
                     op,
                     memref_stream.GenericOp(

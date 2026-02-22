@@ -9,64 +9,15 @@ from typing_extensions import Self
 from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.riscv.traits import StaticInsnRepresentation
 from xdsl.dialects import riscv, snitch
-from xdsl.dialects.builtin import (
-    IntAttr,
-    IntegerAttr,
-    IntegerType,
-    Signedness,
-    StringAttr,
-    UnrealizedConversionCastOp,
-)
-from xdsl.dialects.riscv import (
-    AssemblyInstructionArg,
-    FastMathFlagsAttr,
-    FloatRegisterType,
-    IntRegisterType,
-    RdRsRsOperation,
-    RISCVAsmOperation,
-    RISCVCustomFormatOperation,
-    RISCVInstruction,
-    RsRsIntegerOperation,
-    SImm12Attr,
-    UImm5Attr,
-    parse_immediate_value,
-    print_immediate_value,
-    si12,
-)
-from xdsl.dialects.utils import (
-    AbstractYieldOperation,
-    parse_assignment,
-    print_assignment,
-)
+from xdsl.dialects.builtin import IntAttr, IntegerAttr, IntegerType, Signedness, StringAttr, UnrealizedConversionCastOp
+from xdsl.dialects.riscv import AssemblyInstructionArg, FastMathFlagsAttr, FloatRegisterType, IntRegisterType, RdRsRsOperation, RISCVAsmOperation, RISCVCustomFormatOperation, RISCVInstruction, RsRsIntegerOperation, SImm12Attr, UImm5Attr, parse_immediate_value, print_immediate_value, si12
+from xdsl.dialects.utils import AbstractYieldOperation, parse_assignment, print_assignment
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
-from xdsl.irdl import (
-    AnyAttr,
-    BaseAttr,
-    VarConstraint,
-    attr_def,
-    base,
-    irdl_op_definition,
-    lazy_traits_def,
-    operand_def,
-    opt_attr_def,
-    prop_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.irdl import AnyAttr, BaseAttr, VarConstraint, attr_def, base, irdl_op_definition, lazy_traits_def, operand_def, opt_attr_def, prop_def, region_def, result_def, traits_def, var_operand_def, var_result_def
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import (
-    HasCanonicalizationPatternsTrait,
-    HasParent,
-    IsTerminator,
-    Pure,
-    SingleBlockImplicitTerminator,
-    ensure_terminator,
-)
+from xdsl.traits import HasCanonicalizationPatternsTrait, HasParent, IsTerminator, Pure, SingleBlockImplicitTerminator, ensure_terminator
 from xdsl.utils.exceptions import VerifyException
 
 # region Snitch Extensions
@@ -75,9 +26,7 @@ from xdsl.utils.exceptions import VerifyException
 class ScfgwOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            ScfgwOpUsingImmediate,
-        )
+        from xdsl.transforms.canonicalization_patterns.riscv import ScfgwOpUsingImmediate
 
         return (ScfgwOpUsingImmediate(),)
 
@@ -152,9 +101,7 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
 class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVAsmOperation):
     name = "riscv_snitch.frep_yield"
 
-    traits = lazy_traits_def(
-        lambda: (IsTerminator(), HasParent(FrepInnerOp, FrepOuterOp))
-    )
+    traits = lazy_traits_def(lambda: (IsTerminator(), HasParent(FrepInnerOp, FrepOuterOp)))
 
     def assembly_line(self) -> str | None:
         return None
@@ -315,24 +262,16 @@ class FRepOperation(RISCVInstruction):
         iter_arg_unresolved_operands: list[UnresolvedOperand] = []
         iter_arg_types: list[Attribute] = []
         if parser.parse_optional_characters("iter_args"):
-            for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(
-                Parser.Delimiter.PAREN, lambda: parse_assignment(parser)
-            ):
+            for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(Parser.Delimiter.PAREN, lambda: parse_assignment(parser)):
                 unresolved_iter_args.append(iter_arg)
                 iter_arg_unresolved_operands.append(iter_arg_operand)
             parser.parse_characters("->")
-            iter_arg_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.PAREN, parser.parse_attribute
-            )
+            iter_arg_types = parser.parse_comma_separated_list(Parser.Delimiter.PAREN, parser.parse_attribute)
 
-        iter_arg_operands = parser.resolve_operands(
-            iter_arg_unresolved_operands, iter_arg_types, pos
-        )
+        iter_arg_operands = parser.resolve_operands(iter_arg_unresolved_operands, iter_arg_types, pos)
 
         # Set block argument types
-        iter_args = [
-            u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)
-        ]
+        iter_args = [u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)]
 
         body = parser.parse_region(iter_args)
 
@@ -360,17 +299,13 @@ class FRepOperation(RISCVInstruction):
             printer.print_string(", ")
             printer.print(self.stagger_mask.data)
 
-        printer.print_op_attributes(
-            self.attributes, reserved_attr_names=("stagger_count", "stagger_mask")
-        )
+        printer.print_op_attributes(self.attributes, reserved_attr_names=("stagger_count", "stagger_mask"))
         printer.print_string(" ")
 
         block = self.body.block
 
         yield_op = block.last_op
-        print_block_terminators = not isinstance(yield_op, FrepYieldOp) or bool(
-            yield_op.operands
-        )
+        print_block_terminators = not isinstance(yield_op, FrepYieldOp) or bool(yield_op.operands)
 
         if iter_args := block.args:
             printer.print_string("iter_args(")
@@ -394,43 +329,19 @@ class FRepOperation(RISCVInstruction):
         if self.stagger_mask.data:
             raise VerifyException("Non-zero stagger mask currently unsupported")
         for instruction in self.body.ops:
-            if not instruction.has_trait(Pure) and not isinstance(
-                instruction, ALLOWED_FREP_OP_TYPES
-            ):
-                raise VerifyException(
-                    "Frep operation body may not contain instructions "
-                    f"with side-effects, found {instruction.name}"
-                )
+            if not instruction.has_trait(Pure) and not isinstance(instruction, ALLOWED_FREP_OP_TYPES):
+                raise VerifyException("Frep operation body may not contain instructions " f"with side-effects, found {instruction.name}")
         if len(self.iter_args) != len(self.body.block.args):
-            raise VerifyException(
-                f"Wrong number of block arguments, expected {len(self.iter_args)}, got "
-                f"{len(self.body.block.args)}. The body must have the induction "
-                f"variable and loop-carried variables as arguments."
-            )
-        for idx, (arg, block_arg) in enumerate(
-            zip(self.iter_args, self.body.block.args)
-        ):
+            raise VerifyException(f"Wrong number of block arguments, expected {len(self.iter_args)}, got " f"{len(self.body.block.args)}. The body must have the induction " f"variable and loop-carried variables as arguments.")
+        for idx, (arg, block_arg) in enumerate(zip(self.iter_args, self.body.block.args)):
             if block_arg.type != arg.type:
-                raise VerifyException(
-                    f"Block argument {idx} has wrong type, expected {arg.type}, "
-                    f"got {block_arg.type}. Arguments after the "
-                    f"induction variable must match the carried variables."
-                )
-        if len(self.body.ops) > 0 and isinstance(
-            yieldop := self.body.block.last_op, FrepYieldOp
-        ):
+                raise VerifyException(f"Block argument {idx} has wrong type, expected {arg.type}, " f"got {block_arg.type}. Arguments after the " f"induction variable must match the carried variables.")
+        if len(self.body.ops) > 0 and isinstance(yieldop := self.body.block.last_op, FrepYieldOp):
             if len(yieldop.arguments) != len(self.iter_args):
-                raise VerifyException(
-                    f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
-                    f"The riscv_scf.frep must yield its carried variables."
-                )
+                raise VerifyException(f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. " f"The riscv_scf.frep must yield its carried variables.")
             for iter_arg, yield_arg in zip(self.iter_args, yieldop.arguments):
                 if iter_arg.type != yield_arg.type:
-                    raise VerifyException(
-                        f"Expected {iter_arg.type}, got {yield_arg.type}. The "
-                        f"riscv_snitch.frep's riscv_snitch.frep_yield must match carried"
-                        f"variables types."
-                    )
+                    raise VerifyException(f"Expected {iter_arg.type}, got {yield_arg.type}. The " f"riscv_snitch.frep's riscv_snitch.frep_yield must match carried" f"variables types.")
 
 
 @irdl_op_definition
@@ -501,10 +412,7 @@ class FrepInnerOp(FRepOperation):
 class GetStreamOp(RISCVAsmOperation):
     name = "riscv_snitch.get_stream"
 
-    stream = result_def(
-        snitch.ReadableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
-        | snitch.WritableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
-    )
+    stream = result_def(snitch.ReadableStreamType.constr(BaseAttr(riscv.FloatRegisterType)) | snitch.WritableStreamType.constr(BaseAttr(riscv.FloatRegisterType)))
 
     def __init__(self, result_type: Attribute):
         super().__init__(result_types=[result_type])
@@ -537,9 +445,7 @@ class DMSourceOp(RISCVCustomFormatOperation, RISCVInstruction):
     ptrlo = operand_def(riscv.IntRegisterType)
     ptrhi = operand_def(riscv.IntRegisterType)
 
-    traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 0, x0, {0}, {1}")
-    )
+    traits = traits_def(StaticInsnRepresentation(insn=".insn r 0x2b, 0, 0, x0, {0}, {1}"))
 
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
         super().__init__(operands=[ptrlo, ptrhi])
@@ -555,9 +461,7 @@ class DMDestinationOp(RISCVCustomFormatOperation, RISCVInstruction):
     ptrlo = operand_def(riscv.IntRegisterType)
     ptrhi = operand_def(riscv.IntRegisterType)
 
-    traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 1, x0, {0}, {1}")
-    )
+    traits = traits_def(StaticInsnRepresentation(insn=".insn r 0x2b, 0, 1, x0, {0}, {1}"))
 
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
         super().__init__(operands=[ptrlo, ptrhi])
@@ -573,9 +477,7 @@ class DMStrideOp(RISCVCustomFormatOperation, RISCVInstruction):
     srcstrd = operand_def(riscv.IntRegisterType)
     dststrd = operand_def(riscv.IntRegisterType)
 
-    traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}")
-    )
+    traits = traits_def(StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}"))
 
     def __init__(self, srcstrd: SSAValue | Operation, dststrd: SSAValue | Operation):
         super().__init__(operands=[srcstrd, dststrd])
@@ -590,9 +492,7 @@ class DMRepOp(RISCVCustomFormatOperation, RISCVInstruction):
 
     reps = operand_def(riscv.IntRegisterType)
 
-    traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 7, x0, {0}, x0")
-    )
+    traits = traits_def(StaticInsnRepresentation(insn=".insn r 0x2b, 0, 7, x0, {0}, x0"))
 
     def __init__(self, reps: SSAValue | Operation):
         super().__init__(operands=[reps])
@@ -609,9 +509,7 @@ class DMCopyOp(RISCVCustomFormatOperation, RISCVInstruction):
     size = operand_def(riscv.IntRegisterType)
     config = operand_def(riscv.IntRegisterType)
 
-    traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 3, {0}, {1}, {2}")
-    )
+    traits = traits_def(StaticInsnRepresentation(insn=".insn r 0x2b, 0, 3, {0}, {1}, {2}"))
 
     def __init__(
         self,
@@ -632,9 +530,7 @@ class DMStatOp(RISCVCustomFormatOperation, RISCVInstruction):
     dest = result_def(riscv.IntRegisterType)
     status = operand_def(riscv.IntRegisterType)
 
-    traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 5, {0}, {1}, {2}")
-    )
+    traits = traits_def(StaticInsnRepresentation(insn=".insn r 0x2b, 0, 5, {0}, {1}, {2}"))
 
     def __init__(
         self,
@@ -655,9 +551,7 @@ class DMCopyImmOp(RISCVInstruction):
     size = operand_def(riscv.IntRegisterType)
     config = prop_def(UImm5Attr)
 
-    traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 2, {0}, {1}, {2}")
-    )
+    traits = traits_def(StaticInsnRepresentation(insn=".insn r 0x2b, 0, 2, {0}, {1}, {2}"))
 
     def __init__(
         self,
@@ -709,9 +603,7 @@ class DMStatImmOp(RISCVInstruction):
     dest = result_def(riscv.IntRegisterType)
     status = prop_def(UImm5Attr)
 
-    traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}")
-    )
+    traits = traits_def(StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}"))
 
     def __init__(
         self,
@@ -765,9 +657,7 @@ class DMStatImmOp(RISCVInstruction):
 
 
 @irdl_op_definition
-class VFCpkASSOp(
-    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
-):
+class VFCpkASSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
     Packs two scalar f32 values from rs1 and rs2 and packs the result as two adjacent
     entries into the vectorial 2xf32 rd operand, such as:
@@ -857,18 +747,14 @@ class VFMaxSOp(riscv.RdRsRsFloatOperationWithFastMath):
     traits = traits_def(Pure())
 
 
-class RdRsRsAccumulatingFloatOperationWithFastMath(
-    RISCVCustomFormatOperation, RISCVInstruction, ABC
-):
+class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination floating-point register,
     that also acts as a source register, and two source floating-point registers and can
     be annotated with fastmath flags.
     """
 
-    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint(
-        "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
-    )
+    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint("SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType))
 
     rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)
     rd_in = operand_def(SAME_FLOAT_REGISTER_TYPE)
@@ -919,9 +805,7 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
         return {"fastmath"}
 
     def get_register_constraints(self) -> RegisterConstraints:
-        return RegisterConstraints(
-            (self.rs1, self.rs2), (), ((self.rd_in, self.rd_out),)
-        )
+        return RegisterConstraints((self.rs1, self.rs2), (), ((self.rd_in, self.rd_out),))
 
 
 class RdRsAccumulatingFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
@@ -930,9 +814,7 @@ class RdRsAccumulatingFloatOperation(RISCVCustomFormatOperation, RISCVInstructio
     that also acts as a source register, and a source floating-point register.
     """
 
-    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint(
-        "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
-    )
+    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint("SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType))
 
     rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)
     rd_in = operand_def(SAME_FLOAT_REGISTER_TYPE)

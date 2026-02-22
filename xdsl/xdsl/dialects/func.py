@@ -2,50 +2,15 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    DictionaryAttr,
-    FlatSymbolRefAttrConstr,
-    FunctionType,
-    StringAttr,
-    SymbolRefAttr,
-)
-from xdsl.dialects.utils import (
-    parse_func_op_like,
-    print_func_op_like,
-)
-from xdsl.ir import (
-    Attribute,
-    Block,
-    BlockArgument,
-    Dialect,
-    Operation,
-    Region,
-    SSAValue,
-)
-from xdsl.irdl import (
-    IRDLOperation,
-    irdl_op_definition,
-    opt_prop_def,
-    prop_def,
-    region_def,
-    traits_def,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FlatSymbolRefAttrConstr, FunctionType, StringAttr, SymbolRefAttr
+from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
+from xdsl.ir import Attribute, Block, BlockArgument, Dialect, Operation, Region, SSAValue
+from xdsl.irdl import IRDLOperation, irdl_op_definition, opt_prop_def, prop_def, region_def, traits_def, var_operand_def, var_result_def
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.printer import Printer
 from xdsl.rewriter import Rewriter
-from xdsl.traits import (
-    CallableOpInterface,
-    HasParent,
-    IsolatedFromAbove,
-    IsTerminator,
-    SymbolOpInterface,
-    SymbolTable,
-    SymbolUserOpInterface,
-)
+from xdsl.traits import CallableOpInterface, HasParent, IsolatedFromAbove, IsTerminator, SymbolOpInterface, SymbolTable, SymbolUserOpInterface
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -83,23 +48,13 @@ class CallOpSymbolUserOpInterface(SymbolUserOpInterface):
         if len(found_callee.function_type.outputs) != len(op.result_types):
             raise VerifyException("incorrect number of results for callee")
 
-        for idx, (found_operand, operand) in enumerate(
-            zip(found_callee.function_type.inputs, (arg.type for arg in op.arguments))
-        ):
+        for idx, (found_operand, operand) in enumerate(zip(found_callee.function_type.inputs, (arg.type for arg in op.arguments))):
             if found_operand != operand:
-                raise VerifyException(
-                    f"operand type mismatch: expected operand type {found_operand}, "
-                    f"but provided {operand} for operand number {idx}"
-                )
+                raise VerifyException(f"operand type mismatch: expected operand type {found_operand}, " f"but provided {operand} for operand number {idx}")
 
-        for idx, (found_res, res) in enumerate(
-            zip(found_callee.function_type.outputs, op.result_types)
-        ):
+        for idx, (found_res, res) in enumerate(zip(found_callee.function_type.outputs, op.result_types)):
             if found_res != res:
-                raise VerifyException(
-                    f"result type mismatch: expected result type {found_res}, but "
-                    f"provided {res} for result number {idx}"
-                )
+                raise VerifyException(f"result type mismatch: expected result type {found_res}, but " f"provided {res} for result number {idx}")
 
         return
 
@@ -115,9 +70,7 @@ class FuncOp(IRDLOperation):
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
 
-    traits = traits_def(
-        IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()
-    )
+    traits = traits_def(IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface())
 
     def __init__(
         self,
@@ -154,10 +107,7 @@ class FuncOp(IRDLOperation):
         assert entry_block is not None
         block_arg_types = entry_block.arg_types
         if self.function_type.inputs.data != tuple(block_arg_types):
-            raise VerifyException(
-                "Expected entry block arguments to have the same types as the function "
-                "input types"
-            )
+            raise VerifyException("Expected entry block arguments to have the same types as the function " "input types")
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
@@ -171,9 +121,7 @@ class FuncOp(IRDLOperation):
             extra_attrs,
             arg_attrs,
             res_attrs,
-        ) = parse_func_op_like(
-            parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
-        )
+        ) = parse_func_op_like(parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility"))
         func = FuncOp(
             name=name,
             function_type=(input_types, return_types),
@@ -208,9 +156,7 @@ class FuncOp(IRDLOperation):
         )
 
     @staticmethod
-    def external(
-        name: str, input_types: Sequence[Attribute], return_types: Sequence[Attribute]
-    ) -> FuncOp:
+    def external(name: str, input_types: Sequence[Attribute], return_types: Sequence[Attribute]) -> FuncOp:
         return FuncOp(
             name=name,
             function_type=(input_types, return_types),
@@ -264,9 +210,7 @@ class FuncOp(IRDLOperation):
         block argument types or return statement arguments.
         """
         # Refuse to work with external function definitions, as they don't have block args
-        assert not self.is_declaration, (
-            "update_function_type does not work with function declarations!"
-        )
+        assert not self.is_declaration, "update_function_type does not work with function declarations!"
         return_op = self.get_return_op()
         return_type = self.function_type.outputs.data
 
@@ -297,9 +241,7 @@ class FuncOp(IRDLOperation):
         """
         A helper to quickly get access to the block arguments of the function
         """
-        assert not self.is_declaration, (
-            "Function declarations don't have BlockArguments!"
-        )
+        assert not self.is_declaration, "Function declarations don't have BlockArguments!"
 
         block = self.body.blocks.first
         assert block is not None
@@ -325,9 +267,7 @@ class CallOp(IRDLOperation):
         CallOpSymbolUserOpInterface(),
     )
 
-    assembly_format = (
-        "$callee `(` $arguments `)` attr-dict `:` functional-type($arguments, $res)"
-    )
+    assembly_format = "$callee `(` $arguments `)` attr-dict `:` functional-type($arguments, $res)"
 
     def __init__(
         self,
@@ -363,9 +303,7 @@ class ReturnOp(IRDLOperation):
         function_return_types = func_op.function_type.outputs.data
         return_types = self.arguments.types
         if function_return_types != return_types:
-            raise VerifyException(
-                "Expected arguments to have the same types as the function output types"
-            )
+            raise VerifyException("Expected arguments to have the same types as the function output types")
 
 
 Func = Dialect(

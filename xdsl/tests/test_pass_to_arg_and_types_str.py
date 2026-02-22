@@ -83,7 +83,5 @@ class SimplePass(ModulePass):
         ),
     ],
 )
-def test_pass_to_arg_and_type_str(
-    arg_options: tuple[PassOptionInfo, ...], pass_arg: type[ModulePass]
-):
+def test_pass_to_arg_and_type_str(arg_options: tuple[PassOptionInfo, ...], pass_arg: type[ModulePass]):
     assert get_pass_option_infos(pass_arg) == arg_options

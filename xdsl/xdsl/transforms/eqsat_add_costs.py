@@ -16,9 +16,7 @@ def get_eqsat_cost(value: SSAValue) -> int | None:
     if cost_attribute is None:
         return None
     if not isinstance(cost_attribute, IntAttr):
-        raise DiagnosticException(
-            f"Unexpected value {cost_attribute} for key {eqsat.EQSAT_COST_LABEL} in {value.op}"
-        )
+        raise DiagnosticException(f"Unexpected value {cost_attribute} for key {eqsat.EQSAT_COST_LABEL} in {value.op}")
     return cost_attribute.data
 
 
@@ -32,10 +30,7 @@ def add_eqsat_costs(block: Block):
             continue
 
         if len(op.results) != 1:
-            raise DiagnosticException(
-                "Cannot compute cost of one result of operation with multiple "
-                f"results: {op}"
-            )
+            raise DiagnosticException("Cannot compute cost of one result of operation with multiple " f"results: {op}")
 
         costs = tuple(get_eqsat_cost(value) for value in op.operands)
         if None in costs:
@@ -65,10 +60,6 @@ class EqsatAddCostsPass(ModulePass):
     name = "eqsat-add-costs"
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        eclass_parent_blocks = set(
-            o.parent
-            for o in op.walk()
-            if o.parent is not None and isinstance(o, eqsat.EClassOp)
-        )
+        eclass_parent_blocks = set(o.parent for o in op.walk() if o.parent is not None and isinstance(o, eqsat.EClassOp))
         for block in eclass_parent_blocks:
             add_eqsat_costs(block)

@@ -8,24 +8,8 @@ from xdsl.dialects import arith, builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Region
-from xdsl.irdl import (
-    AttrSizedRegionSegments,
-    IRDLOperation,
-    irdl_op_definition,
-    lazy_traits_def,
-    opt_region_def,
-    opt_successor_def,
-    region_def,
-    traits_def,
-)
-from xdsl.traits import (
-    HasParent,
-    IsolatedFromAbove,
-    IsTerminator,
-    NoTerminator,
-    SingleBlockImplicitTerminator,
-    ensure_terminator,
-)
+from xdsl.irdl import AttrSizedRegionSegments, IRDLOperation, irdl_op_definition, lazy_traits_def, opt_region_def, opt_successor_def, region_def, traits_def
+from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator, NoTerminator, SingleBlockImplicitTerminator, ensure_terminator
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -89,16 +73,11 @@ def test_has_parent_wrong_parent():
     fails with a wrong parent.
     """
     module = ModuleOp([HasParentOp()])
-    with pytest.raises(
-        VerifyException, match="'test.has_parent' expects parent op 'test.parent'"
-    ):
+    with pytest.raises(VerifyException, match="'test.has_parent' expects parent op 'test.parent'"):
         module.verify()
 
     module = ModuleOp([HasMultipleParentOp()])
-    message = (
-        "'test.has_multiple_parent' expects parent op to "
-        "be one of 'test.parent', 'test.parent2'"
-    )
+    message = "'test.has_multiple_parent' expects parent op to " "be one of 'test.parent', 'test.parent2'"
     with pytest.raises(VerifyException, match=message):
         module.verify()
 
@@ -223,9 +202,7 @@ def test_is_terminator_fails_if_not_last_op_parent_block_in_single_block_region(
     region0 = Region([block0])
     op0 = TestOp.create(regions=[region0])
 
-    with pytest.raises(
-        VerifyException, match="must be the last operation in its parent block"
-    ):
+    with pytest.raises(VerifyException, match="must be the last operation in its parent block"):
         op0.verify()
 
 
@@ -239,9 +216,7 @@ def test_is_terminator_fails_if_not_last_op_parent_block_in_multi_block_region()
     region0 = Region([block0, block1])
     op0 = TestOp.create(regions=[region0])
 
-    with pytest.raises(
-        VerifyException, match="must be the last operation in its parent block"
-    ):
+    with pytest.raises(VerifyException, match="must be the last operation in its parent block"):
         op0.verify()
 
 
@@ -266,9 +241,7 @@ class IsSingleBlockImplicitTerminatorOp(IRDLOperation):
 
     name = "test.is_single_block_implicit_terminator"
 
-    traits = lazy_traits_def(
-        lambda: (IsTerminator(), HasParent(HasSingleBlockImplicitTerminatorOp))
-    )
+    traits = lazy_traits_def(lambda: (IsTerminator(), HasParent(HasSingleBlockImplicitTerminatorOp)))
 
 
 @irdl_op_definition
@@ -285,9 +258,7 @@ class HasSingleBlockImplicitTerminatorOp(IRDLOperation):
     region = region_def()
     opt_region = opt_region_def()
 
-    traits = traits_def(
-        SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)
-    )
+    traits = traits_def(SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp))
 
     def __post_init__(self):
         for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
@@ -309,9 +280,7 @@ class HasSingleBlockImplicitTerminatorWrongCreationOp(IRDLOperation):
     region = region_def()
     opt_region = opt_region_def()
 
-    traits = traits_def(
-        SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)
-    )
+    traits = traits_def(SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp))
 
 
 @irdl_op_definition
@@ -359,18 +328,14 @@ def test_single_block_implicit_terminator_verify():
     assert len(op2.opt_region.block.ops) == 1
 
     # test non-empty multi-region op with non-terminator operation
-    op3 = HasSingleBlockImplicitTerminatorOp(
-        regions=[Region(Block([TestOp.create()])), Region()]
-    )
+    op3 = HasSingleBlockImplicitTerminatorOp(regions=[Region(Block([TestOp.create()])), Region()])
     op3.verify()
     assert len(op3.region.block.ops) == 2
     assert op3.opt_region is not None
     assert len(op3.opt_region.block.ops) == 1
 
     # test non-empty multi-region op with correct terminator already there
-    op4 = HasSingleBlockImplicitTerminatorOp(
-        regions=[Region(Block([IsSingleBlockImplicitTerminatorOp.create()])), Region()]
-    )
+    op4 = HasSingleBlockImplicitTerminatorOp(regions=[Region(Block([IsSingleBlockImplicitTerminatorOp.create()])), Region()])
     op4.verify()
     assert len(op4.region.block.ops) == 1
     assert op4.opt_region is not None
@@ -385,17 +350,11 @@ def test_single_block_implicit_terminator_with_correct_construction_fail():
 
     # test multi-block region op
     with pytest.raises(VerifyException, match="does not contain single-block regions"):
-        HasSingleBlockImplicitTerminatorOp(
-            regions=[Region([Block(), Block()]), Region()]
-        )
+        HasSingleBlockImplicitTerminatorOp(regions=[Region([Block(), Block()]), Region()])
 
     # test single-block region op with wrong terminator
-    with pytest.raises(
-        VerifyException, match="terminates with operation test.is_terminator"
-    ):
-        HasSingleBlockImplicitTerminatorOp(
-            regions=[Region(Block([IsTerminatorOp.create()])), Region()]
-        )
+    with pytest.raises(VerifyException, match="terminates with operation test.is_terminator"):
+        HasSingleBlockImplicitTerminatorOp(regions=[Region(Block([IsTerminatorOp.create()])), Region()])
 
 
 def test_single_block_implicit_terminator_with_wrong_construction_fail():
@@ -404,25 +363,17 @@ def test_single_block_implicit_terminator_with_wrong_construction_fail():
     operation creation
     """
 
-    op0 = HasSingleBlockImplicitTerminatorWrongCreationOp(
-        regions=[Region([Block(), Block()]), Region()]
-    )
+    op0 = HasSingleBlockImplicitTerminatorWrongCreationOp(regions=[Region([Block(), Block()]), Region()])
     # test multi-block region op
     with pytest.raises(VerifyException, match="does not contain single-block regions"):
         op0.verify()
 
-    op1 = HasSingleBlockImplicitTerminatorWrongCreationOp(
-        regions=[Region(Block([IsTerminatorOp.create()])), Region()]
-    )
+    op1 = HasSingleBlockImplicitTerminatorWrongCreationOp(regions=[Region(Block([IsTerminatorOp.create()])), Region()])
     # test single-block region op with wrong terminator
-    with pytest.raises(
-        VerifyException, match="terminates with operation test.is_terminator"
-    ):
+    with pytest.raises(VerifyException, match="terminates with operation test.is_terminator"):
         op1.verify()
 
-    op2 = HasSingleBlockImplicitTerminatorWrongCreation2Op(
-        regions=[Region(Block()), Region()]
-    )
+    op2 = HasSingleBlockImplicitTerminatorWrongCreation2Op(regions=[Region(Block()), Region()])
     # test single-block region op with wrong terminator
     with pytest.raises(
         VerifyException,
@@ -461,9 +412,7 @@ def test_isolated_from_above():
     out_block = Block(
         [
             out_cst,
-            IsolatedFromAboveOp(
-                regions=[Region(Block([arith.AddiOp(out_cst, out_cst)]))]
-            ),
+            IsolatedFromAboveOp(regions=[Region(Block([arith.AddiOp(out_cst, out_cst)]))]),
         ]
     )
     message = r"Operation using value defined out of its IsolatedFromAbove parent: AddiOp\(%\d+ = arith.addi %\d+, %\d+ : i32\)"
@@ -482,11 +431,7 @@ def test_isolated_from_above():
                             [
                                 out_cst,
                                 # This one is not!
-                                in_isolated := IsolatedFromAboveOp(
-                                    regions=[
-                                        Region(Block([arith.AddiOp(out_cst, out_cst)]))
-                                    ]
-                                ),
+                                in_isolated := IsolatedFromAboveOp(regions=[Region(Block([arith.AddiOp(out_cst, out_cst)]))]),
                             ],
                         )
                     )

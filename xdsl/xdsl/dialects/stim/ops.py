@@ -5,15 +5,7 @@ from io import StringIO
 from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
 from xdsl.dialects.stim.stim_printer_parser import StimPrintable, StimPrinter
 from xdsl.ir import ParametrizedAttribute, Region, TypeAttribute
-from xdsl.irdl import (
-    IRDLOperation,
-    ParameterDef,
-    irdl_attr_definition,
-    irdl_op_definition,
-    opt_prop_def,
-    prop_def,
-    region_def,
-)
+from xdsl.irdl import IRDLOperation, ParameterDef, irdl_attr_definition, irdl_op_definition, opt_prop_def, prop_def, region_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 
@@ -79,22 +71,15 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
         if not isinstance(qubit_name, QubitAttr):
             qubit_name = QubitAttr(qubit_name)
         if not isinstance(coords, ArrayAttr):
-            coords = ArrayAttr(
-                (IntAttr(int(arg))) if (type(arg) is int) else (FloatData(arg))
-                for arg in coords
-            )
+            coords = ArrayAttr((IntAttr(int(arg))) if (type(arg) is int) else (FloatData(arg)) for arg in coords)
         super().__init__(parameters=[coords, qubit_name])
 
     @classmethod
-    def parse_parameters(
-        cls, parser: AttrParser
-    ) -> tuple[ArrayAttr[FloatData | IntAttr], QubitAttr]:
+    def parse_parameters(cls, parser: AttrParser) -> tuple[ArrayAttr[FloatData | IntAttr], QubitAttr]:
         parser.parse_punctuation("<")
         coords = parser.parse_comma_separated_list(
             delimiter=parser.Delimiter.PAREN,
-            parse=lambda: IntAttr(x)
-            if type(x := parser.parse_number(allow_boolean=False)) is int
-            else FloatData(x),
+            parse=lambda: IntAttr(x) if type(x := parser.parse_number(allow_boolean=False)) is int else FloatData(x),
         )
         parser.parse_punctuation(",")
         qubit = parser.parse_attribute()

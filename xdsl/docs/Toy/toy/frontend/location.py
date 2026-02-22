@@ -28,9 +28,7 @@ def loc(token: Token[Any]) -> Location:
     remaining = token.span.start
     prev_end = 0
 
-    for line, newline_match in enumerate(
-        re.finditer(_NEWLINE, token.span.input.content)
-    ):
+    for line, newline_match in enumerate(re.finditer(_NEWLINE, token.span.input.content)):
         len_line = newline_match.start() - prev_end
         if remaining < len_line:
             return Location(file, line + 1, remaining + 1)

@@ -19,31 +19,11 @@ from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import ContainerType, IntAttr
 from xdsl.dialects.riscv import IntRegisterType
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    Operation,
-    ParametrizedAttribute,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    AnyAttr,
-    GenericAttrConstraint,
-    IRDLOperation,
-    ParamAttrConstraint,
-    ParameterDef,
-    attr_def,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    var_result_def,
-)
+from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, SSAValue, TypeAttribute
+from xdsl.irdl import AnyAttr, GenericAttrConstraint, IRDLOperation, ParamAttrConstraint, ParameterDef, attr_def, irdl_attr_definition, irdl_op_definition, operand_def, var_result_def
 from xdsl.utils.exceptions import VerifyException
 
-_StreamTypeElement = TypeVar(
-    "_StreamTypeElement", bound=Attribute, covariant=True, default=Attribute
-)
+_StreamTypeElement = TypeVar("_StreamTypeElement", bound=Attribute, covariant=True, default=Attribute)
 
 
 @irdl_attr_definition
@@ -68,9 +48,7 @@ class ReadableStreamType(
         cls,
         element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]]:
-        return ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]](
-            ReadableStreamType, (element_type,)
-        )
+        return ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]](ReadableStreamType, (element_type,))
 
 
 @irdl_attr_definition
@@ -95,9 +73,7 @@ class WritableStreamType(
         cls,
         element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]:
-        return ParamAttrConstraint[WritableStreamType[_StreamTypeElement]](
-            WritableStreamType, (element_type,)
-        )
+        return ParamAttrConstraint[WritableStreamType[_StreamTypeElement]](WritableStreamType, (element_type,))
 
 
 @dataclass(frozen=True)
@@ -136,10 +112,7 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
 
     def verify_(self) -> None:
         if self.dimension.data >= SnitchResources.dimensions:
-            raise VerifyException(
-                f"dimension attribute out of range [0..{SnitchResources.dimensions - 1}], "
-                f"Snitch supports up to {SnitchResources.dimensions} dimensions per streamer"
-            )
+            raise VerifyException(f"dimension attribute out of range [0..{SnitchResources.dimensions - 1}], " f"Snitch supports up to {SnitchResources.dimensions} dimensions per streamer")
 
 
 class SsrSetStreamConfigOperation(IRDLOperation, ABC):

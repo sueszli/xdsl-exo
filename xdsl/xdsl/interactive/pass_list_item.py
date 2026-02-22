@@ -17,6 +17,4 @@ class PassListItem(ListItem):
         disabled: bool = False,
     ):
         self.module_pass = module_pass
-        super().__init__(
-            *children, name=name, id=id, classes=classes, disabled=disabled
-        )
+        super().__init__(*children, name=name, id=id, classes=classes, disabled=disabled)

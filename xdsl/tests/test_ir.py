@@ -6,21 +6,8 @@ from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, SubiOp
 from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp, StringAttr, i32, i64
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
-from xdsl.ir import (
-    Attribute,
-    Block,
-    ErasedSSAValue,
-    Operation,
-    Region,
-    SSAValue,
-)
-from xdsl.irdl import (
-    IRDLOperation,
-    irdl_op_definition,
-    operand_def,
-    prop_def,
-    var_region_def,
-)
+from xdsl.ir import Attribute, Block, ErasedSSAValue, Operation, Region, SSAValue
+from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def, prop_def, var_region_def
 from xdsl.parser import Parser
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
@@ -181,9 +168,7 @@ def test_op_operands_comparison():
 
 
 def test_op_clone():
-    a = TestWithPropOp.create(
-        properties={"prop": i32}, attributes={"attr": i64}, result_types=(i32,)
-    )
+    a = TestWithPropOp.create(properties={"prop": i32}, attributes={"attr": i64}, result_types=(i32,))
     a.results[0].name_hint = "name_hint"
     b = a.clone()
 
@@ -228,9 +213,7 @@ def test_op_clone_with_regions():
     assert len(pb.regions[1].ops) == 1
 
     for op0_region, cloned_op_region in zip(pa.regions, pb.regions):
-        for op0_region_op, cloned_region_op in zip(
-            op0_region.ops, cloned_op_region.ops
-        ):
+        for op0_region_op, cloned_region_op in zip(op0_region.ops, cloned_op_region.ops):
             assert op0_region_op is not cloned_region_op
 
     pc = pa.clone(clone_name_hints=True)
@@ -804,23 +787,17 @@ def test_descriptions():
 
     m = ModuleOp([a])
 
-    assert (
-        str(m)
-        == """\
+    assert str(m) == """\
 builtin.module {
   %0 = arith.constant 1 : i32
 }"""
-    )
 
-    assert (
-        f"{m}"
-        == """\
+    assert f"{m}" == """\
 ModuleOp(
 \tbuiltin.module {
 \t  %0 = arith.constant 1 : i32
 \t}
 )"""
-    )
 
 
 # ToDo: Create this op without IRDL itself, since it tests fine grained

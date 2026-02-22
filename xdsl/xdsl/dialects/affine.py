@@ -3,44 +3,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, ClassVar, cast
 
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    AffineSetAttr,
-    ArrayAttr,
-    ContainerType,
-    DenseIntElementsAttr,
-    IndexType,
-    IntegerAttr,
-    IntegerType,
-    ShapedType,
-    StringAttr,
-)
+from xdsl.dialects.builtin import AffineMapAttr, AffineSetAttr, ArrayAttr, ContainerType, DenseIntElementsAttr, IndexType, IntegerAttr, IntegerType, ShapedType, StringAttr
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineExpr, AffineMap
-from xdsl.irdl import (
-    AnyAttr,
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    VarConstraint,
-    irdl_op_definition,
-    operand_def,
-    opt_prop_def,
-    prop_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.irdl import AnyAttr, AttrSizedOperandSegments, IRDLOperation, VarConstraint, irdl_op_definition, operand_def, opt_prop_def, prop_def, region_def, result_def, traits_def, var_operand_def, var_result_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import (
-    IsTerminator,
-    Pure,
-    RecursivelySpeculatable,
-    RecursiveMemoryEffect,
-)
+from xdsl.traits import IsTerminator, Pure, RecursivelySpeculatable, RecursiveMemoryEffect
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -63,12 +33,7 @@ class ApplyOp(IRDLOperation):
 
     def verify_(self) -> None:
         if len(self.mapOperands) != self.map.data.num_dims + self.map.data.num_symbols:
-            raise VerifyException(
-                f"{self.name} expects "
-                f"{self.map.data.num_dims + self.map.data.num_symbols} operands, but "
-                f"got {len(self.mapOperands)}. The number of map operands must match "
-                "the sum of the dimensions and symbols of its map."
-            )
+            raise VerifyException(f"{self.name} expects " f"{self.map.data.num_dims + self.map.data.num_symbols} operands, but " f"got {len(self.mapOperands)}. The number of map operands must match " "the sum of the dimensions and symbols of its map.")
         if len(self.map.data.results) != 1:
             raise VerifyException("affine.apply expects a unidimensional map.")
 
@@ -78,14 +43,10 @@ class ApplyOp(IRDLOperation):
         m = parser.parse_attribute()
         if not isinstance(m, AffineMapAttr):
             parser.raise_error("Expected affine map attr", at_position=pos)
-        dims = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: parser.parse_operand()
-        )
+        dims = parser.parse_optional_comma_separated_list(parser.Delimiter.PAREN, lambda: parser.parse_operand())
         if dims is None:
             dims = []
-        syms = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, lambda: parser.parse_operand()
-        )
+        syms = parser.parse_optional_comma_separated_list(parser.Delimiter.SQUARE, lambda: parser.parse_operand())
         if syms is None:
             syms = []
         return ApplyOp(dims + syms, m)
@@ -98,16 +59,12 @@ class ApplyOp(IRDLOperation):
         printer.print_attribute(self.map)
         printer.print_string(" (")
         if m.num_dims:
-            printer.print_list(
-                operands[: m.num_dims], lambda el: printer.print_operand(el)
-            )
+            printer.print_list(operands[: m.num_dims], lambda el: printer.print_operand(el))
         printer.print_string(")")
 
         if m.num_symbols:
             printer.print_string("[")
-            printer.print_list(
-                operands[m.num_dims :], lambda el: printer.print_operand(el)
-            )
+            printer.print_list(operands[m.num_dims :], lambda el: printer.print_operand(el))
             printer.print_string("]")
 
 
@@ -135,30 +92,18 @@ class ForOp(IRDLOperation):
     def verify_(self) -> None:
         if len(self.inits) != len(self.results):
             raise VerifyException("Expected as many init operands as results.")
-        if len(self.lowerBoundOperands) != (
-            self.lowerBoundMap.data.num_dims + self.lowerBoundMap.data.num_symbols
-        ):
-            raise VerifyException(
-                "Expected as many lower bound operands as lower bound dimensions and symbols."
-            )
-        if len(self.upperBoundOperands) != (
-            self.upperBoundMap.data.num_dims + self.upperBoundMap.data.num_symbols
-        ):
-            raise VerifyException(
-                "Expected as many upper bound operands as upper bound dimensions and symbols."
-            )
+        if len(self.lowerBoundOperands) != (self.lowerBoundMap.data.num_dims + self.lowerBoundMap.data.num_symbols):
+            raise VerifyException("Expected as many lower bound operands as lower bound dimensions and symbols.")
+        if len(self.upperBoundOperands) != (self.upperBoundMap.data.num_dims + self.upperBoundMap.data.num_symbols):
+            raise VerifyException("Expected as many upper bound operands as upper bound dimensions and symbols.")
         iter_types = self.inits.types
         if iter_types != self.result_types:
-            raise VerifyException(
-                "Expected all operands and result pairs to have matching types"
-            )
+            raise VerifyException("Expected all operands and result pairs to have matching types")
         entry_block: Block = self.body.blocks[0]
         block_arg_types = (IndexType(), *iter_types)
         arg_types = entry_block.arg_types
         if block_arg_types != arg_types:
-            raise VerifyException(
-                "Expected BlockArguments to have the same types as the operands"
-            )
+            raise VerifyException("Expected BlockArguments to have the same types as the operands")
 
     @staticmethod
     def from_region(
@@ -172,13 +117,9 @@ class ForOp(IRDLOperation):
         step: int | IntegerAttr = 1,
     ) -> ForOp:
         if isinstance(lower_bound, int):
-            lower_bound = AffineMapAttr(
-                AffineMap(0, 0, (AffineExpr.constant(lower_bound),))
-            )
+            lower_bound = AffineMapAttr(AffineMap(0, 0, (AffineExpr.constant(lower_bound),)))
         if isinstance(upper_bound, int):
-            upper_bound = AffineMapAttr(
-                AffineMap(0, 0, (AffineExpr.constant(upper_bound),))
-            )
+            upper_bound = AffineMapAttr(AffineMap(0, 0, (AffineExpr.constant(upper_bound),)))
         if isinstance(step, int):
             step = IntegerAttr.from_index_int_value(step)
         properties: dict[str, Attribute] = {
@@ -235,25 +176,12 @@ class ParallelOp(IRDLOperation):
     body = region_def("single_block")
 
     def verify_(self) -> None:
-        if (
-            len(self.operands)
-            != len(self.results)
-            + self.lowerBoundsMap.data.num_dims
-            + self.upperBoundsMap.data.num_dims
-            + self.lowerBoundsMap.data.num_symbols
-            + self.upperBoundsMap.data.num_symbols
-        ):
-            raise VerifyException(
-                "Expected as many operands as results, lower bound args and upper bound args."
-            )
+        if len(self.operands) != len(self.results) + self.lowerBoundsMap.data.num_dims + self.upperBoundsMap.data.num_dims + self.lowerBoundsMap.data.num_symbols + self.upperBoundsMap.data.num_symbols:
+            raise VerifyException("Expected as many operands as results, lower bound args and upper bound args.")
 
-        if sum(self.lowerBoundsGroups.get_int_values()) != len(
-            self.lowerBoundsMap.data.results
-        ):
+        if sum(self.lowerBoundsGroups.get_int_values()) != len(self.lowerBoundsMap.data.results):
             raise VerifyException("Expected a lower bound group for each lower bound")
-        if sum(self.upperBoundsGroups.get_int_values()) != len(
-            self.upperBoundsMap.data.results
-        ):
+        if sum(self.upperBoundsGroups.get_int_values()) != len(self.upperBoundsMap.data.results):
             raise VerifyException("Expected an upper bound group for each upper bound")
 
 
@@ -279,9 +207,7 @@ class StoreOp(IRDLOperation):
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
             if not isinstance(memref_type := memref.type, MemRefType):
-                raise ValueError(
-                    "affine.store memref operand must be of type MemRefType"
-                )
+                raise ValueError("affine.store memref operand must be of type MemRefType")
             rank = memref_type.get_num_dims()
             map = AffineMapAttr(AffineMap.identity(rank))
         super().__init__(
@@ -314,9 +240,7 @@ class LoadOp(IRDLOperation):
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
             if not isinstance(memref.type, ShapedType):
-                raise ValueError(
-                    "affine.store memref operand must be of type ShapedType"
-                )
+                raise ValueError("affine.store memref operand must be of type ShapedType")
             memref_type = cast(MemRefType[Attribute], memref.type)
             rank = memref_type.get_num_dims()
             map = AffineMapAttr(AffineMap.identity(rank))
@@ -324,9 +248,7 @@ class LoadOp(IRDLOperation):
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
             if not isinstance(memref.type, ContainerType):
-                raise ValueError(
-                    "affine.store memref operand must be of type ContainerType"
-                )
+                raise ValueError("affine.store memref operand must be of type ContainerType")
             memref_type = cast(ContainerType[Any], memref.type)
             result_type = memref_type.get_element_type()
 
@@ -347,12 +269,7 @@ class MinOp(IRDLOperation):
 
     def verify_(self) -> None:
         if len(self.operands) != self.map.data.num_dims + self.map.data.num_symbols:
-            raise VerifyException(
-                f"{self.name} expects "
-                f"{self.map.data.num_dims + self.map.data.num_symbols} "
-                "operands, but got {len(self.operands)}. The number of map operands "
-                "must match the sum of the dimensions and symbols of its map."
-            )
+            raise VerifyException(f"{self.name} expects " f"{self.map.data.num_dims + self.map.data.num_symbols} " "operands, but got {len(self.operands)}. The number of map operands " "must match the sum of the dimensions and symbols of its map.")
 
 
 @irdl_op_definition

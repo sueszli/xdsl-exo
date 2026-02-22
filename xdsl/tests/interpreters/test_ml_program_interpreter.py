@@ -1,14 +1,6 @@
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import func, ml_program
-from xdsl.dialects.builtin import (
-    DenseIntOrFPElementsAttr,
-    ModuleOp,
-    StringAttr,
-    SymbolRefAttr,
-    TensorType,
-    i32,
-    i64,
-)
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, ModuleOp, StringAttr, SymbolRefAttr, TensorType, i32, i64
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.ml_program import MLProgramFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
@@ -27,9 +19,7 @@ def test_ml_program_global_load_constant():
             StringAttr("private"),
         )
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
-            fetch = ml_program.GlobalLoadConstantOp(
-                SymbolRefAttr("my_global"), tensor_type
-            )
+            fetch = ml_program.GlobalLoadConstantOp(SymbolRefAttr("my_global"), tensor_type)
 
     interpreter = Interpreter(module)
     interpreter.register_implementations(MLProgramFunctions())
@@ -50,9 +40,7 @@ def test_ml_program_global_load_constant_ex2():
             StringAttr("private"),
         )
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
-            fetch = ml_program.GlobalLoadConstantOp(
-                SymbolRefAttr("my_global"), tensor_type
-            )
+            fetch = ml_program.GlobalLoadConstantOp(SymbolRefAttr("my_global"), tensor_type)
 
     interpreter = Interpreter(module)
     interpreter.register_implementations(MLProgramFunctions())

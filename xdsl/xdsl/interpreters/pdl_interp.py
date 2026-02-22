@@ -5,16 +5,7 @@ from xdsl.context import Context
 from xdsl.dialects import pdl_interp
 from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.pdl import RangeType, ValueType
-from xdsl.interpreter import (
-    Interpreter,
-    InterpreterFunctions,
-    ReturnedValues,
-    Successor,
-    impl,
-    impl_callable,
-    impl_terminator,
-    register_impls,
-)
+from xdsl.interpreter import Interpreter, InterpreterFunctions, ReturnedValues, Successor, impl, impl_callable, impl_terminator, register_impls
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
@@ -82,9 +73,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         assert len(args) == 1
         assert isinstance(args[0], Operation)
         src_op = args[0]
-        assert op.index is None, (
-            "TODO: No support yet for getting a specific result group"
-        )
+        assert op.index is None, "TODO: No support yet for getting a specific result group"
         if isinstance(op.result_types[0], ValueType) and len(src_op.results) != 1:
             return (None,)
         return (src_op.results,)
@@ -131,9 +120,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         assert isinstance(args[0], SSAValue)
         if not isinstance(args[0], OpResult):
             return (None,)
-        assert isinstance(args[0].owner, Operation), (
-            "Cannot get defining op of a Block argument"
-        )
+        assert isinstance(args[0].owner, Operation), "Cannot get defining op of a Block argument"
         return (args[0].owner,)
 
     @impl_terminator(pdl_interp.CheckOperationNameOp)
@@ -257,9 +244,7 @@ class PDLInterpFunctions(InterpreterFunctions):
                 repl_values.extend(args[i + 1])
 
         if len(input_op.results) != len(repl_values):
-            raise InterpretationError(
-                "Number of replacement values should match number of results"
-            )
+            raise InterpretationError("Number of replacement values should match number of results")
         # Replace the operation with the replacement values
         self.rewriter.replace_op(input_op, new_ops=[], new_results=repl_values)
         return ()
@@ -285,18 +270,11 @@ class PDLInterpFunctions(InterpreterFunctions):
         op_name = op.constraint_name.data
         op_type = self.ctx.get_optional_op(op_name)
         if op_type is None:
-            raise InterpretationError(
-                f"Could not find op type for name {op_name} in context"
-            )
+            raise InterpretationError(f"Could not find op type for name {op_name} in context")
 
         # Split args into operands, attributes and result types based on operand segments
         operands = list(args[0 : len(op.input_operands)])
-        attributes = list(
-            args[
-                len(op.input_operands) : len(op.input_operands)
-                + len(op.input_attributes)
-            ]
-        )
+        attributes = list(args[len(op.input_operands) : len(op.input_operands) + len(op.input_attributes)])
         result_types = list(args[len(op.input_operands) + len(op.input_attributes) :])
 
         # Verify all arguments have correct types
@@ -308,9 +286,7 @@ class PDLInterpFunctions(InterpreterFunctions):
             assert isinstance(res_type, TypeAttribute)
 
         # Create attribute dictionary using input_attribute_names
-        attr_names: list[str] = [
-            cast(StringAttr, name).data for name in op.input_attribute_names.data
-        ]
+        attr_names: list[str] = [cast(StringAttr, name).data for name in op.input_attribute_names.data]
         attr_dict = dict(zip(attr_names, attributes))
 
         # Create the new operation
@@ -326,13 +302,9 @@ class PDLInterpFunctions(InterpreterFunctions):
         return (result_op,)
 
     @impl_callable(pdl_interp.FuncOp)
-    def call_func(
-        self, interpreter: Interpreter, op: pdl_interp.FuncOp, args: tuple[Any, ...]
-    ):
+    def call_func(self, interpreter: Interpreter, op: pdl_interp.FuncOp, args: tuple[Any, ...]):
         if self._rewriter is None:
-            raise InterpretationError(
-                "Expected an active rewriter when calling a pdl_interp function."
-            )
+            raise InterpretationError("Expected an active rewriter when calling a pdl_interp function.")
         if op.sym_name.data == "matcher":
             assert len(args) == 1
             root_op = args[0]
@@ -352,8 +324,6 @@ class PDLInterpFunctions(InterpreterFunctions):
         return Successor(op.dest, ()), ()
 
     @impl_terminator(pdl_interp.FinalizeOp)
-    def run_finalize(
-        self, interpreter: Interpreter, op: pdl_interp.FinalizeOp, args: tuple[Any, ...]
-    ):
+    def run_finalize(self, interpreter: Interpreter, op: pdl_interp.FinalizeOp, args: tuple[Any, ...]):
         self._rewriter = None
         return ReturnedValues(()), ()

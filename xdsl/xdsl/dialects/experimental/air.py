@@ -10,52 +10,13 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    IndexType,
-    IntAttr,
-    IntegerAttr,
-    MemRefType,
-    StringAttr,
-    SymbolRefAttr,
-)
+from xdsl.dialects.builtin import ArrayAttr, IndexType, IntAttr, IntegerAttr, MemRefType, StringAttr, SymbolRefAttr
 from xdsl.dialects.utils import AbstractYieldOperation
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    Operation,
-    ParametrizedAttribute,
-    Region,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    ParsePropInAttrDict,
-    attr_def,
-    irdl_attr_definition,
-    irdl_op_definition,
-    lazy_traits_def,
-    operand_def,
-    opt_prop_def,
-    opt_region_def,
-    opt_result_def,
-    prop_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, Region, SSAValue, TypeAttribute
+from xdsl.irdl import AttrSizedOperandSegments, IRDLOperation, ParsePropInAttrDict, attr_def, irdl_attr_definition, irdl_op_definition, lazy_traits_def, operand_def, opt_prop_def, opt_region_def, opt_result_def, prop_def, region_def, result_def, traits_def, var_operand_def, var_result_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import (
-    HasParent,
-    IsolatedFromAbove,
-    IsTerminator,
-    SingleBlockImplicitTerminator,
-)
+from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator, SingleBlockImplicitTerminator
 
 
 @irdl_attr_definition
@@ -79,9 +40,7 @@ class AllocOp(IRDLOperation):
         shape: ArrayAttr[IntAttr],
     ):
         memref_type = MemRefType(element_type, shape)
-        super().__init__(
-            operands=[async_dependencies], result_types=[AsyncTokenAttr(), memref_type]
-        )
+        super().__init__(operands=[async_dependencies], result_types=[AsyncTokenAttr(), memref_type])
 
 
 @irdl_op_definition
@@ -91,9 +50,7 @@ class ChannelOp(IRDLOperation):
     sym_name = prop_def(SymbolRefAttr)
     size = prop_def(ArrayAttr)
 
-    def __init__(
-        self, sym_name: SymbolRefAttr, size: ArrayAttr[IntegerAttr]
-    ):  # TODO: add verify to check 64-bit integer array attribute
+    def __init__(self, sym_name: SymbolRefAttr, size: ArrayAttr[IntegerAttr]):  # TODO: add verify to check 64-bit integer array attribute
         super().__init__(properties={"sym_name": sym_name, "size": size})
 
     assembly_format = "$sym_name $size attr-dict"
@@ -222,9 +179,7 @@ class DeallocOp(IRDLOperation):
         async_dependencies: list[Operation | SSAValue],
         memref: Operation | SSAValue,
     ):
-        super().__init__(
-            operands=[async_dependencies, memref], result_types=[AsyncTokenAttr()]
-        )
+        super().__init__(operands=[async_dependencies, memref], result_types=[AsyncTokenAttr()])
 
 
 @irdl_op_definition
@@ -295,9 +250,7 @@ class ExecuteOp(IRDLOperation):
     results_ = var_result_def(Attribute)
     body = region_def()
 
-    traits = lazy_traits_def(
-        lambda: (SingleBlockImplicitTerminator(ExecuteTerminatorOp),)
-    )
+    traits = lazy_traits_def(lambda: (SingleBlockImplicitTerminator(ExecuteTerminatorOp),))
 
     def __init__(
         self,
@@ -313,15 +266,11 @@ class ExecuteOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> ExecuteOp:
-        async_dependencies = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_operand
-        )
+        async_dependencies = parser.parse_optional_comma_separated_list(parser.Delimiter.SQUARE, parser.parse_operand)
 
         result_types: list[Attribute] | None = []
         if parser.parse_optional_characters("->"):
-            result_types = parser.parse_optional_comma_separated_list(
-                parser.Delimiter.PAREN, parser.parse_type
-            )
+            result_types = parser.parse_optional_comma_separated_list(parser.Delimiter.PAREN, parser.parse_type)
 
         body = parser.parse_region()
 
@@ -371,9 +320,7 @@ class HerdOp(IRDLOperation):
     async_token = opt_result_def(AsyncTokenAttr)
     region = opt_region_def()
 
-    traits = traits_def(
-        IsolatedFromAbove(), SingleBlockImplicitTerminator(HerdTerminatorOp)
-    )
+    traits = traits_def(IsolatedFromAbove(), SingleBlockImplicitTerminator(HerdTerminatorOp))
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -451,9 +398,7 @@ class HerdOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> HerdOp:
         sym_name = parser.parse_optional_symbol_name()
-        async_dependencies = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_operand
-        )
+        async_dependencies = parser.parse_optional_comma_separated_list(parser.Delimiter.SQUARE, parser.parse_operand)
         parser.parse_keyword("tile")
         arg_list = parser.parse_op_args_list()
         parser.parse_keyword("in")
@@ -524,9 +469,7 @@ class LaunchOp(IRDLOperation):
     async_token = result_def(AsyncTokenAttr)
     body = opt_region_def()
 
-    traits = traits_def(
-        IsolatedFromAbove(), SingleBlockImplicitTerminator(LaunchTerminatorOp)
-    )
+    traits = traits_def(IsolatedFromAbove(), SingleBlockImplicitTerminator(LaunchTerminatorOp))
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -549,9 +492,7 @@ class LaunchOp(IRDLOperation):
     def parse(cls, parser: Parser) -> LaunchOp:
         sym_name = parser.parse_optional_symbol_name()
 
-        async_dependencies = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_operand
-        )
+        async_dependencies = parser.parse_optional_comma_separated_list(parser.Delimiter.SQUARE, parser.parse_operand)
 
         block_args_lst: list[Parser.Argument] = []
         if parser.parse_optional_characters("("):
@@ -605,9 +546,7 @@ class LaunchOp(IRDLOperation):
 
         body = parser.parse_optional_region(block_args_lst)
 
-        launch_op = LaunchOp(
-            sym_name, async_dependencies, sizes_operands_lst, launch_operands_lst, body
-        )
+        launch_op = LaunchOp(sym_name, async_dependencies, sizes_operands_lst, launch_operands_lst, body)
         launch_op.attributes |= attr_dict
 
         return launch_op
@@ -759,9 +698,7 @@ class SegmentOp(IRDLOperation):
 
     body = opt_region_def()
 
-    traits = traits_def(
-        IsolatedFromAbove(), SingleBlockImplicitTerminator(SegmentTerminatorOp)
-    )
+    traits = traits_def(IsolatedFromAbove(), SingleBlockImplicitTerminator(SegmentTerminatorOp))
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -818,9 +755,7 @@ class SegmentOp(IRDLOperation):
 
         body = parser.parse_optional_region()
 
-        segment_op = SegmentOp(
-            sym_name, async_dependencies, sizes, segment_operands_lst, body
-        )
+        segment_op = SegmentOp(sym_name, async_dependencies, sizes, segment_operands_lst, body)
         segment_op.attributes |= attr_dict
         return segment_op
 
@@ -843,9 +778,7 @@ class WaitAllOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> WaitAllOp:
         parser.parse_keyword("async")
-        async_dependencies = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_operand
-        )
+        async_dependencies = parser.parse_optional_comma_separated_list(parser.Delimiter.SQUARE, parser.parse_operand)
 
         return WaitAllOp(async_dependencies)
 

@@ -10,17 +10,7 @@ from typing import TypeVar, Union, final, get_args, get_origin
 
 from xdsl.builder import Builder, BuilderListener
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
-from xdsl.ir import (
-    Attribute,
-    Block,
-    BlockArgument,
-    ErasedSSAValue,
-    Operation,
-    OpResult,
-    ParametrizedAttribute,
-    Region,
-    SSAValue,
-)
+from xdsl.ir import Attribute, Block, BlockArgument, ErasedSSAValue, Operation, OpResult, ParametrizedAttribute, Region, SSAValue
 from xdsl.irdl import GenericAttrConstraint, base
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 from xdsl.utils.hints import isa
@@ -30,19 +20,13 @@ from xdsl.utils.hints import isa
 class PatternRewriterListener(BuilderListener):
     """A listener for pattern rewriter events."""
 
-    operation_removal_handler: list[Callable[[Operation], None]] = field(
-        default_factory=list[Callable[[Operation], None]], kw_only=True
-    )
+    operation_removal_handler: list[Callable[[Operation], None]] = field(default_factory=list[Callable[[Operation], None]], kw_only=True)
     """Callbacks that are called when an operation is removed."""
 
-    operation_modification_handler: list[Callable[[Operation], None]] = field(
-        default_factory=list[Callable[[Operation], None]], kw_only=True
-    )
+    operation_modification_handler: list[Callable[[Operation], None]] = field(default_factory=list[Callable[[Operation], None]], kw_only=True)
     """Callbacks that are called when an operation is modified."""
 
-    operation_replacement_handler: list[
-        Callable[[Operation, Sequence[SSAValue | None]], None]
-    ] = field(
+    operation_replacement_handler: list[Callable[[Operation, Sequence[SSAValue | None]], None]] = field(
         default_factory=list[Callable[[Operation, Sequence[SSAValue | None]], None]],
         kw_only=True,
     )
@@ -58,9 +42,7 @@ class PatternRewriterListener(BuilderListener):
         for handler in self.operation_modification_handler:
             handler(op)
 
-    def handle_operation_replacement(
-        self, op: Operation, new_results: Sequence[SSAValue | None]
-    ) -> None:
+    def handle_operation_replacement(self, op: Operation, new_results: Sequence[SSAValue | None]) -> None:
         """Pass the operation that will be replaced to the registered callbacks."""
         for handler in self.operation_replacement_handler:
             handler(op, new_results)
@@ -70,12 +52,8 @@ class PatternRewriterListener(BuilderListener):
         super().extend_from_listener(listener)
         if isinstance(listener, PatternRewriterListener):
             self.operation_removal_handler.extend(listener.operation_removal_handler)
-            self.operation_modification_handler.extend(
-                listener.operation_modification_handler
-            )
-            self.operation_replacement_handler.extend(
-                listener.operation_replacement_handler
-            )
+            self.operation_modification_handler.extend(listener.operation_modification_handler)
+            self.operation_replacement_handler.extend(listener.operation_replacement_handler)
 
 
 @dataclass(eq=False, init=False)
@@ -97,9 +75,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.current_operation = current_operation
         Builder.__init__(self, InsertPoint.before(current_operation))
 
-    def insert_op(
-        self, op: Operation | Sequence[Operation], insertion_point: InsertPoint
-    ):
+    def insert_op(self, op: Operation | Sequence[Operation], insertion_point: InsertPoint):
         """Insert operations at a certain location in a block."""
         self.has_done_action = True
         op = (op,) if isinstance(op, Operation) else op
@@ -136,9 +112,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.handle_operation_removal(op)
         Rewriter.erase_op(op, safe_erase=safe_erase)
 
-    def replace_all_uses_with(
-        self, from_: SSAValue, to: SSAValue | None, safe_erase: bool = True
-    ):
+    def replace_all_uses_with(self, from_: SSAValue, to: SSAValue | None, safe_erase: bool = True):
         """Replace all uses of an SSA value with another SSA value."""
         for use in from_.uses:
             self.handle_operation_modification(use.operation)
@@ -159,9 +133,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         If safe_erase is True, check that the operation has no uses.
         Otherwise, replace its uses with ErasedSSAValue.
         """
-        self.replace_op(
-            self.current_operation, new_ops, new_results, safe_erase=safe_erase
-        )
+        self.replace_op(self.current_operation, new_ops, new_results, safe_erase=safe_erase)
 
     def replace_op(
         self,
@@ -188,9 +160,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
             new_results = new_ops[-1].results if new_ops else []
 
         if len(op.results) != len(new_results):
-            raise ValueError(
-                f"Expected {len(op.results)} new results, but got {len(new_results)}"
-            )
+            raise ValueError(f"Expected {len(op.results)} new results, but got {len(new_results)}")
 
         # Then, replace the results with new ones
         self.handle_operation_replacement(op, new_results)
@@ -202,11 +172,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
                 new_result.name_hint = old_result.name_hint
 
         # Add name hints for existing ops, only if there is a single new result
-        if (
-            len(new_results) == 1
-            and (only_result := new_results[0]) is not None
-            and (name_hint := only_result.name_hint) is not None
-        ):
+        if len(new_results) == 1 and (only_result := new_results[0]) is not None and (name_hint := only_result.name_hint) is not None:
             for new_op in new_ops:
                 for res in new_op.results:
                     if not res.name_hint:
@@ -215,9 +181,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         # Then, erase the original operation
         self.erase_op(op, safe_erase=safe_erase)
 
-    def replace_value_with_new_type(
-        self, val: SSAValue, new_type: Attribute
-    ) -> SSAValue:
+    def replace_value_with_new_type(self, val: SSAValue, new_type: Attribute) -> SSAValue:
         """
         Replace a value with a value of a new type, and return the new value.
         This will insert the new value in the operation or block, and remove the existing
@@ -231,9 +195,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
                 self.handle_operation_modification(op)
         return Rewriter.replace_value_with_new_type(val, new_type)
 
-    def insert_block_argument(
-        self, block: Block, index: int, arg_type: Attribute
-    ) -> BlockArgument:
+    def insert_block_argument(self, block: Block, index: int, arg_type: Attribute) -> BlockArgument:
         """Insert a new block argument."""
         self.has_done_action = True
         return block.insert_arg(arg_type, index)
@@ -260,27 +222,19 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.has_done_action = True
         Rewriter.inline_block(block, insertion_point, arg_values=arg_values)
 
-    def inline_block_before_matched_op(
-        self, block: Block, arg_values: Sequence[SSAValue] = ()
-    ):
+    def inline_block_before_matched_op(self, block: Block, arg_values: Sequence[SSAValue] = ()):
         """
         Move the block operations before the matched operation.
         The block should not be a parent of the operation.
         """
-        self.inline_block(
-            block, InsertPoint.before(self.current_operation), arg_values=arg_values
-        )
+        self.inline_block(block, InsertPoint.before(self.current_operation), arg_values=arg_values)
 
-    def inline_block_after_matched_op(
-        self, block: Block, arg_values: Sequence[SSAValue] = ()
-    ):
+    def inline_block_after_matched_op(self, block: Block, arg_values: Sequence[SSAValue] = ()):
         """
         Move the block operations after the matched operation.
         The block should not be a parent of the operation.
         """
-        self.inline_block(
-            block, InsertPoint.after(self.current_operation), arg_values=arg_values
-        )
+        self.inline_block(block, InsertPoint.after(self.current_operation), arg_values=arg_values)
 
     def move_region_contents_to_new_regions(self, region: Region) -> Region:
         """Move the region blocks to a new region."""
@@ -330,27 +284,16 @@ def op_type_rewrite_pattern(
     calling the decorated function.
     """
     # Get the operation argument and check that it is a subclass of Operation
-    params = [
-        param for param in inspect.signature(func, eval_str=True).parameters.values()
-    ]
+    params = [param for param in inspect.signature(func, eval_str=True).parameters.values()]
     if len(params) != 3:
-        raise Exception(
-            "op_type_rewrite_pattern expects the decorated function to "
-            "have two non-self arguments."
-        )
+        raise Exception("op_type_rewrite_pattern expects the decorated function to " "have two non-self arguments.")
     is_method = params[0].name == "self"
     if is_method:
         if len(params) != 3:
-            raise Exception(
-                "op_type_rewrite_pattern expects the decorated method to "
-                "have two non-self arguments."
-            )
+            raise Exception("op_type_rewrite_pattern expects the decorated method to " "have two non-self arguments.")
     else:
         if len(params) != 2:
-            raise Exception(
-                "op_type_rewrite_pattern expects the decorated function to "
-                "have two arguments."
-            )
+            raise Exception("op_type_rewrite_pattern expects the decorated function to " "have two arguments.")
     expected_type: type[_OperationT] = params[-2].annotation
 
     expected_types = (expected_type,)
@@ -358,11 +301,7 @@ def op_type_rewrite_pattern(
         expected_types = get_args(expected_type)
 
     if not all(issubclass(t, Operation) for t in expected_types):
-        raise Exception(
-            "op_type_rewrite_pattern expects the first non-self argument "
-            "type hint to be an `Operation` subclass or a union of `Operation` "
-            "subclasses."
-        )
+        raise Exception("op_type_rewrite_pattern expects the first non-self argument " "type hint to be an `Operation` subclass or a union of `Operation` " "subclasses.")
 
     def impl(self: _RewritePatternT, op: Operation, rewriter: PatternRewriter) -> None:
         if isinstance(op, expected_type):
@@ -422,9 +361,7 @@ class TypeConversionPattern(RewritePattern):
         inp = typ
         if self.recursive:
             if isinstance(typ, ParametrizedAttribute):
-                parameters = list(
-                    self._convert_type_rec(p) or p for p in typ.parameters
-                )
+                parameters = list(self._convert_type_rec(p) or p for p in typ.parameters)
                 inp = type(typ).new(parameters)
             if isa(typ, ArrayAttr[Attribute]):
                 parameters = tuple(self._convert_type_rec(p) or p for p in typ)
@@ -482,9 +419,7 @@ class TypeConversionPattern(RewritePattern):
                 new.name_hint = old.name_hint
 
 
-_TypeConversionPatternT = TypeVar(
-    "_TypeConversionPatternT", bound=TypeConversionPattern
-)
+_TypeConversionPatternT = TypeVar("_TypeConversionPatternT", bound=TypeConversionPattern)
 _AttributeT = TypeVar("_AttributeT", bound=Attribute)
 _ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
 
@@ -549,9 +484,7 @@ class GreedyRewritePatternApplier(RewritePattern):
 
 @dataclass(eq=False)
 class Worklist:
-    _op_stack: list[Operation | None] = field(
-        default_factory=list[Operation | None], init=False
-    )
+    _op_stack: list[Operation | None] = field(default_factory=list[Operation | None], init=False)
     """
     The list of operations to iterate over, used as a last-in-first-out stack.
     Operations are added and removed at the end of the list.
@@ -628,9 +561,7 @@ class PatternRewriteWalker:
     That way, all uses are replaced before the definitions.
     """
 
-    post_walk_func: Callable[[Region, PatternRewriterListener], bool] | None = field(
-        default=None
-    )
+    post_walk_func: Callable[[Region, PatternRewriterListener], bool] | None = field(default=None)
     """
     Function to call between each walk of the IR.
     """
@@ -648,11 +579,7 @@ class PatternRewriteWalker:
         have more canonicalization opportunities.
         """
         for operand in operands:
-            if (
-                len(operand.uses) == 1
-                and not isinstance(operand, ErasedSSAValue)
-                and isinstance((op := operand.owner), Operation)
-            ):
+            if len(operand.uses) == 1 and not isinstance(operand, ErasedSSAValue) and isinstance((op := operand.owner), Operation):
                 self._worklist.push(op)
 
     def _handle_operation_insertion(self, op: Operation) -> None:
@@ -675,9 +602,7 @@ class PatternRewriteWalker:
         if self.apply_recursively:
             self._worklist.push(op)
 
-    def _handle_operation_replacement(
-        self, op: Operation, new_results: Sequence[SSAValue | None]
-    ) -> None:
+    def _handle_operation_replacement(self, op: Operation, new_results: Sequence[SSAValue | None]) -> None:
         """Handle replacement of an operation."""
         if self.apply_recursively:
             for result in op.results:
@@ -745,9 +670,7 @@ class PatternRewriteWalker:
     def _populate_worklist(self, op: Operation | Region | Block) -> None:
         """Populate the worklist with all nested operations."""
         # We walk in reverse order since we use a stack for our worklist.
-        for sub_op in op.walk(
-            reverse=not self.walk_reverse, region_first=not self.walk_regions_first
-        ):
+        for sub_op in op.walk(reverse=not self.walk_reverse, region_first=not self.walk_regions_first):
             self._worklist.push(sub_op)
 
     def _process_worklist(self, listener: PatternRewriterListener) -> bool:

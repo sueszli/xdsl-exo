@@ -15,27 +15,16 @@ app = marimo.App()
 def _():
     import marimo as mo
 
+    from xdsl.context import Context
+    from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, MuliOp
+    from xdsl.dialects.builtin import Builtin, ModuleOp
+    from xdsl.dialects.func import Func, FuncOp
+    from xdsl.ir import Operation
+    from xdsl.parser import Parser
+    from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern
+    from xdsl.rewriter import Rewriter
     from xdsl.utils import marimo as xmo
 
-    from xdsl.parser import Parser
-    from xdsl.context import Context
-
-    from xdsl.dialects.builtin import Builtin
-    from xdsl.dialects.arith import Arith
-    from xdsl.dialects.func import Func
-
-    from xdsl.ir import Operation
-
-    from xdsl.rewriter import Rewriter
-    from xdsl.pattern_rewriter import (
-        PatternRewriter,
-        RewritePattern,
-        GreedyRewritePatternApplier,
-        PatternRewriteWalker,
-    )
-    from xdsl.dialects.arith import AddiOp, ConstantOp, MuliOp
-    from xdsl.dialects.builtin import ModuleOp
-    from xdsl.dialects.func import FuncOp
     return (
         AddiOp,
         Arith,
@@ -95,8 +84,7 @@ def _(Parser, ctx):
 
 @app.cell(hide_code=True)
 def _(after_module, before_module, mo, xmo):
-    mo.md(
-        f"""
+    mo.md(f"""
     Most of the work in compilers is rewriting IR.
     While some transformations have to take modules into account, some can be done locally, such as rewriting an addition with zero to just use the non-zero input.
     These kinds of rewrites are called pattern rewrites, as they apply if some local pattern is matched.
@@ -108,15 +96,13 @@ def _(after_module, before_module, mo, xmo):
     Into this one:
 
     {xmo.module_html(after_module)}
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## Rationale
 
         A pattern rewrite is a compiler transformation that matches a DAG in the IR, and replace it with another DAG. For instance, simplifying `x + 0` to `x` is a common optimization that is represented as a pattern rewrite.
@@ -130,8 +116,7 @@ def _(mo):
         Each Pattern rewrite is a class that inherit from `PatternRewrite`. It defines a single `match_and_rewrite` method, that is called to apply a pattern on an operation. The method will either return without any modification of the IR, or will modify the IR using the `Rewriter`. The most common operation to call on the `Rewriter` is `replace_matched_op`, which will replace the matched operation with a sequence of other operations, and replace the result values of the matched operation with new values.
 
         Here are two examples of pattern for `x + 0 -> x` and `x * 2 -> x + x`:
-        """
-    )
+        """)
     return
 
 
@@ -188,13 +173,13 @@ def _(
             # last operation added, so here the `arith.addi`
             add = AddiOp(x, x)
             rewriter.replace_matched_op([add])
+
     return AddZeroPattern, MulTwoPattern
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## Applying rewrite patterns
 
         There are two steps to apply rewrite patterns in xDSL.
@@ -203,8 +188,7 @@ def _(mo):
         * Then, walking the IR and applying the pattern recursively on all operations until no more pattern can be applied on any operation:
 
         Here is an example on how to apply rewrites on all operations in a module:
-        """
-    )
+        """)
     return
 
 
@@ -221,6 +205,7 @@ def _(
         merged_pattern = GreedyRewritePatternApplier(AddZeroPattern(), MulTwoPattern())
         walker = PatternRewriteWalker(merged_pattern)
         walker.rewrite_module(module)
+
     return (apply_all_rewrites,)
 
 

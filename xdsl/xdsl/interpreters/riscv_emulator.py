@@ -4,15 +4,7 @@ from collections.abc import Sequence
 from io import StringIO
 
 from riscemu.config import RunConfig
-from riscemu.instructions import (
-    RV32D,
-    RV32F,
-    RV32I,
-    RV32M,
-    InstructionSet,
-    RV_Debug,
-    Zicsr,
-)
+from riscemu.instructions import RV32D, RV32F, RV32I, RV32M, InstructionSet, RV_Debug, Zicsr
 from riscemu.riscemu_main import RiscemuMain, RiscemuSource
 
 

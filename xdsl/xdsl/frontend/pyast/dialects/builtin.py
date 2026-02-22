@@ -33,9 +33,7 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
     def to_xdsl() -> Callable[[], Any]:
         return builtin.IntegerType.__call__
 
-    def __add__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+    def __add__(self, other: _Integer[_Width, _Signedness]) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.pyast.dialects.arith import addi
 
         return addi(
@@ -43,9 +41,7 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
             other,  # pyright: ignore[reportArgumentType]
         )
 
-    def __and__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+    def __and__(self, other: _Integer[_Width, _Signedness]) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.pyast.dialects.arith import andi
 
         return andi(
@@ -53,9 +49,7 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
             other,  # pyright: ignore[reportArgumentType]
         )
 
-    def __lshift__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+    def __lshift__(self, other: _Integer[_Width, _Signedness]) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.pyast.dialects.arith import shli
 
         return shli(
@@ -63,9 +57,7 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
             other,  # pyright: ignore[reportArgumentType]
         )
 
-    def __mul__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+    def __mul__(self, other: _Integer[_Width, _Signedness]) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.pyast.dialects.arith import muli
 
         return muli(
@@ -73,9 +65,7 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
             other,  # pyright: ignore[reportArgumentType]
         )
 
-    def __rshift__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+    def __rshift__(self, other: _Integer[_Width, _Signedness]) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.pyast.dialects.arith import shrsi
 
         return shrsi(
@@ -83,9 +73,7 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
             other,  # pyright: ignore[reportArgumentType]
         )
 
-    def __sub__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+    def __sub__(self, other: _Integer[_Width, _Signedness]) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.pyast.dialects.arith import subi
 
         return subi(
@@ -93,9 +81,7 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
             other,  # pyright: ignore[reportArgumentType]
         )
 
-    def __eq__(  # pyright: ignore[reportIncompatibleMethodOverride]
-        self, other: _Integer[_Width, _Signedness]
-    ) -> i1:
+    def __eq__(self, other: _Integer[_Width, _Signedness]) -> i1:  # pyright: ignore[reportIncompatibleMethodOverride]
         from xdsl.frontend.pyast.dialects.arith import cmpi
 
         return cmpi(
@@ -140,9 +126,7 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
             "slt",
         )
 
-    def __ne__(  # pyright: ignore[reportIncompatibleMethodOverride]
-        self, other: _Integer[_Width, _Signedness]
-    ) -> i1:
+    def __ne__(self, other: _Integer[_Width, _Signedness]) -> i1:  # pyright: ignore[reportIncompatibleMethodOverride]
         from xdsl.frontend.pyast.dialects.arith import cmpi
 
         return cmpi(

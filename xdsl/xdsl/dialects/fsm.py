@@ -9,46 +9,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.dialects.arith import signlessIntegerLike
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    DictionaryAttr,
-    FlatSymbolRefAttr,
-    FlatSymbolRefAttrConstr,
-    FunctionType,
-    StringAttr,
-    SymbolRefAttr,
-)
-from xdsl.ir import (
-    Attribute,
-    Block,
-    Dialect,
-    Operation,
-    ParametrizedAttribute,
-    Region,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    IRDLOperation,
-    attr_def,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_attr_def,
-    opt_operand_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-    var_result_def,
-)
-from xdsl.traits import (
-    HasParent,
-    IsTerminator,
-    NoTerminator,
-    SymbolOpInterface,
-    SymbolTable,
-)
+from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FlatSymbolRefAttr, FlatSymbolRefAttrConstr, FunctionType, StringAttr, SymbolRefAttr
+from xdsl.ir import Attribute, Block, Dialect, Operation, ParametrizedAttribute, Region, SSAValue, TypeAttribute
+from xdsl.irdl import IRDLOperation, attr_def, irdl_attr_definition, irdl_op_definition, operand_def, opt_attr_def, opt_operand_def, region_def, result_def, traits_def, var_operand_def, var_result_def
+from xdsl.traits import HasParent, IsTerminator, NoTerminator, SymbolOpInterface, SymbolTable
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -115,16 +79,12 @@ class MachineOp(IRDLOperation):
             raise VerifyException("arg_attrs must be consistent with arg_names")
         elif self.arg_attrs is not None and self.arg_names is not None:
             if len(self.arg_attrs) != len(self.arg_names):
-                raise VerifyException(
-                    "The number of arg_attrs and arg_names should be the same"
-                )
+                raise VerifyException("The number of arg_attrs and arg_names should be the same")
         if (self.res_attrs is None) ^ (self.res_names is None):
             raise VerifyException("res_attrs must be consistent with res_names")
         elif self.res_attrs is not None and self.res_names is not None:
             if len(self.res_attrs) != len(self.res_names):
-                raise VerifyException(
-                    "The number of res_attrs and res_names should be the same"
-                )
+                raise VerifyException("The number of res_attrs and res_names should be the same")
 
 
 @irdl_op_definition
@@ -167,14 +127,8 @@ class StateOp(IRDLOperation):
     def verify_(self):
         parent = self.parent_op()
         assert isinstance(parent, MachineOp)
-        if (
-            parent.res_attrs is not None
-            and len(parent.res_attrs) > 0
-            and self.output.block.first_op is None
-        ):
-            raise VerifyException(
-                "State must have a non-empty output region when the machine has results."
-            )
+        if parent.res_attrs is not None and len(parent.res_attrs) > 0 and self.output.block.first_op is None:
+            raise VerifyException("State must have a non-empty output region when the machine has results.")
         parent = parent.parent_op()
 
 
@@ -208,10 +162,7 @@ class OutputOp(IRDLOperation):
         while (parent := parent.parent_op()) is not None:
             if isinstance(parent, MachineOp):
                 if self.operand_types != parent.function_type.outputs.data:
-                    raise VerifyException(
-                        "OutputOp output type must be consistent with the machine "
-                        + str(parent.sym_name)
-                    )
+                    raise VerifyException("OutputOp output type must be consistent with the machine " + str(parent.sym_name))
 
 
 @irdl_op_definition
@@ -255,9 +206,7 @@ class TransitionOp(IRDLOperation):
         )
 
     def verify_(self):
-        if SymbolTable.lookup_symbol(self, self.nextState) is None or not isinstance(
-            SymbolTable.lookup_symbol(self, self.nextState), StateOp
-        ):
+        if SymbolTable.lookup_symbol(self, self.nextState) is None or not isinstance(SymbolTable.lookup_symbol(self, self.nextState), StateOp):
             raise VerifyException("Can not find next state")
         if self.guard.blocks and not isinstance(self.guard.block.last_op, ReturnOp):
             raise VerifyException("Guard region must terminate with ReturnOp")
@@ -304,13 +253,9 @@ class UpdateOp(IRDLOperation):
             if isinstance(op, UpdateOp) and op.variable == self.variable:
                 found += 1
         if found == 0:
-            raise VerifyException(
-                "Update must only be located in the action region of a transition"
-            )
+            raise VerifyException("Update must only be located in the action region of a transition")
         elif found > 1:
-            raise VerifyException(
-                "Multiple updates to the same variable within a single action region is disallowed"
-            )
+            raise VerifyException("Multiple updates to the same variable within a single action region is disallowed")
 
 
 @irdl_op_definition
@@ -381,9 +326,7 @@ class InstanceOp(IRDLOperation):
 
     res = result_def(InstanceType)
 
-    def __init__(
-        self, sym_name: str, machine: FlatSymbolRefAttr, instance: InstanceType
-    ):
+    def __init__(self, sym_name: str, machine: FlatSymbolRefAttr, instance: InstanceType):
         if isinstance(machine, str):
             machine = SymbolRefAttr(machine)
         attributes: dict[str, Attribute] = {
@@ -441,16 +384,10 @@ class TriggerOp(IRDLOperation):
             raise VerifyException("Machine definition does not exist.")
 
         if self.inputs.types != tuple(result for result in m.function_type.inputs):
-            raise VerifyException(
-                "TriggerOp input types must be consistent with the machine "
-                + str(m.sym_name)
-            )
+            raise VerifyException("TriggerOp input types must be consistent with the machine " + str(m.sym_name))
 
         if self.outputs.types != tuple(result for result in m.function_type.outputs):
-            raise VerifyException(
-                "TriggerOp output types must be consistent with the machine "
-                + str(m.sym_name)
-            )
+            raise VerifyException("TriggerOp output types must be consistent with the machine " + str(m.sym_name))
 
 
 @irdl_op_definition
@@ -501,21 +438,9 @@ class HWInstanceOp(IRDLOperation):
         m = SymbolTable.lookup_symbol(self, self.machine)
         if isinstance(m, MachineOp):
             if self.inputs.types != tuple(result for result in m.function_type.inputs):
-                raise VerifyException(
-                    "HWInstanceOp "
-                    + str(self.sym_name)
-                    + " input type must be consistent with the machine "
-                    + str(m.sym_name)
-                )
-            if self.outputs.types != tuple(
-                result for result in m.function_type.outputs
-            ):
-                raise VerifyException(
-                    "HWInstanceOp "
-                    + str(self.sym_name)
-                    + " output type must be consistent with the machine "
-                    + str(m.sym_name)
-                )
+                raise VerifyException("HWInstanceOp " + str(self.sym_name) + " input type must be consistent with the machine " + str(m.sym_name))
+            if self.outputs.types != tuple(result for result in m.function_type.outputs):
+                raise VerifyException("HWInstanceOp " + str(self.sym_name) + " output type must be consistent with the machine " + str(m.sym_name))
         else:
             raise VerifyException("Machine definition does not exist")
 

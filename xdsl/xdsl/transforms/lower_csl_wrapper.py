@@ -7,13 +7,7 @@ from xdsl.dialects import arith, builtin, scf
 from xdsl.dialects.csl import csl, csl_wrapper
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
@@ -34,9 +28,7 @@ class ExtractCslModules(RewritePattern):
         layout_module = self.lower_layout_module(op, rewriter)
         rewriter.replace_matched_op([layout_module, program_module])
 
-    def _collect_params(
-        self, op: csl_wrapper.ModuleOp
-    ) -> tuple[SSAValue, SSAValue, list[SSAValue]]:
+    def _collect_params(self, op: csl_wrapper.ModuleOp) -> tuple[SSAValue, SSAValue, list[SSAValue]]:
         """
         Creates a list of `csl.param`s which should replace the block arguments in the
         layout and program regions of the wrapper.
@@ -87,14 +79,10 @@ class ExtractCslModules(RewritePattern):
         )
         return (
             struct,
-            csl.SetTileCodeOp(
-                fname=f"{prog_name}.csl", x_coord=x, y_coord=y, params=struct
-            ),
+            csl.SetTileCodeOp(fname=f"{prog_name}.csl", x_coord=x, y_coord=y, params=struct),
         )
 
-    def lower_layout_module(
-        self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /
-    ) -> csl.CslModuleOp:
+    def lower_layout_module(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /) -> csl.CslModuleOp:
         """
         Moves the contents of the layout region of the `csl_wrapper.module` into a
         `csl.module`.
@@ -191,9 +179,7 @@ class ExtractCslModules(RewritePattern):
             params.append(csl.ParamOp(s, ty))
         return params
 
-    def lower_program_module(
-        self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /
-    ) -> csl.CslModuleOp:
+    def lower_program_module(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /) -> csl.CslModuleOp:
         """
         Moves the contents of the program region of the `csl_wrapper.module` into a
         `csl.module`.
@@ -301,9 +287,7 @@ class LowerImport(RewritePattern):
         csl_mod = self._get_csl_mod(op)
         ops = self._collect_ops(op, [])
         structs = self._make_import_struct(op)
-        import_ = csl.ImportModuleConstOp(
-            op.module, structs[-1] if len(structs) > 0 else None
-        )
+        import_ = csl.ImportModuleConstOp(op.module, structs[-1] if len(structs) > 0 else None)
         import_.result.name_hint = Path(op.module.data.strip("<>")).stem
 
         rewriter.insert_op(ops, InsertPoint.at_start(csl_mod.body.block))

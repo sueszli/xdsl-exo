@@ -3,22 +3,14 @@ from typing import cast
 
 from xdsl.dialects import arith
 from xdsl.dialects.builtin import FloatAttr, IntegerAttr
-from xdsl.interpreter import (
-    Interpreter,
-    InterpreterFunctions,
-    PythonValues,
-    impl,
-    register_impls,
-)
+from xdsl.interpreter import Interpreter, InterpreterFunctions, PythonValues, impl, register_impls
 from xdsl.utils.exceptions import InterpretationError
 
 
 @register_impls
 class ArithFunctions(InterpreterFunctions):
     @impl(arith.ConstantOp)
-    def run_constant(
-        self, interpreter: Interpreter, op: arith.ConstantOp, args: PythonValues
-    ) -> PythonValues:
+    def run_constant(self, interpreter: Interpreter, op: arith.ConstantOp, args: PythonValues) -> PythonValues:
         interpreter.interpreter_assert(
             isinstance(op.value, IntegerAttr | FloatAttr),
             f"arith.constant not implemented for {type(op.value)}",
@@ -51,9 +43,7 @@ class ArithFunctions(InterpreterFunctions):
         return (args[0] * args[1],)
 
     @impl(arith.MinimumfOp)
-    def run_minimumf(
-        self, interpreter: Interpreter, op: arith.MinimumfOp, args: PythonValues
-    ):
+    def run_minimumf(self, interpreter: Interpreter, op: arith.MinimumfOp, args: PythonValues):
         if isnan(args[0]) or isnan(args[1]):
             return (float("NaN"),)
         if args[0] == 0 and args[1] == 0:
@@ -64,9 +54,7 @@ class ArithFunctions(InterpreterFunctions):
         return (min(args[0], args[1]),)
 
     @impl(arith.MaximumfOp)
-    def run_maximumf(
-        self, interpreter: Interpreter, op: arith.MaximumfOp, args: PythonValues
-    ):
+    def run_maximumf(self, interpreter: Interpreter, op: arith.MaximumfOp, args: PythonValues):
         if isnan(args[0]) or isnan(args[1]):
             return (float("NaN"),)
         if args[0] == 0 and args[1] == 0:
@@ -100,6 +88,4 @@ class ArithFunctions(InterpreterFunctions):
             case 9:  # "uge"
                 return (args[0] >= args[1],)
             case _:
-                raise InterpretationError(
-                    f"arith.cmpi predicate {op.predicate} mot implemented yet."
-                )
+                raise InterpretationError(f"arith.cmpi predicate {op.predicate} mot implemented yet.")

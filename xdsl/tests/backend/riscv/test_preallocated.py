@@ -11,9 +11,7 @@ def test_gather_allocated():
         v2 = riscv.GetRegisterOp(riscv.Registers.UNALLOCATED_INT).res
         _ = riscv.AddOp(v1, v2).rd
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(no_preallocated_body)
-    )
+    pa_regs = set(RegisterAllocatableOperation.iter_all_used_registers(no_preallocated_body))
 
     assert pa_regs == set()
 
@@ -24,9 +22,7 @@ def test_gather_allocated():
         v2 = riscv.GetRegisterOp(riscv.Registers.A7).res
         _ = riscv.AddOp(v1, v2).rd
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(one_preallocated_body)
-    )
+    pa_regs = set(RegisterAllocatableOperation.iter_all_used_registers(one_preallocated_body))
 
     assert pa_regs == {riscv.Registers.A7}
 
@@ -37,9 +33,7 @@ def test_gather_allocated():
         sum1 = riscv.AddOp(v1, v2).rd
         _ = riscv.AddiOp(sum1, 1, rd=riscv.Registers.A7).rd
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(repeated_preallocated_body)
-    )
+    pa_regs = set(RegisterAllocatableOperation.iter_all_used_registers(repeated_preallocated_body))
 
     assert pa_regs == {riscv.Registers.A7}
 
@@ -50,9 +44,7 @@ def test_gather_allocated():
         sum1 = riscv.AddOp(v1, v2).rd
         _ = riscv.AddiOp(sum1, 1, rd=riscv.Registers.A6).rd
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(multiple_preallocated_body)
-    )
+    pa_regs = set(RegisterAllocatableOperation.iter_all_used_registers(multiple_preallocated_body))
 
     assert pa_regs == {riscv.Registers.A6, riscv.Registers.A7}
 
@@ -62,11 +54,7 @@ def test_gather_allocated():
         v2 = riscv.GetRegisterOp(riscv.Registers.S0).res
         riscv_func.CallOp(SymbolRefAttr("hello"), (v1, v2), ())
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(
-            func_call_preallocated_body
-        )
-    )
+    pa_regs = set(RegisterAllocatableOperation.iter_all_used_registers(func_call_preallocated_body))
 
     assert len(pa_regs) == 36
     assert riscv.Registers.S0 in pa_regs

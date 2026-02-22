@@ -2,16 +2,7 @@ import pytest
 
 import xdsl.frontend.pyast.dialects.builtin as builtin
 from xdsl.dialects.arith import AddiOp, ConstantOp, MulfOp
-from xdsl.dialects.builtin import (
-    Float32Type,
-    Float64Type,
-    FloatAttr,
-    IntegerType,
-    f32,
-    f64,
-    i32,
-    i64,
-)
+from xdsl.dialects.builtin import Float32Type, Float64Type, FloatAttr, IntegerType, f32, f64, i32, i64
 from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.frontend.pyast.op_resolver import OpResolver
 
@@ -19,18 +10,13 @@ from xdsl.frontend.pyast.op_resolver import OpResolver
 def test_raises_exception_on_unknown_op():
     with pytest.raises(FrontendProgramException) as err:
         _ = OpResolver.resolve_op("xdsl.frontend.pyast.dialects.arith", "unknown")
-    assert (
-        err.value.msg
-        == "Internal failure: operation 'unknown' does not exist in module 'xdsl.frontend.pyast.dialects.arith'."
-    )
+    assert err.value.msg == "Internal failure: operation 'unknown' does not exist in module 'xdsl.frontend.pyast.dialects.arith'."
 
 
 def test_raises_exception_on_unknown_overload():
     with pytest.raises(FrontendProgramException) as err:
         _ = OpResolver.resolve_op_overload("__unknown__", builtin._Integer)
-    assert (
-        err.value.msg == "Internal failure: '_Integer' does not overload '__unknown__'."
-    )
+    assert err.value.msg == "Internal failure: '_Integer' does not overload '__unknown__'."
 
 
 def test_resolves_ops():

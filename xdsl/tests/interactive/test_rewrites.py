@@ -1,17 +1,10 @@
 from xdsl.context import Context
-from xdsl.dialects.builtin import (
-    Builtin,
-    StringAttr,
-)
+from xdsl.dialects.builtin import Builtin, StringAttr
 from xdsl.dialects.test import Test, TestOp
 from xdsl.interactive.passes import AvailablePass
 from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.parser import Parser
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 from xdsl.transforms.individual_rewrite import ApplyIndividualRewritePass
 
 

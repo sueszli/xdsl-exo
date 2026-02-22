@@ -10,73 +10,17 @@ from typing import Annotated, Generic, TypeAlias, cast
 from typing_extensions import TypeVar
 
 from xdsl.dialects import builtin, memref
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    IndexType,
-    IntAttr,
-    IntegerAttr,
-    MemRefType,
-    TensorType,
-)
-from xdsl.ir import (
-    Attribute,
-    Block,
-    BlockArgument,
-    Dialect,
-    Operation,
-    ParametrizedAttribute,
-    Region,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    AnyAttr,
-    AttrSizedOperandSegments,
-    BaseAttr,
-    ConstraintContext,
-    GenericAttrConstraint,
-    IRDLOperation,
-    MessageConstraint,
-    ParamAttrConstraint,
-    ParameterDef,
-    VarConstraint,
-    attr_def,
-    base,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_attr_def,
-    opt_operand_def,
-    opt_prop_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.dialects.builtin import ArrayAttr, IndexType, IntAttr, IntegerAttr, MemRefType, TensorType
+from xdsl.ir import Attribute, Block, BlockArgument, Dialect, Operation, ParametrizedAttribute, Region, SSAValue, TypeAttribute
+from xdsl.irdl import AnyAttr, AttrSizedOperandSegments, BaseAttr, ConstraintContext, GenericAttrConstraint, IRDLOperation, MessageConstraint, ParamAttrConstraint, ParameterDef, VarConstraint, attr_def, base, irdl_attr_definition, irdl_op_definition, operand_def, opt_attr_def, opt_operand_def, opt_prop_def, region_def, result_def, traits_def, var_operand_def, var_result_def
 from xdsl.parser import AttrParser, Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import (
-    EffectInstance,
-    HasAncestor,
-    HasCanonicalizationPatternsTrait,
-    HasParent,
-    HasShapeInferencePatternsTrait,
-    IsolatedFromAbove,
-    IsTerminator,
-    MemoryEffect,
-    MemoryEffectKind,
-    NoMemoryEffect,
-    Pure,
-    RecursiveMemoryEffect,
-)
+from xdsl.traits import EffectInstance, HasAncestor, HasCanonicalizationPatternsTrait, HasParent, HasShapeInferencePatternsTrait, IsolatedFromAbove, IsTerminator, MemoryEffect, MemoryEffectKind, NoMemoryEffect, Pure, RecursiveMemoryEffect
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-_FieldTypeElement = TypeVar(
-    "_FieldTypeElement", bound=Attribute, covariant=True, default=Attribute
-)
+_FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True, default=Attribute)
 
 
 @irdl_attr_definition
@@ -96,9 +40,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     @classmethod
     def parse_nested_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse only the attribute parameters without enclosing angle brackets."""
-        ints = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, lambda: parser.parse_integer(allow_boolean=False)
-        )
+        ints = parser.parse_comma_separated_list(parser.Delimiter.SQUARE, lambda: parser.parse_integer(allow_boolean=False))
         return [ArrayAttr(IntAttr(i) for i in ints)]
 
     def print_parameters(self, printer: Printer) -> None:
@@ -112,19 +54,11 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     def verify(self) -> None:
         l = len(self)
         if l < 1 or l > 3:
-            raise VerifyException(
-                f"Expected 1 to 3 indexes for stencil.index, got {l}."
-            )
+            raise VerifyException(f"Expected 1 to 3 indexes for stencil.index, got {l}.")
 
     @staticmethod
     def get(*indices: int | IntAttr):
-        return IndexAttr(
-            [
-                ArrayAttr(
-                    [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
-                )
-            ]
-        )
+        return IndexAttr([ArrayAttr([(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices])])
 
     # TODO : come to an agreement on, do we want to allow that kind of things
     # on Attributes? Author's opinion is a clear yes :P
@@ -171,16 +105,10 @@ class StencilBoundsAttr(ParametrizedAttribute):
 
     def _verify(self):
         if len(self.lb) != len(self.ub):
-            raise VerifyException(
-                "Incoherent stencil bounds: lower and upper bounds must have the "
-                "same dimensionality."
-            )
+            raise VerifyException("Incoherent stencil bounds: lower and upper bounds must have the " "same dimensionality.")
         for d in self.ub - self.lb:
             if d <= 0:
-                raise VerifyException(
-                    "Incoherent stencil bounds: upper bound must be strictly "
-                    "greater than lower bound."
-                )
+                raise VerifyException("Incoherent stencil bounds: upper bound must be strictly " "greater than lower bound.")
 
     def __init__(self, bounds: Iterable[tuple[int | IntAttr, int | IntAttr]]):
         if bounds:
@@ -333,12 +261,7 @@ class StencilType(
 
     def __init__(
         self,
-        bounds: (
-            Iterable[tuple[int | IntAttr, int | IntAttr]]
-            | int
-            | IntAttr
-            | StencilBoundsAttr
-        ),
+        bounds: Iterable[tuple[int | IntAttr, int | IntAttr]] | int | IntAttr | StencilBoundsAttr,
         element_type: _FieldTypeElement,
     ) -> None:
         """
@@ -364,10 +287,7 @@ class StencilType(
         *,
         bounds: GenericAttrConstraint[Attribute] | None = None,
         element_type: GenericAttrConstraint[_FieldTypeElement] | None = None,
-    ) -> (
-        BaseAttr[StencilType[_FieldTypeElement]]
-        | ParamAttrConstraint[StencilType[_FieldTypeElement]]
-    ):
+    ) -> BaseAttr[StencilType[_FieldTypeElement]] | ParamAttrConstraint[StencilType[_FieldTypeElement]]:
         if bounds is None and element_type is None:
             return BaseAttr(cls)
         return ParamAttrConstraint(cls, (bounds, element_type))
@@ -424,11 +344,7 @@ class ResultType(ParametrizedAttribute, TypeAttribute):
 class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.stencil import (
-            ApplyRedundantOperands,
-            ApplyUnusedOperands,
-            ApplyUnusedResults,
-        )
+        from xdsl.transforms.canonicalization_patterns.stencil import ApplyRedundantOperands, ApplyUnusedOperands, ApplyUnusedResults
 
         return (
             ApplyRedundantOperands(),
@@ -440,9 +356,7 @@ class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class ApplyOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.shape_inference_patterns.stencil import (
-            ApplyOpShapeInference,
-        )
+        from xdsl.transforms.shape_inference_patterns.stencil import ApplyOpShapeInference
 
         return (ApplyOpShapeInference(),)
 
@@ -542,25 +456,19 @@ class ApplyOp(IRDLOperation):
             type = parser.parse_attribute()
             return parser.resolve_operand(op, type)
 
-        assign_args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parse_assign_args
-        )
+        assign_args = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parse_assign_args)
         args: tuple[Parser.Argument, ...]
         operands: tuple[SSAValue, ...]
         args, operands = zip(*assign_args) if assign_args else ((), ())
 
         if parser.parse_optional_punctuation("->"):
             parser.parse_punctuation("(")
-            result_types = parser.parse_optional_undelimited_comma_separated_list(
-                parser.parse_optional_attribute, parser.parse_attribute
-            )
+            result_types = parser.parse_optional_undelimited_comma_separated_list(parser.parse_optional_attribute, parser.parse_attribute)
             destinations = []
         else:
             parser.parse_keyword("outs")
             parser.parse_punctuation("(")
-            destinations = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE, parse_operand
-            )
+            destinations = parser.parse_comma_separated_list(parser.Delimiter.NONE, parse_operand)
             result_types = []
         parser.parse_punctuation(")")
         attrs = parser.parse_optional_attr_dict_with_keyword()
@@ -604,34 +512,22 @@ class ApplyOp(IRDLOperation):
     def verify_(self) -> None:
         for operand, argument in zip(self.operands, self.region.block.args):
             if operand.type != argument.type:
-                raise VerifyException(
-                    "Expected argument type to match operand type, got "
-                    f"{argument.type} != {operand.type} at index {argument.index}"
-                )
+                raise VerifyException("Expected argument type to match operand type, got " f"{argument.type} != {operand.type} at index {argument.index}")
         if len(self.res) > 0 and len(self.dest) > 0:
-            raise VerifyException(
-                "Expected stencil.apply to have all value-semantics result or "
-                "buffer-semantic destination operands."
-            )
+            raise VerifyException("Expected stencil.apply to have all value-semantics result or " "buffer-semantic destination operands.")
         if len(self.res) > 0:
             res_type = self.res[0].type
             for other in self.res[1:]:
                 other = other.type
                 if res_type.bounds != other.bounds:
-                    raise VerifyException(
-                        "Expected all output types bounds to be equals."
-                    )
+                    raise VerifyException("Expected all output types bounds to be equals.")
         if len(self.dest) > 0:
             if self.bounds is None:
-                raise VerifyException(
-                    "Expected stencil.apply to have bounds when having destination operands."
-                )
+                raise VerifyException("Expected stencil.apply to have bounds when having destination operands.")
 
         nres = max(len(self.res), len(self.dest))
         if nres < 1:
-            raise VerifyException(
-                f"Expected stencil.apply to have at least 1 result, got {len(self.res)}"
-            )
+            raise VerifyException(f"Expected stencil.apply to have at least 1 result, got {len(self.res)}")
 
     def get_rank(self) -> int:
         if len(self.res) > 0:
@@ -663,10 +559,7 @@ class ApplyOp(IRDLOperation):
                 # grab the offsets as a tuple[int, ...]
                 offsets = tuple(access.offset)
                 # account for offset_mappings:
-                if (
-                    access.offset_mapping is not None
-                    and len(offsets) == self.get_rank()
-                ):
+                if access.offset_mapping is not None and len(offsets) == self.get_rank():
                     offsets = tuple(offsets[i] for i in access.offset_mapping)
                 accesses.append(offsets)
             yield AccessPattern(tuple(accesses))
@@ -700,9 +593,7 @@ class AllocOp(IRDLOperation):
 class CastOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.stencil import (
-            RemoveCastWithNoEffect,
-        )
+        from xdsl.transforms.canonicalization_patterns.stencil import RemoveCastWithNoEffect
 
         return (RemoveCastWithNoEffect(),)
 
@@ -735,9 +626,7 @@ class CastOp(IRDLOperation):
         )
     )
 
-    assembly_format = (
-        "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
-    )
+    assembly_format = "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
 
     traits = traits_def(NoMemoryEffect(), CastOpHasCanonicalizationPatternsTrait())
 
@@ -767,21 +656,14 @@ class CastOp(IRDLOperation):
         if self.field.type.get_num_dims() != self.result.type.get_num_dims():
             raise VerifyException("Input and output types must have the same rank")
 
-        if (
-            isinstance(self.field.type.bounds, StencilBoundsAttr)
-            and self.field.type.bounds != self.result.type.bounds
-        ):
-            raise VerifyException(
-                "If input shape is not dynamic, it must be the same as output"
-            )
+        if isinstance(self.field.type.bounds, StencilBoundsAttr) and self.field.type.bounds != self.result.type.bounds:
+            raise VerifyException("If input shape is not dynamic, it must be the same as output")
 
 
 class CombineOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.shape_inference_patterns.stencil import (
-            CombineOpShapeInference,
-        )
+        from xdsl.transforms.shape_inference_patterns.stencil import CombineOpShapeInference
 
         return (CombineOpShapeInference(),)
 
@@ -840,9 +722,7 @@ class CombineOp(IRDLOperation):
 class DynAccessOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls):
-        from xdsl.transforms.shape_inference_patterns.stencil import (
-            DynAccessOpShapeInference,
-        )
+        from xdsl.transforms.shape_inference_patterns.stencil import DynAccessOpShapeInference
 
         return (DynAccessOpShapeInference(),)
 
@@ -881,9 +761,7 @@ class DynAccessOp(IRDLOperation):
         )
     )
 
-    assembly_format = (
-        "$temp `[` $offset `]` `in` $lb `:` $ub attr-dict-with-keyword `:` type($temp)"
-    )
+    assembly_format = "$temp `[` $offset `]` `in` $lb `:` $ub attr-dict-with-keyword `:` type($temp)"
 
     traits = traits_def(
         HasAncestor(ApplyOp),
@@ -920,9 +798,7 @@ class ExternalLoadOp(IRDLOperation):
     field = operand_def(Attribute)
     result = result_def(base(FieldType[Attribute]) | MemRefType.constr())
 
-    assembly_format = (
-        "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
-    )
+    assembly_format = "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
 
     @staticmethod
     def get(
@@ -945,9 +821,7 @@ class ExternalStoreOp(IRDLOperation):
     temp = operand_def(FieldType)
     field = operand_def(Attribute)
 
-    assembly_format = (
-        "$temp `to` $field attr-dict-with-keyword `:` type($temp) `to` type($field)"
-    )
+    assembly_format = "$temp `to` $field attr-dict-with-keyword `:` type($temp) `to` type($field)"
 
 
 @irdl_op_definition
@@ -978,19 +852,14 @@ class IndexOp(IRDLOperation):
         assert trait is not None
         ancestor = trait.get_ancestor(self)
         if ancestor is None:
-            raise ValueError(
-                "stencil.apply not found, this function should be called on"
-                "verified accesses only."
-            )
+            raise ValueError("stencil.apply not found, this function should be called on" "verified accesses only.")
         return cast(ApplyOp, ancestor)
 
 
 class AccessOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.shape_inference_patterns.stencil import (
-            AccessOpShapeInference,
-        )
+        from xdsl.transforms.shape_inference_patterns.stencil import AccessOpShapeInference
 
         return (AccessOpShapeInference(),)
 
@@ -1027,9 +896,7 @@ class AccessOp(IRDLOperation):
         )
     )
 
-    traits = traits_def(
-        HasAncestor(ApplyOp), Pure(), AccessOpHasShapeInferencePatternsTrait()
-    )
+    traits = traits_def(HasAncestor(ApplyOp), Pure(), AccessOpHasShapeInferencePatternsTrait())
 
     def print(self, printer: Printer):
         printer.print(" ")
@@ -1085,9 +952,7 @@ class AccessOp(IRDLOperation):
             parser.parse_punctuation(",")
             index += 1
 
-        attrs = parser.parse_optional_attr_dict_with_keyword(
-            {"offset", "offset_mapping"}
-        )
+        attrs = parser.parse_optional_attr_dict_with_keyword({"offset", "offset_mapping"})
         attrs = dict(attrs.data) if attrs else {}
         attrs["offset"] = IndexAttr.get(*offset)
         if offset_mapping:
@@ -1095,12 +960,8 @@ class AccessOp(IRDLOperation):
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
         if not isa(res_type, StencilType):
-            parser.raise_error(
-                "Expected return type to be a stencil.temp or stencil.field"
-            )
-        return cls.build(
-            operands=[temp], result_types=[res_type.element_type], attributes=attrs
-        )
+            parser.raise_error("Expected return type to be a stencil.temp or stencil.field")
+        return cls.build(operands=[temp], result_types=[res_type.element_type], attributes=attrs)
 
     @staticmethod
     def get(
@@ -1145,41 +1006,22 @@ class AccessOp(IRDLOperation):
         assert isa(temp_type, StencilType)
         if temp_type.get_num_dims() != apply.get_rank():
             if self.offset_mapping is None:
-                raise VerifyException(
-                    f"Expected stencil.access operand to be of rank {apply.get_rank()} "
-                    f"to match its parent apply, got {temp_type.get_num_dims()} without "
-                    f"explict offset mapping provided"
-                )
+                raise VerifyException(f"Expected stencil.access operand to be of rank {apply.get_rank()} " f"to match its parent apply, got {temp_type.get_num_dims()} without " f"explict offset mapping provided")
 
-        if self.offset_mapping is not None and len(self.offset_mapping) != len(
-            self.offset
-        ):
-            raise VerifyException(
-                f"Expected stencil.access offset mapping be of length {len(self.offset)} "
-                f"to match the provided offsets, but it is {len(self.offset_mapping)} "
-                f"instead"
-            )
+        if self.offset_mapping is not None and len(self.offset_mapping) != len(self.offset):
+            raise VerifyException(f"Expected stencil.access offset mapping be of length {len(self.offset)} " f"to match the provided offsets, but it is {len(self.offset_mapping)} " f"instead")
 
         if self.offset_mapping is not None:
             prev_offset = None
             for prev_offset, offset in pairwise(self.offset_mapping):
                 if prev_offset >= offset:
-                    raise VerifyException(
-                        "Offset mapping in stencil.access must be strictly increasing."
-                        "increasing"
-                    )
+                    raise VerifyException("Offset mapping in stencil.access must be strictly increasing." "increasing")
             for offset in self.offset_mapping:
                 if offset >= apply.get_rank():
-                    raise VerifyException(
-                        f"Offset mappings in stencil.access must be within the rank of the "
-                        f"apply, got {offset} >= {apply.get_rank()}"
-                    )
+                    raise VerifyException(f"Offset mappings in stencil.access must be within the rank of the " f"apply, got {offset} >= {apply.get_rank()}")
 
         if len(self.offset) != temp_type.get_num_dims():
-            raise VerifyException(
-                f"Expected offset's rank to be {temp_type.get_num_dims()} to match the "
-                f"operand's rank, got {len(self.offset)}"
-            )
+            raise VerifyException(f"Expected offset's rank to be {temp_type.get_num_dims()} to match the " f"operand's rank, got {len(self.offset)}")
 
     def get_apply(self):
         """
@@ -1189,19 +1031,14 @@ class AccessOp(IRDLOperation):
         assert trait is not None
         ancestor = trait.get_ancestor(self)
         if ancestor is None:
-            raise ValueError(
-                "stencil.apply not found, this function should be called on"
-                "verified accesses only."
-            )
+            raise ValueError("stencil.apply not found, this function should be called on" "verified accesses only.")
         return cast(ApplyOp, ancestor)
 
 
 class LoadOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.shape_inference_patterns.stencil import (
-            LoadOpShapeInference,
-        )
+        from xdsl.transforms.shape_inference_patterns.stencil import LoadOpShapeInference
 
         return (LoadOpShapeInference(),)
 
@@ -1215,20 +1052,12 @@ class LoadOpMemoryEffect(MemoryEffect):
 class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
     @staticmethod
     def ranks_and_element_types_match(attr: TensorType, other: Attribute) -> bool:
-        return (
-            isa(other, TensorType)
-            and len(attr.get_shape()) == len(other.get_shape())
-            and attr.get_element_type() == other.get_element_type()
-        )
+        return isa(other, TensorType) and len(attr.get_shape()) == len(other.get_shape()) and attr.get_element_type() == other.get_element_type()
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         ctx_attr = constraint_context.get_variable(self.name)
         if ctx_attr is not None:
-            if isa(
-                attr, TensorType[Attribute]
-            ) and TensorIgnoreSizeConstraint.ranks_and_element_types_match(
-                attr, ctx_attr
-            ):
+            if isa(attr, TensorType[Attribute]) and TensorIgnoreSizeConstraint.ranks_and_element_types_match(attr, ctx_attr):
                 return
         super().verify(attr, constraint_context)
 
@@ -1248,8 +1077,7 @@ class LoadOp(IRDLOperation):
         FieldType[Attribute].constr(
             bounds=base(StencilBoundsAttr),
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                VarConstraint("T", AnyAttr()) | TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Expected element types to match.",
             ),
         )
@@ -1257,8 +1085,7 @@ class LoadOp(IRDLOperation):
     res = result_def(
         TempType[Attribute].constr(
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                VarConstraint("T", AnyAttr()) | TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Expected element types to match.",
             )
         )
@@ -1292,21 +1119,15 @@ class LoadOp(IRDLOperation):
         temp = self.res.type
         assert isa(field, FieldType[Attribute])
         assert isa(temp, TempType[Attribute])
-        if isinstance(field.bounds, StencilBoundsAttr) and isinstance(
-            temp.bounds, StencilBoundsAttr
-        ):
+        if isinstance(field.bounds, StencilBoundsAttr) and isinstance(temp.bounds, StencilBoundsAttr):
             if temp.bounds.lb < field.bounds.lb or temp.bounds.ub > field.bounds.ub:
-                raise VerifyException(
-                    "The stencil.load is too big for the loaded field."
-                )
+                raise VerifyException("The stencil.load is too big for the loaded field.")
 
 
 class BufferOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.shape_inference_patterns.stencil import (
-            BufferOpShapeInference,
-        )
+        from xdsl.transforms.shape_inference_patterns.stencil import BufferOpShapeInference
 
         return (BufferOpShapeInference(),)
 
@@ -1362,23 +1183,15 @@ class BufferOp(IRDLOperation):
         if isinstance(self.res.type, FieldType):
             return
         if not isinstance(self.temp.owner, ApplyOp | CombineOp):
-            raise VerifyException(
-                f"Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got "
-                f"{self.temp.owner}"
-            )
+            raise VerifyException(f"Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got " f"{self.temp.owner}")
         if any(not isinstance(use.operation, BufferOp) for use in self.temp.uses):
-            raise VerifyException(
-                "A stencil.buffer's operand temp should only be buffered. You can use "
-                "stencil.buffer's output instead!"
-            )
+            raise VerifyException("A stencil.buffer's operand temp should only be buffered. You can use " "stencil.buffer's output instead!")
 
 
 class StoreOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.shape_inference_patterns.stencil import (
-            StoreOpShapeInference,
-        )
+        from xdsl.transforms.shape_inference_patterns.stencil import StoreOpShapeInference
 
         return (StoreOpShapeInference(),)
 
@@ -1403,20 +1216,16 @@ class StoreOp(IRDLOperation):
     temp = operand_def(
         TempType[Attribute].constr(
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                VarConstraint("T", AnyAttr()) | TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Input and output fields must have the same element types",
             ),
         )
     )
     field = operand_def(
         FieldType[Attribute].constr(
-            bounds=MessageConstraint(
-                StencilBoundsAttr, "Output type's size must be explicit"
-            ),
+            bounds=MessageConstraint(StencilBoundsAttr, "Output type's size must be explicit"),
             element_type=MessageConstraint(
-                VarConstraint("T", AnyAttr())
-                | TensorIgnoreSizeConstraint("T", AnyAttr()),
+                VarConstraint("T", AnyAttr()) | TensorIgnoreSizeConstraint("T", AnyAttr()),
                 "Input and output fields must have the same element types",
             ),
         )
@@ -1512,30 +1321,16 @@ class ReturnOp(IRDLOperation):
         if len(apply.res) > 0:
             res_types = [r.type.element_type for r in apply.res]
         else:
-            res_types = [
-                cast(FieldType[Attribute], o.type).element_type for o in apply.dest
-            ]
+            res_types = [cast(FieldType[Attribute], o.type).element_type for o in apply.dest]
         if len(types) != len(res_types) * unroll_factor:
-            raise VerifyException(
-                f"stencil.return expected {len(res_types) * unroll_factor} operands to match the parent "
-                f"stencil.apply result types, got {len(types)}"
-            )
+            raise VerifyException(f"stencil.return expected {len(res_types) * unroll_factor} operands to match the parent " f"stencil.apply result types, got {len(types)}")
         # stencil.return returns `unroll_factor` values per stencil.apply result
         # This checks types are consistent for each of those.
         for i, res_type in enumerate(res_types):
             for j in range(unroll_factor * i, unroll_factor * (i + 1)):
                 op_type = types[j]
-                if op_type != res_type and not (
-                    isa(op_type, TensorType)
-                    and TensorIgnoreSizeConstraint.ranks_and_element_types_match(
-                        op_type, res_type
-                    )
-                ):
-                    raise VerifyException(
-                        "stencil.return expected operand types to match the parent "
-                        f"stencil.apply result element types. Got {op_type} at index "
-                        f"{j}, expected {res_type}."
-                    )
+                if op_type != res_type and not (isa(op_type, TensorType) and TensorIgnoreSizeConstraint.ranks_and_element_types_match(op_type, res_type)):
+                    raise VerifyException("stencil.return expected operand types to match the parent " f"stencil.apply result element types. Got {op_type} at index " f"{j}, expected {res_type}.")
 
 
 @dataclass(frozen=True)
@@ -1636,10 +1431,7 @@ class AccessPattern:
             halos = self.halos()
         x_axis_halo, y_axis_halo = halos
         # construct a matrix of the required size:
-        points = [
-            [" " for _ in range(y_axis_halo[1] - y_axis_halo[0] + 1)]
-            for __ in range(x_axis_halo[1] - x_axis_halo[0] + 1)
-        ]
+        points = [[" " for _ in range(y_axis_halo[1] - y_axis_halo[0] + 1)] for __ in range(x_axis_halo[1] - x_axis_halo[0] + 1)]
         # set the center point:
         points[-x_axis_halo[0]][-y_axis_halo[0]] = "O"
         # set each access:

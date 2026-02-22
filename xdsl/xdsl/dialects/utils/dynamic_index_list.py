@@ -31,12 +31,7 @@ def verify_dynamic_index_list(
     """
     num_dyn_indices = tuple(static_values).count(dynamic_index)
     if num_dyn_indices != len(dynamic_values):
-        raise VerifyException(
-            "The number of dynamic positions passed as values "
-            f"({len(dynamic_values)}) does not match "
-            "the number of dynamic position markers "
-            f"({num_dyn_indices}){end_message}."
-        )
+        raise VerifyException("The number of dynamic positions passed as values " f"({len(dynamic_values)}) does not match " "the number of dynamic position markers " f"({num_dyn_indices}){end_message}.")
 
 
 def get_dynamic_index_list(
@@ -77,9 +72,7 @@ def split_dynamic_index_list(
     - static: `[1, 2, MARKER, 4, MARKER]`
     - dynamic: [%3, %5]
     """
-    static_values = [
-        value if isinstance(value, int) else dynamic_index for value in values
-    ]
+    static_values = [value if isinstance(value, int) else dynamic_index for value in values]
     dynamic_values = [value for value in values if isinstance(value, SSAValue)]
     return static_values, dynamic_values
 
@@ -160,9 +153,7 @@ def parse_dynamic_index_list_with_types(
     The `dynamic_index` parameter specifies the sentinel value to use to print an ssa
     value instead of a constant.
     """
-    mixed_values = parser.parse_comma_separated_list(
-        delimiter, lambda: parse_dynamic_index_with_type(parser)
-    )
+    mixed_values = parser.parse_comma_separated_list(delimiter, lambda: parse_dynamic_index_with_type(parser))
 
     values: list[SSAValue] = []
     indices: list[int] = []
@@ -189,9 +180,7 @@ def parse_dynamic_index_list_without_types(
     The `dynamic_index` parameter specifies the sentinel value to use to print an ssa
     value instead of a constant.
     """
-    mixed_values = parser.parse_comma_separated_list(
-        delimiter, lambda: parse_dynamic_index_without_type(parser)
-    )
+    mixed_values = parser.parse_comma_separated_list(delimiter, lambda: parse_dynamic_index_without_type(parser))
 
     values: list[UnresolvedOperand] = []
     indices: list[int] = []

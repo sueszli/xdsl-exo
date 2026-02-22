@@ -7,32 +7,9 @@ from typing import Any, cast
 from typing_extensions import Self
 
 from xdsl.dialects import memref
-from xdsl.dialects.builtin import (
-    Annotated,
-    AnySignlessIntegerOrIndexType,
-    ArrayAttr,
-    ContainerType,
-    DenseArrayBase,
-    IndexType,
-    IntegerAttr,
-    IntegerType,
-    TensorType,
-    UnrankedTensorType,
-    i64,
-)
+from xdsl.dialects.builtin import Annotated, AnySignlessIntegerOrIndexType, ArrayAttr, ContainerType, DenseArrayBase, IndexType, IntegerAttr, IntegerType, TensorType, UnrankedTensorType, i64
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    Operand,
-    base,
-    irdl_op_definition,
-    operand_def,
-    prop_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.irdl import AttrSizedOperandSegments, IRDLOperation, Operand, base, irdl_op_definition, operand_def, prop_def, result_def, traits_def, var_operand_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import NoMemoryEffect
@@ -50,9 +27,7 @@ class CastOp(IRDLOperation):
 
     name = "tensor.cast"
 
-    source = operand_def(
-        base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute])
-    )
+    source = operand_def(base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute]))
     dest = result_def(base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute]))
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
@@ -72,9 +47,7 @@ class CastOp(IRDLOperation):
                 raise VerifyException("source and destination rank should be the same")
             for a, b in zip(source_type.get_shape(), dest_type.get_shape()):
                 if a >= 0 and b >= 0 and a != b:
-                    raise VerifyException(
-                        "source and destination constant dimensions should match"
-                    )
+                    raise VerifyException("source and destination constant dimensions should match")
 
 
 @irdl_op_definition
@@ -87,9 +60,7 @@ class DimOp(IRDLOperation):
 
     name = "tensor.dim"
 
-    source = operand_def(
-        base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute])
-    )
+    source = operand_def(base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute]))
     index = operand_def(IndexType)
     result = result_def(IndexType)
 
@@ -101,9 +72,7 @@ class DimOp(IRDLOperation):
         index: SSAValue | Operation,
         attributes: Mapping[str, Attribute] | None = None,
     ):
-        super().__init__(
-            operands=(source, index), result_types=(IndexType(),), attributes=attributes
-        )
+        super().__init__(operands=(source, index), result_types=(IndexType(),), attributes=attributes)
 
     def print(self, printer: Printer):
         printer.print_op_attributes(self.attributes)
@@ -165,14 +134,10 @@ class EmptyOp(IRDLOperation):
         if parser.parse_optional_punctuation(")"):
             dynamic_sizes = ()
         else:
-            unresolved_dynamic_sizes = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
-            )
+            unresolved_dynamic_sizes = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_unresolved_operand)
             unresolved_types = (IndexType(),) * len(unresolved_dynamic_sizes)
             parser.parse_punctuation(")")
-            dynamic_sizes = parser.resolve_operands(
-                unresolved_dynamic_sizes, unresolved_types, pos
-            )
+            dynamic_sizes = parser.resolve_operands(unresolved_dynamic_sizes, unresolved_types, pos)
         parser.parse_punctuation(":")
         result_type = parser.parse_attribute()
 
@@ -181,9 +146,7 @@ class EmptyOp(IRDLOperation):
         return empty
 
 
-ReassociationAttr = ArrayAttr[
-    ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]
-]
+ReassociationAttr = ArrayAttr[ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]]
 
 
 @irdl_op_definition
@@ -193,9 +156,7 @@ class CollapseShapeOp(IRDLOperation):
     src = operand_def(TensorType[Attribute])
     result = result_def(TensorType[Attribute])
     reassociation = prop_def(ReassociationAttr)
-    assembly_format = (
-        "$src $reassociation attr-dict `:` type($src) `into` type($result)"
-    )
+    assembly_format = "$src $reassociation attr-dict `:` type($src) `into` type($result)"
 
     traits = traits_def(NoMemoryEffect())
 
@@ -257,21 +218,15 @@ class ReshapeOp(IRDLOperation):
         return reshape
 
     def verify_(self) -> None:
-        if not isinstance(
-            source_type := self.source.type, TensorType
-        ) or not isinstance(shape_type := self.shape.type, TensorType):
-            raise ValueError(
-                "tensor elementwise operation operands and result must be of type TensorType"
-            )
+        if not isinstance(source_type := self.source.type, TensorType) or not isinstance(shape_type := self.shape.type, TensorType):
+            raise ValueError("tensor elementwise operation operands and result must be of type TensorType")
 
         source_type = cast(TensorType[Attribute], source_type)
         shape_type = cast(TensorType[Attribute], shape_type)
         res_type = self.result.type
 
         if source_type.element_type != res_type.element_type:
-            raise VerifyException(
-                "element types of source and result tensor types should be the same"
-            )
+            raise VerifyException("element types of source and result tensor types should be the same")
 
         source_type = source_type.get_shape()
         shape_type = shape_type.get_shape()
@@ -282,15 +237,11 @@ class ReshapeOp(IRDLOperation):
 
         # concerns the case of static reshaping
         if math.prod(source_type) != math.prod(res_type):
-            raise VerifyException(
-                "source and result tensor should have the same number of elements"
-            )
+            raise VerifyException("source and result tensor should have the same number of elements")
 
         shape_size = shape_type[0]
         if shape_size != len(res_type):
-            raise VerifyException(
-                "length of shape operand differs from the result's tensor rank"
-            )
+            raise VerifyException("length of shape operand differs from the result's tensor rank")
 
 
 @irdl_op_definition
@@ -378,13 +329,9 @@ class InsertSliceOp(IRDLOperation):
         sizes = [] if sizes is None else sizes
         strides = [] if strides is None else strides
         if not static_offsets:
-            static_offsets = [memref.SubviewOp.DYNAMIC_INDEX] * len(offsets) + (
-                [0] * (dims - len(offsets))
-            )
+            static_offsets = [memref.SubviewOp.DYNAMIC_INDEX] * len(offsets) + ([0] * (dims - len(offsets)))
         if not static_strides:
-            static_strides = [memref.SubviewOp.DYNAMIC_INDEX] * len(strides) + (
-                [1] * (dims - len(strides))
-            )
+            static_strides = [memref.SubviewOp.DYNAMIC_INDEX] * len(strides) + ([1] * (dims - len(strides)))
         return InsertSliceOp.build(
             operands=[
                 source,
@@ -466,9 +413,7 @@ class ExtractOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         tensor = parser.parse_operand()
-        indices = parser.parse_comma_separated_list(
-            delimiter=parser.Delimiter.SQUARE, parse=parser.parse_operand
-        )
+        indices = parser.parse_comma_separated_list(delimiter=parser.Delimiter.SQUARE, parse=parser.parse_operand)
         parser.parse_punctuation(":")
         source_tensor_type = parser.parse_type()
         tensor_type = cast(TensorType[Attribute], source_tensor_type)
@@ -511,9 +456,7 @@ class InsertOp(IRDLOperation):
         scalar = parser.parse_operand()
         parser.parse_characters("into")
         dest = parser.parse_operand()
-        indices = parser.parse_comma_separated_list(
-            delimiter=parser.Delimiter.SQUARE, parse=parser.parse_operand
-        )
+        indices = parser.parse_comma_separated_list(delimiter=parser.Delimiter.SQUARE, parse=parser.parse_operand)
         parser.parse_punctuation(":")
         parser.parse_type()
         return cls(scalar, dest, indices)

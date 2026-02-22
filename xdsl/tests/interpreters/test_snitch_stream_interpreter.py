@@ -21,13 +21,8 @@ from xdsl.utils.test_value import create_ssa_value
         ((4, 3, 2), (6, 2, 1), tuple(range(24))),
     ],
 )
-def test_stride_pattern_offsets(
-    ub: tuple[int, ...], strides: tuple[int, ...], offsets: tuple[int, ...]
-):
-    assert (
-        snitch_stream.StridePattern.from_bounds_and_strides(ub, strides).offsets()
-        == offsets
-    )
+def test_stride_pattern_offsets(ub: tuple[int, ...], strides: tuple[int, ...], offsets: tuple[int, ...]):
+    assert snitch_stream.StridePattern.from_bounds_and_strides(ub, strides).offsets() == offsets
 
 
 @pytest.mark.parametrize(
@@ -51,9 +46,7 @@ def test_simplify_stride_pattern(
     inputs: tuple[tuple[int, ...], tuple[int, ...]],
     outputs: tuple[tuple[int, ...], tuple[int, ...]],
 ):
-    assert snitch_stream.StridePattern.from_bounds_and_strides(
-        *inputs
-    ).simplified() == snitch_stream.StridePattern.from_bounds_and_strides(*outputs)
+    assert snitch_stream.StridePattern.from_bounds_and_strides(*inputs).simplified() == snitch_stream.StridePattern.from_bounds_and_strides(*outputs)
 
 
 def test_snitch_stream_interpreter():
@@ -96,13 +89,7 @@ def test_snitch_stream_interpreter():
             snitch_stream.StreamingRegionOp(
                 (create_ssa_value(register), create_ssa_value(register)),
                 (create_ssa_value(register),),
-                ArrayAttr(
-                    (
-                        snitch_stream.StridePattern.from_bounds_and_strides(
-                            [2, 3], [24, 8]
-                        ),
-                    )
-                ),
+                ArrayAttr((snitch_stream.StridePattern.from_bounds_and_strides([2, 3], [24, 8]),)),
                 streaming_region_body,
             ),
             (a.raw, b.raw, c.raw),

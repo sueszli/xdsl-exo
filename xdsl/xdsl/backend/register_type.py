@@ -5,16 +5,8 @@ from collections.abc import Sequence
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import (
-    IntAttr,
-    NoneAttr,
-    StringAttr,
-)
-from xdsl.ir import (
-    Attribute,
-    ParametrizedAttribute,
-    TypeAttribute,
-)
+from xdsl.dialects.builtin import IntAttr, NoneAttr, StringAttr
+from xdsl.ir import Attribute, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import ParameterDef
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
@@ -40,9 +32,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         return cls(NoneAttr(), StringAttr(""))
 
     @classmethod
-    def _parameters_from_name(
-        cls, register_name: StringAttr
-    ) -> tuple[IntAttr | NoneAttr, StringAttr]:
+    def _parameters_from_name(cls, register_name: StringAttr) -> tuple[IntAttr | NoneAttr, StringAttr]:
         """
         Returns the parameter list required to construct a register instance from the given register_name.
         """
@@ -110,27 +100,19 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
                 return
 
             if expected_index is None:
-                raise VerifyException(
-                    f"Invalid register name {name} for register type {self.name}."
-                )
+                raise VerifyException(f"Invalid register name {name} for register type {self.name}.")
             else:
-                raise VerifyException(
-                    f"Missing index for register {name}, expected {expected_index}."
-                )
+                raise VerifyException(f"Missing index for register {name}, expected {expected_index}.")
 
         if not name:
-            raise VerifyException(
-                f"Invalid index {self.index.data} for unallocated register."
-            )
+            raise VerifyException(f"Invalid index {self.index.data} for unallocated register.")
 
         if expected_index is not None:
             # Normal registers
             if expected_index == self.index.data:
                 return
 
-            raise VerifyException(
-                f"Invalid index {self.index.data} for register {name}, expected {expected_index}."
-            )
+            raise VerifyException(f"Invalid index {self.index.data} for register {name}, expected {expected_index}.")
 
         infinite_register_name = self.infinite_register_prefix() + str(~self.index.data)
         if name == infinite_register_name:
@@ -176,9 +158,7 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         """
         assert index >= 0, f"Infinite index must be positive, got {index}."
         register_name = cls.infinite_register_prefix() + str(index)
-        assert register_name not in cls.index_by_name(), (
-            f"Invalid 'infinite' register name: {register_name} clashes with finite register set"
-        )
+        assert register_name not in cls.index_by_name(), f"Invalid 'infinite' register name: {register_name} clashes with finite register set"
         index_attr = IntAttr(~index)
         res = cls(index_attr, StringAttr(register_name))
         return res

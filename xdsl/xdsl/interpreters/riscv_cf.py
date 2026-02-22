@@ -2,14 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from xdsl.dialects import riscv_cf
-from xdsl.interpreter import (
-    Interpreter,
-    InterpreterFunctions,
-    PythonValues,
-    Successor,
-    impl_terminator,
-    register_impls,
-)
+from xdsl.interpreter import Interpreter, InterpreterFunctions, PythonValues, Successor, impl_terminator, register_impls
 
 
 @dataclass

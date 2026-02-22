@@ -8,17 +8,8 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
 
-    from xdsl.irdl import (
-        irdl_op_definition,
-        irdl_attr_definition,
-        ParametrizedAttribute,
-        IRDLOperation,
-        attr_def,
-        result_def,
-        operand_def,
-        region_def,
-        traits_def,
-    )
+    from xdsl.irdl import IRDLOperation, ParametrizedAttribute, attr_def, irdl_attr_definition, irdl_op_definition, operand_def, region_def, result_def, traits_def
+
     return (
         IRDLOperation,
         ParametrizedAttribute,
@@ -35,8 +26,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         # The Multi-Level Approach to Compilation
 
         Most programming languages are rather far removed from assembly code. As a result, translating a language directly into Assembly is both difficult (easy to make mistakes) and inefficient (generated Assembly code is slow!). Therefore, most compilers go through many intermediate representations / languages (IRs), which represent different layers of abstractions, to provide an efficient translation down to Assembly code - which is also feasible for compiler engineers to write.
@@ -54,27 +44,23 @@ def _(mo):
         3. Encode domain-specific knowledge (i.e. optimisations) within these abstraction layers
 
         xDSL takes inspiration from MLIR, which is a framework based upon similar ideas, and is implemented in C++.
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         # General Concepts
 
         The kind of IRs that xDSL builds are SSA-based - a restriction placed on IRs which makes it easy for analyzing the code.
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ### Static Single Assignment (SSA)
         The kind of programming languages xDSL defines have the $\textit{static single assignment}$ (SSA) property. It is a property on variables that means they can be assigned a value only once, and once assigned a value, they cannot be modified. This is a common restriction used within compilers, as it enables many compiler optimisations to be performed.
 
@@ -83,8 +69,7 @@ def _(mo):
         <!-- give an example of SSA code snippet -->
 
         Further reading: https://en.wikipedia.org/wiki/Static_single-assignment_form
-        """
-    )
+        """)
     return
 
 
@@ -96,8 +81,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## What is an IR, anyway?
 
         xDSL is a framework for modelling/specifying IRs. Before we go into the details of xDSL, it is perhaps useful to take a step back and consider what exactly an IR is!
@@ -107,15 +91,13 @@ def _(mo):
         Languages are often designed for particular tasks and domains, which allows certain optimisations or types of reasoning to take place more easily within the language. A compiler might want to optimise the code in many different ways, and therefore can utilise multiple languages (represented as IR within the compiler) during its translation into machine code.
 
         Wikipedia has a nice article as a starting point for further reading: https://en.wikipedia.org/wiki/Intermediate_representation
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## Programming Language Syntax
         All programming languages will have a set of "language constructs", or, the _vocabulary_ available within the programming language.
 
@@ -133,15 +115,13 @@ def _(mo):
             - `for, if, while, assert, def, class, import`
             - Since Python is object-oriented, values in Python language are objects.
             - A valid expression in Python would follow the [Python grammar](https://docs.python.org/3/reference/grammar.html), a rather large document specifying all syntax rules of Python.
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## Programming Language Semantics
         In English, a sentence being grammatically correct is not enough for it to have _meaning_. The meaning of sentences is embedded in the intuition of English speakers, and speakers need to generally agree on the meaning (semantics) of sentences in order to communicate.
 
@@ -152,30 +132,26 @@ def _(mo):
         For programming languages, the semantics could be assigned to a mathematical function, unambiguously defining the meaning for all sentences in the programming languages.
 
         However, in industrial programming languages, semantics is often an intuitive notion that is embedded in the minds of language users and within the compiler's transformations (which is preserved).
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## Programming Language
 
         With the above two definitions, a programming language's definition simply consists of two parts:
 
         1. the syntax
         2. the semantics
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## xDSL: A Tool for Designing and Implementing Languages for Compilers
 
         Following from the previous definition of a programming language, the corresponding parts of a compiler IR consists of:
@@ -191,15 +167,13 @@ def _(mo):
         To be able to specify the syntax and the transformations of any IR, it needs to be general enough to fit the wide range of potential designs and uses of language constructs.
 
         Below, we will introduce the concepts used within xDSL.
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ### Operations: Modelling General Language Constructs
 
         Operations are units used within xDSL to model a "language construct", i.e. a vocabulary available within the language.
@@ -219,15 +193,13 @@ def _(mo):
         The above definition of an operation may seem rather terse - this is because an operation is designed to be general enough to describe all kinds of constructs within a programming language.
 
         And so we will provide examples of operations below for more intuition. Moreover, please refer to the individual definitions for more information.
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ### Regions
 
         A _region_ represents a sequence of instructions with potentially non-linear control flow.
@@ -237,15 +209,13 @@ def _(mo):
         In xDSL, a _region_ consists of:
 
         1. A list of _blocks_
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ### Blocks
 
         As commonly seen in compiler theory, a block represents a sequence of instructions that must execute from top-to-bottom, one after the other.
@@ -261,15 +231,13 @@ def _(mo):
         1. A list of _block arguments_
         2. A list of _operations_
         3. A (possibly empty) list of _successor_ _blocks_
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ### Block Arguments
 
         Instead of using [$\phi$ nodes](https://www.cs.princeton.edu/~appel/papers/ssafun.pdf), xDSL uses _block arguments_ to decide the value to use for computation when input values could come from several different branches.
@@ -280,15 +248,13 @@ def _(mo):
 
         1. An index, denoting the argument's position within the block
         2. A type, i.e. the type of the argument
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ### Operands
 
         Operands are the arguments to an operation. This allows the operation to use previously calculated values, which is essential for imperative programs.
@@ -301,15 +267,13 @@ def _(mo):
         In xDSL, operands are defined as:
 
         1. An SSA value: that is, the previously defined SSA value used in this operand
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ### Attributes
 
         Attributes are data, in a predetermined format, which are associated with operations. The format of attributes for a particular language come from the language specification.
@@ -323,15 +287,13 @@ def _(mo):
         - operations whose semantics is dependent on attributes: such as
             - [convolution operations](https://mlir.llvm.org/docs/Dialects/TOSA/#tosaconv2d-mlirtosaconv2dop) (semantics depends on its stride and padding attributes),
             - [comparison operations](https://mlir.llvm.org/docs/Dialects/ArithOps/#arithcmpi-mlirarithcmpiop) (semantics depends on its "predicate" attribute, which specifies exactly what comparison to make, i.e. signed less than, unsigned greater than or equals, and so on)
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ### Dialects
 
         Languages in xDSL are known as `dialects` - which is a grouping of related operations and attributes. For instance,
@@ -347,8 +309,7 @@ def _(mo):
             - Attributes such as: coroutine reference types, future types
 
         Dialects can be _combined_, such that the combined dialect have the operations and attributes from all constituent dialects.
-        """
-    )
+        """)
     return
 
 
@@ -356,23 +317,22 @@ def _(mo):
 def _(mo):
     _snippet = '''\
     class RewritePattern(ABC):
-        \"""
+        """
         A side-effect free rewrite pattern matching on a DAG.
-        \"""
+        """
 
         @abstractmethod
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-            \"""
+            """
             Match an operation, and optionally perform a rewrite using the rewriter.
-            \"""
+            """
             # here, determine if the operation matches our pattern
             # and define a transformation to be applied on the IR making use of the
             # `rewrite` as an API for changing the IR.
             ...
     '''
 
-    mo.md(
-        fr"""
+    mo.md(rf"""
         ### Rewrite Patterns
 
         Rewrite pattern is a tool to transform IRs defined using xDSL.
@@ -387,8 +347,7 @@ def _(mo):
         A function signature is worth a thousand words... :)
 
         {mo.ui.code_editor(_snippet, disabled=True)}
-        """
-    )
+        """)
     return
 
 
@@ -400,8 +359,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## 1. An SQL Dialect
 
         As a first example, we'll describe an SSA IR for describing SQL queries, with ability to query and filter on tables. This will be a simple IR which covers two things:
@@ -429,15 +387,13 @@ def _(mo):
         %filtered = filter(%table, (lambda t: t.a > 10))
         ```
         where the constants `5+5` have been folded.
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ### xDSL Modelling
 
         Now let's consider how we would model the IR with xDSL.
@@ -445,8 +401,7 @@ def _(mo):
         The two features of the IR, `select` and `filter`, can be modelled as _operations_: they take in _operands_, and return an SSA value - fitting operations very well.
 
         Let's start the modelling in xDSL with what we've decided so far:
-        """
-    )
+        """)
     return
 
 
@@ -463,18 +418,15 @@ def _(mo):
         ...
     """
 
-    mo.md(
-        rf"""
+    mo.md(rf"""
     {mo.ui.code_editor(example_code_text1, language="python", disabled=True)}
-    """
-    )
+    """)
     return (example_code_text1,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         In xDSL, the dialect definitions are made easy through a framework called IRDL - which reduces much of the boilerplate when defining operations.
 
         The operation tooling is implemented as Python decorators, as seen in the `@irdl_op_definition` annotation.
@@ -482,8 +434,7 @@ def _(mo):
         As mentioned above, the dialect introduces a new type, called `Bag`, which represents the return value from queries.
 
         In xDSL, types can be implemented as _attributes_ like so:
-        """
-    )
+        """)
     return
 
 
@@ -492,18 +443,17 @@ def _(ParametrizedAttribute, irdl_attr_definition):
     @irdl_attr_definition
     class Bag(ParametrizedAttribute):
         name = "sql.bag"
+
     return (Bag,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         Once again, here we make use of IRDL to help us define attributes, as seen in the `@irdl_attr_definition` annotation.
 
         With our types, defined, we can now specify the _operands_ for our operations:
-        """
-    )
+        """)
     return
 
 
@@ -511,19 +461,18 @@ def _(mo):
 def _(Bag, IRDLOperation, attr_def, irdl_op_definition, result_def):
     from xdsl.dialects.builtin import StringAttr  # (1)
 
-
     @irdl_op_definition
     class SelectOp(IRDLOperation):
         name = "sql.select"
         table_name = attr_def(StringAttr)  # (1)
         result_bag = result_def(Bag)  # (3)
+
     return SelectOp, StringAttr
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         Here comments `#` denotes the new lines we added to the _operation_ definitions.
 
         Let's go through each of these additions:
@@ -535,15 +484,13 @@ def _(mo):
             - We are additionally saying that the SSA value needs to be of type `Bag`, which enables type-check capabilities automatically for our IRs, a feature provided by xDSL.
         3. We specify the result of our operations - both of our operations should return another SSA value.
             - We are also putting type constraints on our return types, this allows xDSL to type-check our IRs.
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         We're not quite done yet though. Or `sql.filter` operation doesn't yet model the function used for the filter:
 
         ```
@@ -553,8 +500,7 @@ def _(mo):
         The filter can be modelled as a _region_, which, recalling from earlier, is a list of `blocks`. Since a region corresponds to a control-flow graph, it is suitable for representing functions such as the one above.
 
         So, our `sql.filter` operation now looks like this:
-        """
-    )
+        """)
     return
 
 
@@ -570,7 +516,6 @@ def _(
 ):
     from xdsl.traits import NoTerminator
 
-
     @irdl_op_definition
     class FilterOp(IRDLOperation):
         name = "sql.filter"
@@ -578,6 +523,7 @@ def _(
         filter = region_def()
         result_bag = result_def(Bag)
         traits = traits_def(NoTerminator())
+
     return FilterOp, NoTerminator
 
 
@@ -589,8 +535,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         Now let's see how the original SSA code:
 
         ```
@@ -599,27 +544,24 @@ def _(mo):
         ```
 
         would be represented in our IR:
-        """
-    )
+        """)
     return
 
 
 @app.cell
 def _(Bag, FilterOp, SelectOp):
-    from xdsl.printer import Printer  # xDSL tool to visualize our IR
     from xdsl.builder import ImplicitBuilder
-    from xdsl.ir import Block, Region
 
     # getting parts of other dialects defined elsewhere
-    from xdsl.dialects import builtin, arith
+    from xdsl.dialects import arith, builtin
+    from xdsl.ir import Block, Region
+    from xdsl.printer import Printer  # xDSL tool to visualize our IR
 
     printer = Printer()
 
     # initializes a "SelectOp" operation:
     # select("T")
-    table = SelectOp.build(
-        attributes={"table_name": builtin.StringAttr("T")}, result_types=[Bag()]
-    )
+    table = SelectOp.build(attributes={"table_name": builtin.StringAttr("T")}, result_types=[Bag()])
     table.verify()  # performs type checking and structural checking (e.g. based on operation definition). This will throw if types are invalid.
     printer.print_op(table)
 
@@ -638,9 +580,7 @@ def _(Bag, FilterOp, SelectOp):
 
     # initializes a "FilterOp" operation using previous selection result and defined region:
     # filter(%table, (lambda t: t > 5 + 5))
-    filtered = FilterOp.build(
-        result_types=[Bag()], operands=[table], regions=[filter_region]
-    )
+    filtered = FilterOp.build(result_types=[Bag()], operands=[table], regions=[filter_region])
     filtered.verify()
     printer.print_op(filtered)
     return (
@@ -665,8 +605,7 @@ def _(Bag, FilterOp, SelectOp):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         We get something like this printed:
         ```
         %0 : !sql.bag = sql.select() ["table_name" = "T"]
@@ -696,8 +635,7 @@ def _(mo):
         So we now have a representation of the original code as an xDSL IR (which are objects in memory).
 
         This representation allows us to transform and optimize our IR. We'll see a few examples in the section below.
-        """
-    )
+        """)
     return
 
 
@@ -709,34 +647,25 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         By inspecting the IR, we notice that the results of the addition/comparison operations within the `lambda` are already known at compile-time - since their inputs are all known.
 
         So, we can write a transformation to "fold" the constants to cut down the runtime work.
 
         We will implement the constant folding transformation as an xDSL `RewritePattern`, and apply this to our IR using xDSL's _RewriteEngine_.
-        """
-    )
+        """)
     return
 
 
 @app.cell
 def _(arith):
-    from xdsl.pattern_rewriter import (
-        PatternRewriter,
-        RewritePattern,
-        op_type_rewrite_pattern,
-    )
-
+    from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 
     class ConstantFolding(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: arith.AddiOp, rewriter: PatternRewriter):
             # pattern: if both arguments to the Addi operation are from `Constant` operations
-            if isinstance(op.lhs.op, arith.ConstantOp) and isinstance(
-                op.rhs.op, arith.ConstantOp
-            ):
+            if isinstance(op.lhs.op, arith.ConstantOp) and isinstance(op.rhs.op, arith.ConstantOp):
                 # transform: replace the operation by calculating the sum of the constants at compile time
                 return rewriter.replace_matched_op(
                     arith.ConstantOp.from_int_and_width(
@@ -744,6 +673,7 @@ def _(arith):
                         op.lhs.op.value.type.width.data,
                     )
                 )
+
     return (
         ConstantFolding,
         PatternRewriter,
@@ -760,11 +690,7 @@ def _(mo):
 
 @app.cell
 def _(ConstantFolding, filtered, printer):
-    from xdsl.pattern_rewriter import (
-        PatternRewriteWalker,
-        GreedyRewritePatternApplier,
-    )
-
+    from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriteWalker
 
     walker1 = PatternRewriteWalker(
         GreedyRewritePatternApplier([ConstantFolding()]),
@@ -800,7 +726,6 @@ def _(
             if len(op.result.uses) == 0:
                 rewriter.erase_matched_op()
 
-
     walker2 = PatternRewriteWalker(
         GreedyRewritePatternApplier([DeadConstantElim()]),
         walk_regions_first=True,
@@ -814,21 +739,18 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         And now, the transformed filter operation is equivalent to:
         ```
         filter(%table, (lambda t: t.a > 10))
         ```
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ### Summary
 
         So, we have now defined a mini-dialect using many of xDSL's features and concepts introduced earlier, including:
@@ -841,8 +763,7 @@ def _(mo):
             - Not all operations need a region, though. For instance `sql.select` does not have a region.
         - xDSL type-checking: xDSL is able to use the typing information within the dialect definition to validate IRs (through `.verify()` calls)
         - Rewrites: we defined two rewrites to transform the xDSL IR, simplifying and optimising the code (`ConstantFolding` and `DeadConstantElim`)
-        """
-    )
+        """)
     return
 
 

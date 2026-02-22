@@ -22,9 +22,7 @@ def get_all_possible_rewrites(
     for op_idx, matched_op in enumerate(module.walk()):
         pattern_by_name = rewrite_by_name.get(matched_op.name, {}).copy()
 
-        if (
-            trait := matched_op.get_trait(HasCanonicalizationPatternsTrait)
-        ) is not None:
+        if (trait := matched_op.get_trait(HasCanonicalizationPatternsTrait)) is not None:
             for pattern in trait.get_canonicalization_patterns():
                 pattern_by_name[type(pattern).__name__] = pattern
 
@@ -36,9 +34,7 @@ def get_all_possible_rewrites(
                 res.append(
                     AvailablePass(
                         f"{cloned_op}:{cloned_op.name}:{pattern_name}",
-                        individual_rewrite.ApplyIndividualRewritePass(
-                            op_idx, cloned_op.name, pattern_name
-                        ),
+                        individual_rewrite.ApplyIndividualRewritePass(op_idx, cloned_op.name, pattern_name),
                     )
                 )
 

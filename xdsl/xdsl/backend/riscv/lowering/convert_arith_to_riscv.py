@@ -1,31 +1,13 @@
 import struct
 from dataclasses import dataclass
 
-from xdsl.backend.riscv.lowering.utils import (
-    cast_matched_op_results,
-    cast_operands_to_regs,
-)
+from xdsl.backend.riscv.lowering.utils import cast_matched_op_results, cast_operands_to_regs
 from xdsl.context import Context
 from xdsl.dialects import arith, riscv
-from xdsl.dialects.builtin import (
-    Float32Type,
-    Float64Type,
-    FloatAttr,
-    IndexType,
-    IntegerAttr,
-    IntegerType,
-    ModuleOp,
-    UnrealizedConversionCastOp,
-)
+from xdsl.dialects.builtin import Float32Type, Float64Type, FloatAttr, IndexType, IntegerAttr, IntegerType, ModuleOp, UnrealizedConversionCastOp
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 from xdsl.utils.comparisons import signed_lower_bound, signed_upper_bound
 
@@ -35,20 +17,14 @@ _FLOAT_REGISTER_TYPE = riscv.Registers.UNALLOCATED_FLOAT
 
 class LowerArithConstant(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: arith.ConstantOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: arith.ConstantOp, rewriter: PatternRewriter) -> None:
         op_result_type = op.result.type
-        if isinstance(op_result_type, IntegerType) and isinstance(
-            op_val := op.value, IntegerAttr
-        ):
+        if isinstance(op_result_type, IntegerType) and isinstance(op_val := op.value, IntegerAttr):
             if op_result_type.width.data <= 32:
                 rewriter.replace_matched_op(
                     [
                         constant := riscv.LiOp(op_val.value.data),
-                        UnrealizedConversionCastOp.get(
-                            constant.results, (op_result_type,)
-                        ),
+                        UnrealizedConversionCastOp.get(constant.results, (op_result_type,)),
                     ],
                 )
             else:
@@ -71,9 +47,7 @@ class LowerArithConstant(RewritePattern):
                 s32_min = signed_lower_bound(32)
                 s32_max = signed_upper_bound(32)
                 # If the value is an integer that fits in s32, then convert.
-                if (val_data := op_val.value.data).is_integer() and s32_min <= (
-                    int_val := int(val_data)
-                ) < s32_max:
+                if (val_data := op_val.value.data).is_integer() and s32_min <= (int_val := int(val_data)) < s32_max:
                     rewriter.replace_matched_op(
                         [
                             lui := riscv.LiOp(
@@ -81,9 +55,7 @@ class LowerArithConstant(RewritePattern):
                                 rd=_INT_REGISTER_TYPE,
                             ),
                             fcvtdw := riscv.FCvtDWOp(lui.rd, rd=_FLOAT_REGISTER_TYPE),
-                            UnrealizedConversionCastOp.get(
-                                fcvtdw.results, (op_result_type,)
-                            ),
+                            UnrealizedConversionCastOp.get(fcvtdw.results, (op_result_type,)),
                         ],
                     )
                 else:
@@ -94,9 +66,7 @@ class LowerArithConstant(RewritePattern):
 
                     # This lowering assumes that xlen is 32 and flen is 64
 
-                    lower, upper = struct.unpack(
-                        "<ii", struct.pack("<d", op_val.value.data)
-                    )
+                    lower, upper = struct.unpack("<ii", struct.pack("<d", op_val.value.data))
                     rewriter.replace_matched_op(
                         [
                             sp := riscv.GetRegisterOp(riscv.Registers.SP),
@@ -105,16 +75,12 @@ class LowerArithConstant(RewritePattern):
                             li_lower := riscv.LiOp(lower),
                             riscv.SwOp(sp, li_lower, -8),
                             fld := riscv.FLdOp(sp, -8, rd=_FLOAT_REGISTER_TYPE),
-                            UnrealizedConversionCastOp.get(
-                                fld.results, (op_result_type,)
-                            ),
+                            UnrealizedConversionCastOp.get(fld.results, (op_result_type,)),
                         ],
                     )
             else:
                 raise NotImplementedError("Only 32 or 64 bit floats are supported")
-        elif isinstance(op_result_type, IndexType) and isinstance(
-            op_val := op.value, IntegerAttr
-        ):
+        elif isinstance(op_result_type, IndexType) and isinstance(op_val := op.value, IntegerAttr):
             rewriter.replace_matched_op(
                 [
                     constant := riscv.LiOp(op_val.value.data),
@@ -122,32 +88,22 @@ class LowerArithConstant(RewritePattern):
                 ],
             )
         else:
-            raise NotImplementedError(
-                f"Unsupported constant type {op_val} of type {type(op_val)}"
-            )
+            raise NotImplementedError(f"Unsupported constant type {op_val} of type {type(op_val)}")
 
 
 class LowerArithIndexCast(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: arith.IndexCastOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: arith.IndexCastOp, rewriter: PatternRewriter) -> None:
         """
         On a RV32 triple, the index type is 32 bits, so we can just drop the cast.
         """
 
-        rewriter.replace_matched_op(
-            UnrealizedConversionCastOp.get((op.input,), (op.result.type,))
-        )
+        rewriter.replace_matched_op(UnrealizedConversionCastOp.get((op.input,), (op.result.type,)))
 
 
-RdRsRsIntegerOperation = riscv.RdRsRsOperation[
-    riscv.IntRegisterType, riscv.IntRegisterType, riscv.IntRegisterType
-]
+RdRsRsIntegerOperation = riscv.RdRsRsOperation[riscv.IntRegisterType, riscv.IntRegisterType, riscv.IntRegisterType]
 
-RdRsRsFloatOperation = riscv.RdRsRsOperation[
-    riscv.FloatRegisterType, riscv.FloatRegisterType, riscv.FloatRegisterType
-]
+RdRsRsFloatOperation = riscv.RdRsRsOperation[riscv.FloatRegisterType, riscv.FloatRegisterType, riscv.FloatRegisterType]
 
 
 @dataclass
@@ -204,25 +160,19 @@ lower_arith_divsi = LowerBinaryIntegerOp(arith.DivSIOp, riscv.DivOp)
 
 class LowerArithFloorDivSI(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: arith.FloorDivSIOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: arith.FloorDivSIOp, rewriter: PatternRewriter) -> None:
         raise NotImplementedError("FloorDivSI is not supported")
 
 
 class LowerArithCeilDivSI(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: arith.CeilDivSIOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: arith.CeilDivSIOp, rewriter: PatternRewriter) -> None:
         raise NotImplementedError("CeilDivSI is not supported")
 
 
 class LowerArithCeilDivUI(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: arith.CeilDivUIOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: arith.CeilDivUIOp, rewriter: PatternRewriter) -> None:
         raise NotImplementedError("CeilDivUI is not supported")
 
 
@@ -328,9 +278,7 @@ class LowerArithNegf(RewritePattern):
     def match_and_rewrite(self, op: arith.NegfOp, rewriter: PatternRewriter) -> None:
         rewriter.replace_matched_op(
             (
-                operand := UnrealizedConversionCastOp.get(
-                    (op.operand,), (_FLOAT_REGISTER_TYPE,)
-                ),
+                operand := UnrealizedConversionCastOp.get((op.operand,), (_FLOAT_REGISTER_TYPE,)),
                 negf := riscv.FSgnJNSOp(operand, operand),
                 UnrealizedConversionCastOp.get((negf.rd,), (op.result.type,)),
             )
@@ -439,9 +387,7 @@ class LowerArithSIToFPOp(RewritePattern):
 
         rewriter.replace_matched_op(
             (
-                cast_input := UnrealizedConversionCastOp.get(
-                    (op.input,), (_INT_REGISTER_TYPE,)
-                ),
+                cast_input := UnrealizedConversionCastOp.get((op.input,), (_INT_REGISTER_TYPE,)),
                 new_op := cls(cast_input.results[0]),
                 UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,)),
             )
@@ -453,9 +399,7 @@ class LowerArithFPToSIOp(RewritePattern):
     def match_and_rewrite(self, op: arith.FPToSIOp, rewriter: PatternRewriter) -> None:
         rewriter.replace_matched_op(
             (
-                cast_input := UnrealizedConversionCastOp.get(
-                    (op.input,), (_FLOAT_REGISTER_TYPE,)
-                ),
+                cast_input := UnrealizedConversionCastOp.get((op.input,), (_FLOAT_REGISTER_TYPE,)),
                 new_op := riscv.FCvtWSOp(cast_input.results[0]),
                 UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,)),
             )

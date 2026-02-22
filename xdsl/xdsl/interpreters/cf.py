@@ -1,13 +1,7 @@
 from typing import Any
 
 from xdsl.dialects import cf
-from xdsl.interpreter import (
-    Interpreter,
-    InterpreterFunctions,
-    Successor,
-    impl_terminator,
-    register_impls,
-)
+from xdsl.interpreter import Interpreter, InterpreterFunctions, Successor, impl_terminator, register_impls
 
 
 @register_impls

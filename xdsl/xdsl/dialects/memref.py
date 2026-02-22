@@ -6,65 +6,15 @@ from typing import Annotated, ClassVar, cast
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import (
-    I64,
-    AnyFloatConstr,
-    ArrayAttr,
-    BoolAttr,
-    DenseArrayBase,
-    DenseIntOrFPElementsAttr,
-    IndexType,
-    IntAttr,
-    IntegerAttr,
-    IntegerType,
-    MemRefLayoutAttr,
-    MemRefType,
-    NoneAttr,
-    SignlessIntegerConstraint,
-    StridedLayoutAttr,
-    StringAttr,
-    SymbolRefAttr,
-    UnitAttr,
-    UnrankedMemRefType,
-    i32,
-    i64,
-)
-from xdsl.dialects.utils import (
-    parse_dynamic_index_list_without_types,
-    print_dynamic_index_list,
-    split_dynamic_index_list,
-)
+from xdsl.dialects.builtin import I64, AnyFloatConstr, ArrayAttr, BoolAttr, DenseArrayBase, DenseIntOrFPElementsAttr, IndexType, IntAttr, IntegerAttr, IntegerType, MemRefLayoutAttr, MemRefType, NoneAttr, SignlessIntegerConstraint, StridedLayoutAttr, StringAttr, SymbolRefAttr, UnitAttr, UnrankedMemRefType, i32, i64
+from xdsl.dialects.utils import parse_dynamic_index_list_without_types, print_dynamic_index_list, split_dynamic_index_list
 from xdsl.dialects.utils.dynamic_index_list import verify_dynamic_index_list
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
-from xdsl.irdl import (
-    AnyAttr,
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    ParsePropInAttrDict,
-    SameVariadicResultSize,
-    VarConstraint,
-    base,
-    irdl_op_definition,
-    lazy_traits_def,
-    operand_def,
-    opt_prop_def,
-    prop_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.irdl import AnyAttr, AttrSizedOperandSegments, IRDLOperation, ParsePropInAttrDict, SameVariadicResultSize, VarConstraint, base, irdl_op_definition, lazy_traits_def, operand_def, opt_prop_def, prop_def, region_def, result_def, traits_def, var_operand_def, var_result_def
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import (
-    HasCanonicalizationPatternsTrait,
-    HasParent,
-    IsTerminator,
-    NoMemoryEffect,
-    SymbolOpInterface,
-)
+from xdsl.traits import HasCanonicalizationPatternsTrait, HasParent, IsTerminator, NoMemoryEffect, SymbolOpInterface
 from xdsl.utils.bitwise_casts import is_power_of_two
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -100,9 +50,7 @@ class LoadOp(IRDLOperation):
             raise Exception("expected an index for each dimension")
 
     @classmethod
-    def get(
-        cls, ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]
-    ) -> Self:
+    def get(cls, ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]) -> Self:
         ssa_value = SSAValue.get(ref)
         ssa_value_type = ssa_value.type
         ssa_value_type = cast(MemRefType[Attribute], ssa_value_type)
@@ -211,9 +159,7 @@ class AllocOp(IRDLOperation):
 
         dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
         if len(dyn_dims) != len(self.dynamic_sizes):
-            raise VerifyException(
-                "op dimension operand count does not equal memref dynamic dimension count."
-            )
+            raise VerifyException("op dimension operand count does not equal memref dynamic dimension count.")
 
     def print(self, printer: Printer):
         printer.print_string("(")
@@ -237,12 +183,8 @@ class AllocOp(IRDLOperation):
     def parse(cls, parser: Parser) -> Self:
         #  %alloc = memref.alloc(%a)[%s] {alignment = 64 : i64} : memref<3x2xf32>
 
-        unresolved_dynamic_sizes = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_unresolved_operand
-        )
-        unresolved_symbol_operands = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
-        )
+        unresolved_dynamic_sizes = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parser.parse_unresolved_operand)
+        unresolved_symbol_operands = parser.parse_optional_comma_separated_list(parser.Delimiter.SQUARE, parser.parse_unresolved_operand)
         if unresolved_symbol_operands is None:
             unresolved_symbol_operands = []
 
@@ -252,12 +194,8 @@ class AllocOp(IRDLOperation):
         res_type = parser.parse_attribute()
 
         index = IndexType()
-        dynamic_sizes = tuple(
-            parser.resolve_operand(uop, index) for uop in unresolved_dynamic_sizes
-        )
-        symbol_operands = tuple(
-            parser.resolve_operand(uop, index) for uop in unresolved_symbol_operands
-        )
+        dynamic_sizes = tuple(parser.resolve_operand(uop, index) for uop in unresolved_dynamic_sizes)
+        symbol_operands = tuple(parser.resolve_operand(uop, index) for uop in unresolved_symbol_operands)
 
         if "alignment" in attrs:
             alignment = attrs["alignment"]
@@ -297,9 +235,7 @@ class AllocaScopeReturnOp(IRDLOperation):
     def verify_(self) -> None:
         parent = cast(AllocaScopeOp, self.parent_op())
         if self.ops.types != parent.result_types:
-            raise VerifyException(
-                "Expected operand types to match parent's return types."
-            )
+            raise VerifyException("Expected operand types to match parent's return types.")
 
 
 @irdl_op_definition
@@ -347,9 +283,7 @@ class AllocaOp(IRDLOperation):
 
         dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
         if len(dyn_dims) != len(self.dynamic_sizes):
-            raise VerifyException(
-                "op dimension operand count does not equal memref dynamic dimension count."
-            )
+            raise VerifyException("op dimension operand count does not equal memref dynamic dimension count.")
 
 
 @irdl_op_definition
@@ -370,9 +304,7 @@ class AtomicRMWOp(IRDLOperation):
 @irdl_op_definition
 class DeallocOp(IRDLOperation):
     name = "memref.dealloc"
-    memref = operand_def(
-        base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute])
-    )
+    memref = operand_def(base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute]))
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> DeallocOp:
@@ -418,9 +350,7 @@ class GlobalOp(IRDLOperation):
             alignment_value = self.alignment.value.data
             # Alignment has to be a power of two
             if not (is_power_of_two(alignment_value)):
-                raise VerifyException(
-                    f"Alignment attribute {alignment_value} is not a power of 2"
-                )
+                raise VerifyException(f"Alignment attribute {alignment_value} is not a power of 2")
 
     @staticmethod
     def get(
@@ -450,9 +380,7 @@ class GlobalOp(IRDLOperation):
 class DimOp(IRDLOperation):
     name = "memref.dim"
 
-    source = operand_def(
-        base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute])
-    )
+    source = operand_def(base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute]))
     index = operand_def(IndexType)
 
     result = result_def(IndexType)
@@ -460,9 +388,7 @@ class DimOp(IRDLOperation):
     traits = traits_def(NoMemoryEffect())
 
     @staticmethod
-    def from_source_and_index(
-        source: SSAValue | Operation, index: SSAValue | Operation
-    ):
+    def from_source_and_index(source: SSAValue | Operation, index: SSAValue | Operation):
         return DimOp.build(operands=[source, index], result_types=[IndexType()])
 
 
@@ -481,9 +407,7 @@ class RankOp(IRDLOperation):
         return RankOp.build(operands=[memref], result_types=[IndexType()])
 
 
-ReassociationAttr = ArrayAttr[
-    ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]
-]
+ReassociationAttr = ArrayAttr[ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]]
 
 
 class AlterShapeOperation(IRDLOperation, abc.ABC):
@@ -503,9 +427,7 @@ class CollapseShapeOp(AlterShapeOperation):
 
     src = operand_def(MemRefType)
 
-    assembly_format = (
-        "$src $reassociation attr-dict `:` type($src) `into` type($result)"
-    )
+    assembly_format = "$src $reassociation attr-dict `:` type($src) `into` type($result)"
 
 
 @irdl_op_definition
@@ -529,9 +451,7 @@ class ExpandShapeOp(AlterShapeOperation):
         parser.parse_punctuation("[")
         output_shape: list[SSAValue] = []
         static_output_shape: list[int] = []
-        while (
-            x := parser.parse_optional_operand() or parser.parse_optional_integer()
-        ) is not None:
+        while (x := parser.parse_optional_operand() or parser.parse_optional_integer()) is not None:
             if isinstance(x, int):
                 static_output_shape.append(x)
             else:
@@ -548,9 +468,7 @@ class ExpandShapeOp(AlterShapeOperation):
             operands=[src, output_shape],
             properties={
                 "reassociation": reassociation,
-                "static_output_shape": DenseArrayBase.create_dense_int(
-                    IntegerType(64), static_output_shape
-                ),
+                "static_output_shape": DenseArrayBase.create_dense_int(IntegerType(64), static_output_shape),
             },
             attributes=attr_dict,
             result_types=[result_type],
@@ -631,17 +549,13 @@ class ExtractAlignedPointerAsIndexOp(IRDLOperation):
 
     @staticmethod
     def get(source: SSAValue | Operation):
-        return ExtractAlignedPointerAsIndexOp.build(
-            operands=[source], result_types=[IndexType()]
-        )
+        return ExtractAlignedPointerAsIndexOp.build(operands=[source], result_types=[IndexType()])
 
 
 class MemRefHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.memref import (
-            MemRefSubviewOfSubviewFolding,
-        )
+        from xdsl.transforms.canonicalization_patterns.memref import MemRefSubviewOfSubviewFolding
 
         return (MemRefSubviewOfSubviewFolding(),)
 
@@ -667,23 +581,15 @@ class SubviewOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = lazy_traits_def(
-        lambda: (MemRefHasCanonicalizationPatternsTrait(), NoMemoryEffect())
-    )
+    traits = lazy_traits_def(lambda: (MemRefHasCanonicalizationPatternsTrait(), NoMemoryEffect()))
 
     def verify_(self) -> None:
         static_offsets = cast(tuple[int, ...], self.static_offsets.get_values())
         static_sizes = cast(tuple[int, ...], self.static_sizes.get_values())
         static_strides = cast(tuple[int, ...], self.static_strides.get_values())
-        verify_dynamic_index_list(
-            static_sizes, self.sizes, self.DYNAMIC_INDEX, " in the size arguments"
-        )
-        verify_dynamic_index_list(
-            static_offsets, self.offsets, self.DYNAMIC_INDEX, " in the offset arguments"
-        )
-        verify_dynamic_index_list(
-            static_strides, self.strides, self.DYNAMIC_INDEX, " in the stride arguments"
-        )
+        verify_dynamic_index_list(static_sizes, self.sizes, self.DYNAMIC_INDEX, " in the size arguments")
+        verify_dynamic_index_list(static_offsets, self.offsets, self.DYNAMIC_INDEX, " in the offset arguments")
+        verify_dynamic_index_list(static_strides, self.strides, self.DYNAMIC_INDEX, " in the stride arguments")
 
     def __init__(
         self,
@@ -720,15 +626,9 @@ class SubviewOp(IRDLOperation):
         strides: Sequence[SSAValue | int],
         result_type: Attribute,
     ) -> SubviewOp:
-        static_offsets, dyn_offsets = split_dynamic_index_list(
-            offsets, SubviewOp.DYNAMIC_INDEX
-        )
-        static_sizes, dyn_sizes = split_dynamic_index_list(
-            sizes, SubviewOp.DYNAMIC_INDEX
-        )
-        static_strides, dyn_strides = split_dynamic_index_list(
-            strides, SubviewOp.DYNAMIC_INDEX
-        )
+        static_offsets, dyn_offsets = split_dynamic_index_list(offsets, SubviewOp.DYNAMIC_INDEX)
+        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, SubviewOp.DYNAMIC_INDEX)
+        static_strides, dyn_strides = split_dynamic_index_list(strides, SubviewOp.DYNAMIC_INDEX)
 
         return SubviewOp(
             source,
@@ -765,10 +665,7 @@ class SubviewOp(IRDLOperation):
 
         layout_strides = [a * b for (a, b) in zip(strides, source_strides)]
 
-        layout_offset = (
-            sum(stride * offset for stride, offset in zip(source_strides, offsets))
-            + source_offset
-        )
+        layout_offset = sum(stride * offset for stride, offset in zip(source_strides, offsets)) + source_offset
 
         if reduce_rank:
             composed_strides = layout_strides
@@ -838,26 +735,14 @@ class SubviewOp(IRDLOperation):
         index = IndexType()
         unresolved_source = parser.parse_unresolved_operand()
         pos = parser.pos
-        dynamic_offsets, static_offsets = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
+        dynamic_offsets, static_offsets = parse_dynamic_index_list_without_types(parser, dynamic_index=SubviewOp.DYNAMIC_INDEX)
         pos = parser.pos
-        dynamic_offsets = parser.resolve_operands(
-            dynamic_offsets, (index,) * len(dynamic_offsets), pos
-        )
+        dynamic_offsets = parser.resolve_operands(dynamic_offsets, (index,) * len(dynamic_offsets), pos)
         pos = parser.pos
-        dynamic_sizes, static_sizes = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        dynamic_sizes = parser.resolve_operands(
-            dynamic_sizes, (index,) * len(dynamic_sizes), pos
-        )
-        dynamic_strides, static_strides = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        dynamic_strides = parser.resolve_operands(
-            dynamic_strides, (index,) * len(dynamic_strides), pos
-        )
+        dynamic_sizes, static_sizes = parse_dynamic_index_list_without_types(parser, dynamic_index=SubviewOp.DYNAMIC_INDEX)
+        dynamic_sizes = parser.resolve_operands(dynamic_sizes, (index,) * len(dynamic_sizes), pos)
+        dynamic_strides, static_strides = parse_dynamic_index_list_without_types(parser, dynamic_index=SubviewOp.DYNAMIC_INDEX)
+        dynamic_strides = parser.resolve_operands(dynamic_strides, (index,) * len(dynamic_strides), pos)
         attrs = parser.parse_optional_attr_dict_with_keyword()
         parser.parse_punctuation(":")
         operand_type = parser.parse_attribute()
@@ -884,9 +769,7 @@ class SubviewOp(IRDLOperation):
 class CastOp(IRDLOperation):
     name = "memref.cast"
 
-    source = operand_def(
-        base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute])
-    )
+    source = operand_def(base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute]))
     dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute]))
 
     traits = traits_def(NoMemoryEffect())
@@ -903,9 +786,7 @@ class CastOp(IRDLOperation):
 class MemorySpaceCastOp(IRDLOperation):
     name = "memref.memory_space_cast"
 
-    source = operand_def(
-        base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute])
-    )
+    source = operand_def(base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute]))
     dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemRefType[Attribute]))
 
     traits = traits_def(NoMemoryEffect())
@@ -935,13 +816,9 @@ class MemorySpaceCastOp(IRDLOperation):
         source = cast(MemRefType[Attribute], self.source.type)
         dest = cast(MemRefType[Attribute], self.dest.type)
         if source.get_shape() != dest.get_shape():
-            raise VerifyException(
-                "Expected source and destination to have the same shape."
-            )
+            raise VerifyException("Expected source and destination to have the same shape.")
         if source.get_element_type() != dest.get_element_type():
-            raise VerifyException(
-                "Expected source and destination to have the same element type."
-            )
+            raise VerifyException("Expected source and destination to have the same element type.")
 
 
 @irdl_op_definition
@@ -1002,15 +879,9 @@ class ReinterpretCastOp(IRDLOperation):
         """
         Construct a `ReinterpretCastOp` from dynamic offsets, sizes, and strides.
         """
-        static_offsets, dyn_offsets = split_dynamic_index_list(
-            offsets, ReinterpretCastOp.DYNAMIC_INDEX
-        )
-        static_sizes, dyn_sizes = split_dynamic_index_list(
-            sizes, ReinterpretCastOp.DYNAMIC_INDEX
-        )
-        static_strides, dyn_strides = split_dynamic_index_list(
-            strides, ReinterpretCastOp.DYNAMIC_INDEX
-        )
+        static_offsets, dyn_offsets = split_dynamic_index_list(offsets, ReinterpretCastOp.DYNAMIC_INDEX)
+        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, ReinterpretCastOp.DYNAMIC_INDEX)
+        static_strides, dyn_strides = split_dynamic_index_list(strides, ReinterpretCastOp.DYNAMIC_INDEX)
 
         return ReinterpretCastOp(
             source,
@@ -1064,36 +935,24 @@ class ReinterpretCastOp(IRDLOperation):
         parser.parse_keyword("offset")
         parser.parse_punctuation(":")
         pos = parser.pos
-        dynamic_offsets, static_offsets = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
+        dynamic_offsets, static_offsets = parse_dynamic_index_list_without_types(parser, dynamic_index=SubviewOp.DYNAMIC_INDEX)
         pos = parser.pos
-        dynamic_offsets = parser.resolve_operands(
-            dynamic_offsets, (index,) * len(dynamic_offsets), pos
-        )
+        dynamic_offsets = parser.resolve_operands(dynamic_offsets, (index,) * len(dynamic_offsets), pos)
         pos = parser.pos
         parser.parse_punctuation(",")
 
         # sizes
         parser.parse_keyword("sizes")
         parser.parse_punctuation(":")
-        dynamic_sizes, static_sizes = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        dynamic_sizes = parser.resolve_operands(
-            dynamic_sizes, (index,) * len(dynamic_sizes), pos
-        )
+        dynamic_sizes, static_sizes = parse_dynamic_index_list_without_types(parser, dynamic_index=SubviewOp.DYNAMIC_INDEX)
+        dynamic_sizes = parser.resolve_operands(dynamic_sizes, (index,) * len(dynamic_sizes), pos)
         parser.parse_punctuation(",")
 
         # strides
         parser.parse_keyword("strides")
         parser.parse_punctuation(":")
-        dynamic_strides, static_strides = parse_dynamic_index_list_without_types(
-            parser, dynamic_index=SubviewOp.DYNAMIC_INDEX
-        )
-        dynamic_strides = parser.resolve_operands(
-            dynamic_strides, (index,) * len(dynamic_strides), pos
-        )
+        dynamic_strides, static_strides = parse_dynamic_index_list_without_types(parser, dynamic_index=SubviewOp.DYNAMIC_INDEX)
+        dynamic_strides = parser.resolve_operands(dynamic_strides, (index,) * len(dynamic_strides), pos)
         attrs = parser.parse_optional_attr_dict_with_keyword()
         parser.parse_punctuation(":")
         operand_type = parser.parse_attribute()
@@ -1120,23 +979,15 @@ class ReinterpretCastOp(IRDLOperation):
         static_sizes = cast(tuple[int, ...], self.static_sizes.get_values())
         static_strides = cast(tuple[int, ...], self.static_strides.get_values())
 
-        verify_dynamic_index_list(
-            static_sizes, self.sizes, self.DYNAMIC_INDEX, " in the size arguments"
-        )
-        verify_dynamic_index_list(
-            static_offsets, self.offsets, self.DYNAMIC_INDEX, " in the offset arguments"
-        )
-        verify_dynamic_index_list(
-            static_strides, self.strides, self.DYNAMIC_INDEX, " in the stride arguments"
-        )
+        verify_dynamic_index_list(static_sizes, self.sizes, self.DYNAMIC_INDEX, " in the size arguments")
+        verify_dynamic_index_list(static_offsets, self.offsets, self.DYNAMIC_INDEX, " in the offset arguments")
+        verify_dynamic_index_list(static_strides, self.strides, self.DYNAMIC_INDEX, " in the stride arguments")
 
         assert isa(self.source.type, MemRefType[Attribute])
         assert isa(self.result.type, MemRefType[Attribute])
 
         if len(self.result.type.shape) != len(self.static_sizes):
-            raise VerifyException(
-                f"Expected {len(self.source.type.shape)} size values but got {len(self.static_sizes)}"
-            )
+            raise VerifyException(f"Expected {len(self.source.type.shape)} size values but got {len(self.static_sizes)}")
 
         # validate sizes
         for dim, (actual, expected) in enumerate(
@@ -1147,13 +998,9 @@ class ReinterpretCastOp(IRDLOperation):
             )
         ):
             if expected == ReinterpretCastOp.DYNAMIC_INDEX and actual != -1:
-                raise VerifyException(
-                    f"Expected result type with dynamic size instead of {actual} in dim = {dim}"
-                )
+                raise VerifyException(f"Expected result type with dynamic size instead of {actual} in dim = {dim}")
             elif expected != ReinterpretCastOp.DYNAMIC_INDEX and expected != actual:
-                raise VerifyException(
-                    f"Expected result type with size = {expected} instead of {actual} in dim = {dim}"
-                )
+                raise VerifyException(f"Expected result type with size = {expected} instead of {actual} in dim = {dim}")
 
 
 @irdl_op_definition
@@ -1201,19 +1048,13 @@ class DmaStartOp(IRDLOperation):
         assert isa(self.tag.type, MemRefType[IntegerType])
 
         if len(self.src.type.shape) != len(self.src_indices):
-            raise VerifyException(
-                f"Expected {len(self.src.type.shape)} source indices (because of shape of src memref)"
-            )
+            raise VerifyException(f"Expected {len(self.src.type.shape)} source indices (because of shape of src memref)")
 
         if len(self.dest.type.shape) != len(self.dest_indices):
-            raise VerifyException(
-                f"Expected {len(self.dest.type.shape)} dest indices (because of shape of dest memref)"
-            )
+            raise VerifyException(f"Expected {len(self.dest.type.shape)} dest indices (because of shape of dest memref)")
 
         if len(self.tag.type.shape) != len(self.tag_indices):
-            raise VerifyException(
-                f"Expected {len(self.tag.type.shape)} tag indices (because of shape of tag memref)"
-            )
+            raise VerifyException(f"Expected {len(self.tag.type.shape)} tag indices (because of shape of tag memref)")
 
         if self.tag.type.element_type != i32:
             raise VerifyException("Expected tag to be a memref of i32")
@@ -1249,9 +1090,7 @@ class DmaWaitOp(IRDLOperation):
         assert isa(self.tag.type, MemRefType[Attribute])
 
         if len(self.tag.type.shape) != len(self.tag_indices):
-            raise VerifyException(
-                f"Expected {len(self.tag.type.shape)} tag indices because of shape of tag memref"
-            )
+            raise VerifyException(f"Expected {len(self.tag.type.shape)} tag indices because of shape of tag memref")
 
         if self.tag.type.element_type != i32:
             raise VerifyException("Expected tag to be a memref of i32")
@@ -1270,13 +1109,9 @@ class CopyOp(IRDLOperation):
         source = cast(MemRefType[Attribute], self.source.type)
         destination = cast(MemRefType[Attribute], self.destination.type)
         if source.get_shape() != destination.get_shape():
-            raise VerifyException(
-                "Expected source and destination to have the same shape."
-            )
+            raise VerifyException("Expected source and destination to have the same shape.")
         if source.get_element_type() != destination.get_element_type():
-            raise VerifyException(
-                "Expected source and destination to have the same element type."
-            )
+            raise VerifyException("Expected source and destination to have the same element type.")
 
 
 MemRef = Dialect(

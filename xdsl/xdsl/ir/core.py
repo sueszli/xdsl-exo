@@ -2,30 +2,11 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from collections.abc import (
-    Callable,
-    Hashable,
-    Iterable,
-    Iterator,
-    Mapping,
-    Reversible,
-    Sequence,
-)
+from collections.abc import Callable, Hashable, Iterable, Iterator, Mapping, Reversible, Sequence
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    Generic,
-    NoReturn,
-    Protocol,
-    cast,
-    get_args,
-    get_origin,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, NoReturn, Protocol, cast, get_args, get_origin, overload
 
 from typing_extensions import Self, TypeVar
 
@@ -49,12 +30,8 @@ class Dialect:
 
     _name: str
 
-    _operations: list[type[Operation]] = field(
-        default_factory=list[type["Operation"]], init=True, repr=True
-    )
-    _attributes: list[type[Attribute]] = field(
-        default_factory=list[type["Attribute"]], init=True, repr=True
-    )
+    _operations: list[type[Operation]] = field(default_factory=list[type["Operation"]], init=True, repr=True)
+    _attributes: list[type[Attribute]] = field(default_factory=list[type["Attribute"]], init=True, repr=True)
 
     @property
     def operations(self) -> Iterator[type[Operation]]:
@@ -105,7 +82,6 @@ class Attribute(ABC):
         Check that the attribute parameters satisfy the expected invariants.
         Raise a VerifyException otherwise.
         """
-        pass
 
     def __str__(self) -> str:
         from xdsl.printer import Printer
@@ -124,8 +100,6 @@ class BuiltinAttribute(Attribute, ABC):
     Attributes outside of the `builtin` dialect should not inherit from `BuiltinAttribute`.
     """
 
-    pass
-
 
 class TypeAttribute(Attribute):
     """
@@ -133,8 +107,6 @@ class TypeAttribute(Attribute):
     This class is only used for printing attributes in the MLIR format,
     inheriting this class prefix the attribute by `!` instead of `#`.
     """
-
-    pass
 
 
 class OpaqueSyntaxAttribute(Attribute):
@@ -145,8 +117,6 @@ class OpaqueSyntaxAttribute(Attribute):
     See external [documentation](https://mlir.llvm.org/docs/LangRef/#dialect-attribute-values.).
     """
 
-    pass
-
 
 class SpacedOpaqueSyntaxAttribute(OpaqueSyntaxAttribute):
     """
@@ -156,14 +126,10 @@ class SpacedOpaqueSyntaxAttribute(OpaqueSyntaxAttribute):
     See external [documentation](https://mlir.llvm.org/docs/LangRef/#dialect-attribute-values.).
     """
 
-    pass
-
 
 DataElement = TypeVar("DataElement", covariant=True, bound=Hashable)
 
-AttributeCovT = TypeVar(
-    "AttributeCovT", bound=Attribute, covariant=True, default=Attribute
-)
+AttributeCovT = TypeVar("AttributeCovT", bound=Attribute, covariant=True, default=Attribute)
 AttributeInvT = TypeVar("AttributeInvT", bound=Attribute, default=Attribute)
 
 
@@ -225,20 +191,14 @@ def _check_enum_constraints(
     haven't yet met an example use case where it matters, so I'm keeping it simple.
     """
     orig_bases = getattr(enum_class, "__orig_bases__")
-    enumattr = next(
-        b
-        for b in orig_bases
-        if get_origin(b) is EnumAttribute or get_origin(b) is BitEnumAttribute
-    )
+    enumattr = next(b for b in orig_bases if get_origin(b) is EnumAttribute or get_origin(b) is BitEnumAttribute)
     enum_type = get_args(enumattr)[0]
     if isinstance(enum_type, TypeVar):
         raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
 
     for v in enum_type:
         if MLIRLexer.bare_identifier_suffix_regex.fullmatch(v) is None:
-            raise ValueError(
-                "All StrEnum values of an EnumAttribute must be parsable as an identifer."
-            )
+            raise ValueError("All StrEnum values of an EnumAttribute must be parsable as an identifer.")
 
     enum_class.enum_type = enum_type
 
@@ -308,9 +268,7 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
             case self.all_value:
                 flags_ = cast(set[EnumType], set(self.enum_type))
             case other if isinstance(other, str):
-                raise TypeError(
-                    f"expected string parameter to be one of {self.none_value} or {self.all_value}, got {other}"
-                )
+                raise TypeError(f"expected string parameter to be one of {self.none_value} or {self.all_value}, got {other}")
             case other:
                 assert not isinstance(other, str)
                 flags_ = set(other)
@@ -327,15 +285,9 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> tuple[EnumType, ...]:
         def parse_optional_element() -> set[EnumType] | None:
-            if (
-                cls.none_value is not None
-                and parser.parse_optional_keyword(cls.none_value) is not None
-            ):
+            if cls.none_value is not None and parser.parse_optional_keyword(cls.none_value) is not None:
                 return set()
-            if (
-                cls.all_value is not None
-                and parser.parse_optional_keyword(cls.all_value) is not None
-            ):
+            if cls.all_value is not None and parser.parse_optional_keyword(cls.all_value) is not None:
                 return set(cast(Iterable[EnumType], cls.enum_type))
             value = parser.parse_optional_str_enum(cls.enum_type)
             if value is None:
@@ -344,25 +296,15 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
             return {cast(type[EnumType], cls.enum_type)(value)}
 
         def parse_element() -> set[EnumType]:
-            if (
-                cls.none_value is not None
-                and parser.parse_optional_keyword(cls.none_value) is not None
-            ):
+            if cls.none_value is not None and parser.parse_optional_keyword(cls.none_value) is not None:
                 return set()
-            if (
-                cls.all_value is not None
-                and parser.parse_optional_keyword(cls.all_value) is not None
-            ):
+            if cls.all_value is not None and parser.parse_optional_keyword(cls.all_value) is not None:
                 return set(cast(Iterable[EnumType], cls.enum_type))
             value = parser.parse_str_enum(cls.enum_type)
             return {cast(type[EnumType], cls.enum_type)(value)}
 
         with parser.in_angle_brackets():
-            flags: list[set[EnumType]] | None = (
-                parser.parse_optional_undelimited_comma_separated_list(
-                    parse_optional_element, parse_element
-                )
-            )
+            flags: list[set[EnumType]] | None = parser.parse_optional_undelimited_comma_separated_list(parse_optional_element, parse_element)
             if flags is None:
                 return tuple()
 
@@ -382,9 +324,7 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
                 printer.print(self.all_value)
             else:
                 # make sure we emit flags in a consistent order
-                printer.print(
-                    ",".join(flag.value for flag in self.enum_type if flag in flags)
-                )
+                printer.print(",".join(flag.value for flag in self.enum_type if flag in flags))
 
 
 @dataclass(frozen=True, init=False)
@@ -515,7 +455,6 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         An SSA variable is either an operation result, or a basic block argument.
         This property returns the Operation or Block that currently defines a specific value.
         """
-        pass
 
     @property
     def name_hint(self) -> str | None:
@@ -550,9 +489,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
             case Operation():
                 if len(arg.results) == 1:
                     return arg.results[0]
-                raise ValueError(
-                    "SSAValue.build: expected operation with a single result."
-                )
+                raise ValueError("SSAValue.build: expected operation with a single result.")
 
     def replace_by(self, value: SSAValue) -> None:
         """Replace the value by another value in all its uses."""
@@ -582,10 +519,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         If safe_erase is False, then replace its uses by an ErasedSSAValue.
         """
         if safe_erase and len(self.uses) != 0:
-            raise Exception(
-                "Attempting to delete SSA value that still has uses of result "
-                f"of operation:\n{self.owner}"
-            )
+            raise Exception("Attempting to delete SSA value that still has uses of result " f"of operation:\n{self.owner}")
         self.replace_by(ErasedSSAValue(self.type, self))
 
     def __hash__(self):
@@ -719,10 +653,7 @@ class OpOperands(Sequence[SSAValue]):
     def __eq__(self, other: object):
         if not isinstance(other, OpOperands):
             return False
-        return (
-            self._op._operands  # pyright: ignore[reportPrivateUsage]
-            == other._op._operands  # pyright: ignore[reportPrivateUsage]
-        )
+        return self._op._operands == other._op._operands  # pyright: ignore[reportPrivateUsage]  # pyright: ignore[reportPrivateUsage]
 
     def __hash__(self):
         return hash(self._op._operands)  # pyright: ignore[reportPrivateUsage]
@@ -739,9 +670,7 @@ class OpTraits(Iterable[OpTrait]):
 
     _traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
 
-    def __init__(
-        self, traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
-    ) -> None:
+    def __init__(self, traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]) -> None:
         self._traits = traits
 
     @property
@@ -926,10 +855,7 @@ class Operation(IRNode):
         # This is assumed to exist by Operation.operand setter.
         self.operands = operands
 
-        self.results = tuple(
-            OpResult(result_type, self, idx)
-            for (idx, result_type) in enumerate(result_types)
-        )
+        self.results = tuple(OpResult(result_type, self, idx) for (idx, result_type) in enumerate(result_types))
         self.properties = dict(properties)
         self.attributes = dict(attributes)
         self.successors = list(successors)
@@ -965,9 +891,7 @@ class Operation(IRNode):
     def add_region(self, region: Region) -> None:
         """Add an unattached region to the operation."""
         if region.parent:
-            raise Exception(
-                "Cannot add region that is already attached on an operation."
-            )
+            raise Exception("Cannot add region that is already attached on an operation.")
         self.regions += (region,)
         region.parent = self
 
@@ -975,9 +899,7 @@ class Operation(IRNode):
         """Get the region position in the operation."""
         if region.parent is not self:
             raise Exception("Region is not attached to the operation.")
-        return next(
-            idx for idx, curr_region in enumerate(self.regions) if curr_region is region
-        )
+        return next(idx for idx, curr_region in enumerate(self.regions) if curr_region is region)
 
     def detach_region(self, region: int | Region) -> Region:
         """
@@ -1004,9 +926,7 @@ class Operation(IRNode):
         for region in self.regions:
             region.drop_all_references()
 
-    def walk(
-        self, *, reverse: bool = False, region_first: bool = False
-    ) -> Iterator[Operation]:
+    def walk(self, *, reverse: bool = False, region_first: bool = False) -> Iterator[Operation]:
         """
         Iterate all operations contained in the operation (including this one).
         If region_first is set, then the operation regions are iterated before the
@@ -1045,9 +965,7 @@ class Operation(IRNode):
         Return true if the current operation is located strictly before other_op.
         False otherwise.
         """
-        if (
-            parent_block := self.parent_block()
-        ) is None or other_op.parent_block() is not parent_block:
+        if (parent_block := self.parent_block()) is None or other_op.parent_block() is not parent_block:
             return False
 
         op = self.next_op
@@ -1067,38 +985,24 @@ class Operation(IRNode):
 
         if self.successors:
             if parent_block is None or parent_region is None:
-                raise VerifyException(
-                    f"Operation {self.name} with block successors does not belong to a block or a region"
-                )
+                raise VerifyException(f"Operation {self.name} with block successors does not belong to a block or a region")
 
             if parent_block.last_op is not self:
-                raise VerifyException(
-                    f"Operation {self.name} with block successors must terminate its parent block"
-                )
+                raise VerifyException(f"Operation {self.name} with block successors must terminate its parent block")
 
             for succ in self.successors:
                 if succ.parent != parent_block.parent:
-                    raise VerifyException(
-                        f"Operation {self.name} is branching to a block of a different region"
-                    )
+                    raise VerifyException(f"Operation {self.name} is branching to a block of a different region")
 
         if parent_block is not None and parent_region is not None:
             if parent_block.last_op == self:
                 if len(parent_region.blocks) == 1:
-                    if (
-                        parent_op := parent_region.parent
-                    ) is not None and not parent_op.has_trait(NoTerminator):
+                    if (parent_op := parent_region.parent) is not None and not parent_op.has_trait(NoTerminator):
                         if not self.has_trait(IsTerminator):
-                            raise VerifyException(
-                                f"Operation {self.name} terminates block in "
-                                "single-block region but is not a terminator"
-                            )
+                            raise VerifyException(f"Operation {self.name} terminates block in " "single-block region but is not a terminator")
                 elif len(parent_region.blocks) > 1:
                     if not self.has_trait(IsTerminator):
-                        raise VerifyException(
-                            f"Operation {self.name} terminates block in multi-block "
-                            "region but is not a terminator"
-                        )
+                        raise VerifyException(f"Operation {self.name} terminates block in multi-block " "region but is not a terminator")
 
         if verify_nested_ops:
             for region in self.regions:
@@ -1108,9 +1012,7 @@ class Operation(IRNode):
         try:
             self.verify_()
         except VerifyException as err:
-            self.emit_error(
-                "Operation does not verify: " + str(err), underlying_error=err
-            )
+            self.emit_error("Operation does not verify: " + str(err), underlying_error=err)
 
     def verify_(self) -> None:
         pass
@@ -1136,17 +1038,11 @@ class Operation(IRNode):
             value_mapper = {}
         if block_mapper is None:
             block_mapper = {}
-        operands = [
-            (value_mapper[operand] if operand in value_mapper else operand)
-            for operand in self._operands
-        ]
+        operands = [(value_mapper[operand] if operand in value_mapper else operand) for operand in self._operands]
         result_types = self.result_types
         attributes = self.attributes.copy()
         properties = self.properties.copy()
-        successors = [
-            (block_mapper[successor] if successor in block_mapper else successor)
-            for successor in self._successors
-        ]
+        successors = [(block_mapper[successor] if successor in block_mapper else successor) for successor in self._successors]
         regions = [Region() for _ in self.regions]
         cloned_op = self.create(
             operands=operands,
@@ -1156,9 +1052,7 @@ class Operation(IRNode):
             successors=successors,
             regions=regions,
         )
-        for self_result, cloned_result in zip(
-            self.results, cloned_op.results, strict=True
-        ):
+        for self_result, cloned_result in zip(self.results, cloned_op.results, strict=True):
             value_mapper[self_result] = cloned_result
             if clone_name_hints:
                 cloned_result.name_hint = self_result.name_hint
@@ -1176,9 +1070,7 @@ class Operation(IRNode):
             value_mapper = {}
         if block_mapper is None:
             block_mapper = {}
-        op = self.clone_without_regions(
-            value_mapper, block_mapper, clone_name_hints=clone_name_hints
-        )
+        op = self.clone_without_regions(value_mapper, block_mapper, clone_name_hints=clone_name_hints)
         for idx, region in enumerate(self.regions):
             region.clone_into(
                 op.regions[idx],
@@ -1229,9 +1121,7 @@ class Operation(IRNode):
         Erase the operation, and remove all its references to other operations.
         If safe_erase is specified, check that the operation results are not used.
         """
-        assert self.parent is None, (
-            "Operation with parents should first be detached " + "before erasure."
-        )
+        assert self.parent is None, "Operation with parents should first be detached " + "before erasure."
         if drop_references:
             self.drop_all_references()
         for result in self.results:
@@ -1260,35 +1150,15 @@ class Operation(IRNode):
             return False
         if self.name != other.name:
             return False
-        if (
-            len(self.operands) != len(other.operands)
-            or len(self.results) != len(other.results)
-            or len(self.regions) != len(other.regions)
-            or len(self.successors) != len(other.successors)
-            or self.attributes != other.attributes
-            or self.properties != other.properties
-        ):
+        if len(self.operands) != len(other.operands) or len(self.results) != len(other.results) or len(self.regions) != len(other.regions) or len(self.successors) != len(other.successors) or self.attributes != other.attributes or self.properties != other.properties:
             return False
-        if (
-            self.parent is not None
-            and other.parent is not None
-            and context.get(self.parent) != other.parent
-        ):
+        if self.parent is not None and other.parent is not None and context.get(self.parent) != other.parent:
             return False
-        if not all(
-            context.get(operand, operand) == other_operand
-            for operand, other_operand in zip(self.operands, other.operands)
-        ):
+        if not all(context.get(operand, operand) == other_operand for operand, other_operand in zip(self.operands, other.operands)):
             return False
-        if not all(
-            context.get(successor, successor) == other_successor
-            for successor, other_successor in zip(self.successors, other.successors)
-        ):
+        if not all(context.get(successor, successor) == other_successor for successor, other_successor in zip(self.successors, other.successors)):
             return False
-        if not all(
-            region.is_structurally_equivalent(other_region, context)
-            for region, other_region in zip(self.regions, other.regions)
-        ):
+        if not all(region.is_structurally_equivalent(other_region, context) for region, other_region in zip(self.regions, other.regions)):
             return False
         # Add results of this operation to the context
         for result, other_result in zip(self.results, other.results):
@@ -1443,10 +1313,7 @@ class Block(IRNode, IRWithUses):
         arg_types: Iterable[Attribute] = (),
     ):
         super().__init__()
-        self._args = tuple(
-            BlockArgument(arg_type, self, index)
-            for index, arg_type in enumerate(arg_types)
-        )
+        self._args = tuple(BlockArgument(arg_type, self, index) for index, arg_type in enumerate(arg_types))
         self._first_op = None
         self._last_op = None
 
@@ -1476,9 +1343,7 @@ class Block(IRNode, IRWithUses):
         return self._prev_block
 
     def predecessors(self) -> tuple[Block, ...]:
-        return tuple(
-            p for use in self.uses if (p := use.operation.parent_block()) is not None
-        )
+        return tuple(p for use in self.uses if (p := use.operation.parent_block()) is not None)
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -1529,13 +1394,9 @@ class Block(IRNode, IRWithUses):
     def _attach_op(self, operation: Operation) -> None:
         """Attach an operation to the block, and check that it has no parents."""
         if operation.parent:
-            raise ValueError(
-                "Can't add to a block an operation already attached to a block."
-            )
+            raise ValueError("Can't add to a block an operation already attached to a block.")
         if operation.is_ancestor(self):
-            raise ValueError(
-                "Can't add an operation to a block contained in the operation."
-            )
+            raise ValueError("Can't add an operation to a block contained in the operation.")
         operation.parent = self
 
     @property
@@ -1559,9 +1420,7 @@ class Block(IRNode, IRWithUses):
         `new_op` should not be attached to a block.
         """
         if existing_op.parent is not self:
-            raise ValueError(
-                "Can't insert operation after operation not in this block."
-            )
+            raise ValueError("Can't insert operation after operation not in this block.")
 
         self._attach_op(new_op)
 
@@ -1577,9 +1436,7 @@ class Block(IRNode, IRWithUses):
         `new_op` should not be attached to a block.
         """
         if existing_op.parent is not self:
-            raise ValueError(
-                "Can't insert operation before operation not in current block"
-            )
+            raise ValueError("Can't insert operation before operation not in current block")
 
         self._attach_op(new_op)
 
@@ -1609,15 +1466,11 @@ class Block(IRNode, IRWithUses):
         for op in ops:
             self.add_op(op)
 
-    def insert_ops_before(
-        self, ops: Sequence[Operation], existing_op: Operation
-    ) -> None:
+    def insert_ops_before(self, ops: Sequence[Operation], existing_op: Operation) -> None:
         for op in ops:
             self.insert_op_before(op, existing_op)
 
-    def insert_ops_after(
-        self, ops: Sequence[Operation], existing_op: Operation
-    ) -> None:
+    def insert_ops_after(self, ops: Sequence[Operation], existing_op: Operation) -> None:
         for op in ops:
             self.insert_op_after(op, existing_op)
 
@@ -1735,9 +1588,7 @@ class Block(IRNode, IRWithUses):
         op = self.detach_op(op)
         op.erase(safe_erase=safe_erase)
 
-    def walk(
-        self, *, reverse: bool = False, region_first: bool = False
-    ) -> Iterable[Operation]:
+    def walk(self, *, reverse: bool = False, region_first: bool = False) -> Iterable[Operation]:
         """
         Iterate over all operations contained in the block.
         If region_first is set, then the operation regions are iterated before the
@@ -1763,22 +1614,13 @@ class Block(IRNode, IRWithUses):
     def verify(self) -> None:
         for operation in self.ops:
             if operation.parent != self:
-                raise Exception(
-                    "Parent pointer of operation does not refer to containing region"
-                )
+                raise Exception("Parent pointer of operation does not refer to containing region")
             operation.verify()
 
         if len(self.ops) == 0:
-            if (region_parent := self.parent) is not None and (
-                parent_op := region_parent.parent
-            ) is not None:
-                if len(region_parent.blocks) == 1 and not parent_op.has_trait(
-                    NoTerminator
-                ):
-                    raise VerifyException(
-                        f"Operation {parent_op.name} contains empty block in "
-                        "single-block region that expects at least a terminator"
-                    )
+            if (region_parent := self.parent) is not None and (parent_op := region_parent.parent) is not None:
+                if len(region_parent.blocks) == 1 and not parent_op.has_trait(NoTerminator):
+                    raise VerifyException(f"Operation {parent_op.name} contains empty block in " "single-block region that expects at least a terminator")
 
     def drop_all_references(self) -> None:
         """
@@ -1811,9 +1653,7 @@ class Block(IRNode, IRWithUses):
         If safe_erase is specified, check that no operation results are used outside
         the block.
         """
-        assert self.parent is None, (
-            "Blocks with parents should first be detached " + "before erasure."
-        )
+        assert self.parent is None, "Blocks with parents should first be detached " + "before erasure."
         self.drop_all_references()
         for op in self.ops:
             op.erase(safe_erase=safe_erase, drop_references=False)
@@ -1841,10 +1681,7 @@ class Block(IRNode, IRWithUses):
             context[arg] = other_arg
         # Add self to the context so Operations can check for identical parents
         context[self] = other
-        if not all(
-            op.is_structurally_equivalent(other_op, context)
-            for op, other_op in zip(self.ops, other.ops)
-        ):
+        if not all(op.is_structurally_equivalent(other_op, context) for op, other_op in zip(self.ops, other.ops)):
             return False
 
         return True
@@ -1911,10 +1748,7 @@ class OpSuccessors(Sequence[Block]):
     def __eq__(self, other: object):
         if not isinstance(other, OpSuccessors):
             return False
-        return (
-            self._op._successors  # pyright: ignore[reportPrivateUsage]
-            == other._op._successors  # pyright: ignore[reportPrivateUsage]
-        )
+        return self._op._successors == other._op._successors  # pyright: ignore[reportPrivateUsage]  # pyright: ignore[reportPrivateUsage]
 
     def __hash__(self):
         return hash(self._op._successors)  # pyright: ignore[reportPrivateUsage]
@@ -2036,11 +1870,7 @@ class Region(IRNode):
         return self.parent
 
     def parent_region(self) -> Region | None:
-        return (
-            self.parent.parent.parent
-            if self.parent is not None and self.parent.parent is not None
-            else None
-        )
+        return self.parent.parent.parent if self.parent is not None and self.parent.parent is not None else None
 
     def find_ancestor_block_in_region(self, block: Block) -> Block | None:
         """
@@ -2084,10 +1914,7 @@ class Region(IRNode):
         Returns an exception if the region is not single-block.
         """
         if len(self.blocks) != 1:
-            raise ValueError(
-                "'ops' property of Region class is only available "
-                "for single-block regions."
-            )
+            raise ValueError("'ops' property of Region class is only available " "for single-block regions.")
         return self.block.ops
 
     @property
@@ -2102,10 +1929,7 @@ class Region(IRNode):
             last_op = block.last_op
             if first_op is last_op and first_op is not None:
                 return first_op
-        raise ValueError(
-            "'op' property of Region class is only available "
-            "for single-operation single-block regions."
-        )
+        raise ValueError("'op' property of Region class is only available " "for single-operation single-block regions.")
 
     @property
     def block(self) -> Block:
@@ -2114,18 +1938,13 @@ class Region(IRNode):
         Returns an exception if the region is not single-block.
         """
         if self._first_block is None or self._first_block is not self._last_block:
-            raise ValueError(
-                "'block' property of Region class is only available "
-                "for single-block regions."
-            )
+            raise ValueError("'block' property of Region class is only available " "for single-block regions.")
         return self._first_block
 
     def _attach_block(self, block: Block) -> None:
         """Attach a block to the region, and check that it has no parents."""
         if block.parent:
-            raise ValueError(
-                "Can't add to a region a block already attached to a region."
-            )
+            raise ValueError("Can't add to a region a block already attached to a region.")
         if block.is_ancestor(self):
             raise ValueError("Can't add a block to a region contained in the block.")
         block.parent = self
@@ -2156,12 +1975,8 @@ class Region(IRNode):
             while True:
                 next_block = next(blocks_iter)
                 self._attach_block(next_block)
-                next_block._prev_block = (  # pyright: ignore[reportPrivateUsage]
-                    prev_block
-                )
-                prev_block._next_block = (  # pyright: ignore[reportPrivateUsage]
-                    next_block
-                )
+                next_block._prev_block = prev_block  # pyright: ignore[reportPrivateUsage]
+                prev_block._next_block = next_block  # pyright: ignore[reportPrivateUsage]
                 prev_block = next_block
 
         except StopIteration:
@@ -2169,17 +1984,13 @@ class Region(IRNode):
             self._last_block = prev_block
             return
 
-    def insert_block_before(
-        self, block: Block | Iterable[Block], target: Block
-    ) -> None:
+    def insert_block_before(self, block: Block | Iterable[Block], target: Block) -> None:
         """
         Insert one or multiple blocks before a given block in the region.
         The blocks should not be attached to another region.
         """
         if target.parent is not self:
-            raise ValueError(
-                "Cannot insert blocks before a block into a region that is not the target's parent"
-            )
+            raise ValueError("Cannot insert blocks before a block into a region that is not the target's parent")
         blocks_iter: Iterator[Block]
         if isinstance(block, Block):
             blocks_iter = iter((block,))
@@ -2206,12 +2017,8 @@ class Region(IRNode):
             while True:
                 next_block = next(blocks_iter)
                 self._attach_block(next_block)
-                next_block._prev_block = (  # pyright: ignore[reportPrivateUsage]
-                    prev_block
-                )
-                prev_block._next_block = (  # pyright: ignore[reportPrivateUsage]
-                    next_block
-                )
+                next_block._prev_block = prev_block  # pyright: ignore[reportPrivateUsage]
+                prev_block._next_block = next_block  # pyright: ignore[reportPrivateUsage]
                 prev_block = next_block
 
         except StopIteration:
@@ -2249,9 +2056,7 @@ class Region(IRNode):
         """Get the block position in a region."""
         if block.parent is not self:
             raise Exception("Block is not a child of the region.")
-        return next(
-            idx for idx, region_block in enumerate(self.blocks) if region_block is block
-        )
+        return next(idx for idx, region_block in enumerate(self.blocks) if region_block is block)
 
     def detach_block(self, block: int | Block) -> Block:
         """
@@ -2268,15 +2073,11 @@ class Region(IRNode):
         if (prev_block := block.prev_block) is None:
             self._first_block = block.next_block
         else:
-            prev_block._next_block = (  # pyright: ignore[reportPrivateUsage]
-                block.next_block
-            )
+            prev_block._next_block = block.next_block  # pyright: ignore[reportPrivateUsage]
         if (next_block := block.next_block) is None:
             self._last_block = block.prev_block
         else:
-            next_block._prev_block = (  # pyright: ignore[reportPrivateUsage]
-                block.prev_block
-            )
+            next_block._prev_block = block.prev_block  # pyright: ignore[reportPrivateUsage]
 
         return block
 
@@ -2336,15 +2137,9 @@ class Region(IRNode):
                 if clone_name_hints:
                     new_arg.name_hint = block_arg.name_hint
             for op in block.ops:
-                new_block.add_op(
-                    op.clone(
-                        value_mapper, block_mapper, clone_name_hints=clone_name_hints
-                    )
-                )
+                new_block.add_op(op.clone(value_mapper, block_mapper, clone_name_hints=clone_name_hints))
 
-    def walk(
-        self, *, reverse: bool = False, region_first: bool = False
-    ) -> Iterator[Operation]:
+    def walk(self, *, reverse: bool = False, region_first: bool = False) -> Iterator[Operation]:
         """
         Call a function on all operations contained in the region.
         If region_first is set, then the operation regions are iterated before the
@@ -2358,9 +2153,7 @@ class Region(IRNode):
         for block in self.blocks:
             block.verify()
             if block.parent != self:
-                raise Exception(
-                    "Parent pointer of block does not refer to containing region"
-                )
+                raise Exception("Parent pointer of block does not refer to containing region")
 
     def drop_all_references(self) -> None:
         """
@@ -2375,9 +2168,7 @@ class Region(IRNode):
         """
         Erase the region, and remove all its references to other operations.
         """
-        assert self.parent, (
-            "Regions with parents should first be " + "detached before erasure."
-        )
+        assert self.parent, "Regions with parents should first be " + "detached before erasure."
         self.drop_all_references()
 
     def move_blocks(self, region: Region) -> None:
@@ -2395,12 +2186,8 @@ class Region(IRNode):
         if other_last_block is None:
             region._first_block = self._first_block
         else:
-            self_first_block._prev_block = (  # pyright: ignore[reportPrivateUsage]
-                other_last_block
-            )
-            other_last_block._next_block = (  # pyright: ignore[reportPrivateUsage]
-                self_first_block
-            )
+            self_first_block._prev_block = other_last_block  # pyright: ignore[reportPrivateUsage]
+            other_last_block._next_block = self_first_block  # pyright: ignore[reportPrivateUsage]
         region._last_block = self_last_block
 
         for block in self.blocks:
@@ -2429,12 +2216,8 @@ class Region(IRNode):
         if target.prev_block is None:
             region._first_block = first_block
         else:
-            target.prev_block._next_block = (  # pyright: ignore[reportPrivateUsage]
-                first_block
-            )
-            first_block._prev_block = (  # pyright: ignore[reportPrivateUsage]
-                target.prev_block
-            )
+            target.prev_block._next_block = first_block  # pyright: ignore[reportPrivateUsage]
+            first_block._prev_block = target.prev_block  # pyright: ignore[reportPrivateUsage]
 
         for block in self.blocks:
             block.parent = region
@@ -2466,9 +2249,6 @@ class Region(IRNode):
         # the corrects successors
         for block, other_block in zip(self.blocks, other.blocks):
             context[block] = other_block
-        if not all(
-            block.is_structurally_equivalent(other_block, context)
-            for block, other_block in zip(self.blocks, other.blocks)
-        ):
+        if not all(block.is_structurally_equivalent(other_block, context) for block, other_block in zip(self.blocks, other.blocks)):
             return False
         return True

@@ -57,9 +57,7 @@ class IList(list[_T]):
     @overload
     def __setitem__(self, __index: slice, __object: Iterable[_T]) -> None: ...
 
-    def __setitem__(
-        self, __index: SupportsIndex | slice, __object: _T | Iterable[_T]
-    ) -> None:
+    def __setitem__(self, __index: SupportsIndex | slice, __object: _T | Iterable[_T]) -> None:
         if self._frozen:
             raise Exception("frozen list can not be modified")
         if isinstance(__index, slice):

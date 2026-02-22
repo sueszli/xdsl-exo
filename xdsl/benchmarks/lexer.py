@@ -2,6 +2,7 @@
 """Benchmarks for the lexer of the xDSL implementation."""
 
 from benchmarks.workloads import WorkloadBuilder
+
 from xdsl.utils.lexer import Input
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRTokenKind
 

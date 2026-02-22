@@ -31,9 +31,7 @@ def test_read_write():
 
     assert (
         interpreter.run_op(
-            riscv_snitch.WriteOp(
-                create_ssa_value(a0), create_ssa_value(snitch.ReadableStreamType(a0))
-            ),
+            riscv_snitch.WriteOp(create_ssa_value(a0), create_ssa_value(snitch.ReadableStreamType(a0))),
             (
                 1,
                 output_stream,
@@ -44,9 +42,7 @@ def test_read_write():
     assert output_stream.values == [1]
     assert (
         interpreter.run_op(
-            riscv_snitch.WriteOp(
-                create_ssa_value(a1), create_ssa_value(snitch.ReadableStreamType(a1))
-            ),
+            riscv_snitch.WriteOp(create_ssa_value(a1), create_ssa_value(snitch.ReadableStreamType(a1))),
             (
                 2,
                 output_stream,
@@ -64,9 +60,7 @@ def test_frep_carried_vars():
     @ModuleOp
     @Builder.implicit_region
     def sum_to_for_op():
-        with ImplicitBuilder(
-            func.FuncOp("sum_to", ((float_register,), (float_register,))).body
-        ) as (count,):
+        with ImplicitBuilder(func.FuncOp("sum_to", ((float_register,), (float_register,))).body) as (count,):
             one = riscv.LiOp(1).rd
             initial = riscv.FCvtDWOp(one, rd=acc_reg_type).rd
 

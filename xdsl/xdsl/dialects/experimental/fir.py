@@ -16,52 +16,16 @@ from dataclasses import dataclass
 from enum import Enum
 
 from xdsl.dialects.arith import FastMathFlagsAttr
-from xdsl.dialects.builtin import (
-    AnyFloat,
-    ArrayAttr,
-    IndexType,
-    IntAttr,
-    IntegerAttr,
-    IntegerType,
-    StringAttr,
-    SymbolRefAttr,
-    TupleType,
-    UnitAttr,
-)
-from xdsl.ir import (
-    Attribute,
-    Data,
-    Dialect,
-    ParametrizedAttribute,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    ParameterDef,
-    attr_def,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_operand_def,
-    opt_prop_def,
-    opt_result_def,
-    prop_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-    var_region_def,
-    var_result_def,
-)
+from xdsl.dialects.builtin import AnyFloat, ArrayAttr, IndexType, IntAttr, IntegerAttr, IntegerType, StringAttr, SymbolRefAttr, TupleType, UnitAttr
+from xdsl.ir import Attribute, Data, Dialect, ParametrizedAttribute, TypeAttribute
+from xdsl.irdl import AttrSizedOperandSegments, IRDLOperation, ParameterDef, attr_def, irdl_attr_definition, irdl_op_definition, operand_def, opt_operand_def, opt_prop_def, opt_result_def, prop_def, result_def, traits_def, var_operand_def, var_region_def, var_result_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, SymbolOpInterface
 
 
 class FortranVariableFlags(Enum):
-    NOATTRIBUTES = (
-        "None"  # First character is meant to be capitalised unlike the others
-    )
+    NOATTRIBUTES = "None"  # First character is meant to be capitalised unlike the others
     ALLOCATABLE = "allocatable"
     ASYNCHRONOUS = "asynchronous"
     BIND_C = "bind_c"
@@ -120,9 +84,7 @@ class FortranVariableFlagsAttrBase(Data[tuple[FortranVariableFlags, ...]]):
         with printer.in_angle_brackets():
             flags = self.data
             # make sure we emit flags in a consistent order
-            printer.print(
-                ",".join(flag.value for flag in FortranVariableFlags if flag in flags)
-            )
+            printer.print(",".join(flag.value for flag in FortranVariableFlags if flag in flags))
 
 
 @irdl_attr_definition
@@ -171,9 +133,7 @@ class ReferenceType(ParametrizedAttribute, TypeAttribute):
             def parse_types():
                 return parser.parse_type()
 
-            param_types = parser.parse_comma_separated_list(
-                parser.Delimiter.ANGLE, parse_types
-            )
+            param_types = parser.parse_comma_separated_list(parser.Delimiter.ANGLE, parse_types)
             parser.parse_characters(">")
             return [TupleType(param_types)]
 
@@ -241,12 +201,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
         else:
             if shape is None:
                 shape = [1]
-            shape_array_attr = ArrayAttr(
-                [
-                    (IntegerAttr[IntegerType](d, 32) if isinstance(d, int) else d)
-                    for d in shape
-                ]
-            )
+            shape_array_attr = ArrayAttr([(IntegerAttr[IntegerType](d, 32) if isinstance(d, int) else d) for d in shape])
             super().__init__(
                 [
                     shape_array_attr,
@@ -264,9 +219,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
                 if isinstance(s, DeferredAttr):
                     printer.print_string("?")
                 elif isinstance(s, NoneType):
-                    raise Exception(
-                        "Can not have none type as part of sequence shape with only one type"
-                    )
+                    raise Exception("Can not have none type as part of sequence shape with only one type")
                 else:
                     printer.print_string(f"{s.value.data}")
                 printer.print_string("x")

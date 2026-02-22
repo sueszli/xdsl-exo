@@ -9,48 +9,9 @@ import abc
 from collections.abc import Sequence
 from typing import Annotated, ClassVar, TypeAlias, cast
 
-from xdsl.dialects.builtin import (
-    I32,
-    I64,
-    AnyFloat,
-    AnyTensorType,
-    AnyTensorTypeConstr,
-    ArrayAttr,
-    ComplexType,
-    DenseArrayBase,
-    IntegerAttr,
-    IntegerType,
-    TensorType,
-    i64,
-)
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    EnumAttribute,
-    ParametrizedAttribute,
-    Region,
-    SpacedOpaqueSyntaxAttribute,
-    SSAValue,
-    StrEnum,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    BaseAttr,
-    ConstraintVar,
-    IRDLOperation,
-    ParameterDef,
-    VarConstraint,
-    attr_def,
-    base,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-    var_region_def,
-    var_result_def,
-)
+from xdsl.dialects.builtin import I32, I64, AnyFloat, AnyTensorType, AnyTensorTypeConstr, ArrayAttr, ComplexType, DenseArrayBase, IntegerAttr, IntegerType, TensorType, i64
+from xdsl.ir import Attribute, Dialect, EnumAttribute, ParametrizedAttribute, Region, SpacedOpaqueSyntaxAttribute, SSAValue, StrEnum, TypeAttribute
+from xdsl.irdl import BaseAttr, ConstraintVar, IRDLOperation, ParameterDef, VarConstraint, attr_def, base, irdl_attr_definition, irdl_op_definition, operand_def, result_def, traits_def, var_operand_def, var_region_def, var_result_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
@@ -80,9 +41,7 @@ class ElementwiseBinaryOperation(IRDLOperation, abc.ABC):
 
     result = result_def(T)
 
-    def __init__(
-        self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None
-    ):
+    def __init__(self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None):
         if result_type is None:
             result_type = lhs.type
         super().__init__(operands=(lhs, rhs), result_types=(result_type,))
@@ -96,9 +55,7 @@ class IntegerTensorLikeElementwiseBinaryOperation(IRDLOperation, abc.ABC):
 
     result = result_def(T)
 
-    def __init__(
-        self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None
-    ):
+    def __init__(self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None):
         if result_type is None:
             result_type = lhs.type
         super().__init__(operands=(lhs, rhs), result_types=(result_type,))
@@ -124,9 +81,7 @@ class FloatOrComplexTensorLikeElementwiseBinaryOperation(IRDLOperation, abc.ABC)
 
     result = result_def(T)
 
-    def __init__(
-        self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None
-    ):
+    def __init__(self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute | None = None):
         if result_type is None:
             result_type = lhs.type
         super().__init__(operands=(lhs, rhs), result_types=(result_type,))
@@ -175,9 +130,7 @@ class ComparisonDirection(StrEnum):
 
 
 @irdl_attr_definition
-class ComparisonDirectionAttr(
-    EnumAttribute[ComparisonDirection], SpacedOpaqueSyntaxAttribute
-):
+class ComparisonDirectionAttr(EnumAttribute[ComparisonDirection], SpacedOpaqueSyntaxAttribute):
     """
     The values of `comparison_direction` and `compare_type` have the following semantics:
     For boolean and integer element types:
@@ -293,9 +246,7 @@ class DotAttr(ParametrizedAttribute):
     rhs_contracting_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
 
     @staticmethod
-    def _print_parameter(
-        name: str, value: ArrayAttr[IntegerAttr[I64]], printer: Printer
-    ):
+    def _print_parameter(name: str, value: ArrayAttr[IntegerAttr[I64]], printer: Printer):
         printer.print_string(f"\n{name} = [")
         printer.print_list(
             value.data,
@@ -316,13 +267,9 @@ class DotAttr(ParametrizedAttribute):
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             with printer.indented():
-                DotAttr._print_parameter(
-                    "lhs_batching_dimensions", self.lhs_batching_dimensions, printer
-                )
+                DotAttr._print_parameter("lhs_batching_dimensions", self.lhs_batching_dimensions, printer)
                 printer.print_string(",")
-                DotAttr._print_parameter(
-                    "rhs_batching_dimensions", self.rhs_batching_dimensions, printer
-                )
+                DotAttr._print_parameter("rhs_batching_dimensions", self.rhs_batching_dimensions, printer)
                 printer.print_string(",")
                 DotAttr._print_parameter(
                     "lhs_contracting_dimensions",
@@ -340,21 +287,13 @@ class DotAttr(ParametrizedAttribute):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
-            lhs_batching_dimensions = DotAttr._parse_parameter(
-                "lhs_batching_dimensions", parser
-            )
+            lhs_batching_dimensions = DotAttr._parse_parameter("lhs_batching_dimensions", parser)
             parser.parse_punctuation(",")
-            rhs_batching_dimensions = DotAttr._parse_parameter(
-                "rhs_batching_dimensions", parser
-            )
+            rhs_batching_dimensions = DotAttr._parse_parameter("rhs_batching_dimensions", parser)
             parser.parse_punctuation(",")
-            lhs_contracting_dimensions = DotAttr._parse_parameter(
-                "lhs_contracting_dimensions", parser
-            )
+            lhs_contracting_dimensions = DotAttr._parse_parameter("lhs_contracting_dimensions", parser)
             parser.parse_punctuation(",")
-            rhs_contracting_dimensions = DotAttr._parse_parameter(
-                "rhs_contracting_dimensions", parser
-            )
+            rhs_contracting_dimensions = DotAttr._parse_parameter("rhs_contracting_dimensions", parser)
 
             return (
                 lhs_batching_dimensions,
@@ -514,9 +453,7 @@ class CaseOp(IRDLOperation):
         branches: Sequence[Region],
         result_types: Sequence[AnyTensorType | TokenType],
     ):
-        super().__init__(
-            operands=(index,), result_types=(result_types,), regions=(branches,)
-        )
+        super().__init__(operands=(index,), result_types=(result_types,), regions=(branches,))
 
 
 @irdl_op_definition
@@ -715,9 +652,7 @@ class TransposeOp(IRDLOperation):
     result = result_def(TensorType[ElementType])
     permutation = attr_def(DenseArrayBase)
 
-    def __init__(
-        self, operand: SSAValue, permutation: DenseArrayBase, result_type: Attribute
-    ):
+    def __init__(self, operand: SSAValue, permutation: DenseArrayBase, result_type: Attribute):
         super().__init__(
             operands=(operand,),
             result_types=(result_type,),
@@ -739,17 +674,12 @@ class TransposeOp(IRDLOperation):
         # `permutation` is a permutation of `range(rank(operand))`
         permutation = self.get_permutation()
         if sorted(permutation) != list(range(len(o_shape))):
-            raise VerifyException(
-                f"Permutation {permutation} of transpose must be a permutation of "
-                f"range({len(o_shape)})"
-            )
+            raise VerifyException(f"Permutation {permutation} of transpose must be a permutation of " f"range({len(o_shape)})")
 
         # `shape(result) = dim(operand, permutation...)`
         for i, dim in enumerate(permutation):
             if r_shape[i] != o_shape[dim]:
-                raise VerifyException(
-                    f"Permutation mismatch at dimension {i}, expected {o_shape[dim]}"
-                )
+                raise VerifyException(f"Permutation mismatch at dimension {i}, expected {o_shape[dim]}")
 
 
 @irdl_op_definition

@@ -11,9 +11,7 @@ from xdsl.utils.hints import isa
 from .attributes import LabelAttr
 from .register import GeneralRegisterType, RFLAGSRegisterType, X86VectorRegisterType
 
-AssemblyInstructionArg: TypeAlias = (
-    IntegerAttr | SSAValue | GeneralRegisterType | str | int | LabelAttr
-)
+AssemblyInstructionArg: TypeAlias = IntegerAttr | SSAValue | GeneralRegisterType | str | int | LabelAttr
 
 
 def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
@@ -45,18 +43,14 @@ def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
             raise ValueError(f"Unexpected register type {arg.type}")
 
 
-def parse_immediate_value(
-    parser: Parser, integer_type: IntegerType | IndexType
-) -> IntegerAttr[IntegerType | IndexType] | LabelAttr:
+def parse_immediate_value(parser: Parser, integer_type: IntegerType | IndexType) -> IntegerAttr[IntegerType | IndexType] | LabelAttr:
     return parser.expect(
         lambda: parse_optional_immediate_value(parser, integer_type),
         "Expected immediate",
     )
 
 
-def parse_optional_immediate_value(
-    parser: Parser, integer_type: IntegerType | IndexType
-) -> IntegerAttr[IntegerType | IndexType] | LabelAttr | None:
+def parse_optional_immediate_value(parser: Parser, integer_type: IntegerType | IndexType) -> IntegerAttr[IntegerType | IndexType] | LabelAttr | None:
     """
     Parse an optional immediate value. If an integer is parsed, an integer attr with the specified type is created.
     """

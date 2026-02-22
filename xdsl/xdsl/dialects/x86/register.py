@@ -3,9 +3,7 @@ from __future__ import annotations
 from abc import ABC
 
 from xdsl.backend.register_type import RegisterType
-from xdsl.irdl import (
-    irdl_attr_definition,
-)
+from xdsl.irdl import irdl_attr_definition
 
 
 class X86RegisterType(RegisterType, ABC):

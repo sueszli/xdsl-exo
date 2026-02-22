@@ -5,13 +5,7 @@ from xdsl.dialects import arith, linalg
 from xdsl.dialects.builtin import ModuleOp, TensorType
 from xdsl.ir import Attribute
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.utils.hints import isa
 
 
@@ -19,27 +13,21 @@ class LiftAddfPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.AddfOp, rewriter: PatternRewriter, /):
         if isa(op.result.type, TensorType[Attribute]):
-            rewriter.replace_matched_op(
-                linalg.AddOp(op.operands, [op.lhs], [op.result.type])
-            )
+            rewriter.replace_matched_op(linalg.AddOp(op.operands, [op.lhs], [op.result.type]))
 
 
 class LiftSubfPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.SubfOp, rewriter: PatternRewriter, /):
         if isa(op.result.type, TensorType[Attribute]):
-            rewriter.replace_matched_op(
-                linalg.SubOp(op.operands, [op.lhs], [op.result.type])
-            )
+            rewriter.replace_matched_op(linalg.SubOp(op.operands, [op.lhs], [op.result.type]))
 
 
 class LiftMulfPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.MulfOp, rewriter: PatternRewriter, /):
         if isa(op.result.type, TensorType[Attribute]):
-            rewriter.replace_matched_op(
-                linalg.MulOp(op.operands, [op.lhs], [op.result.type])
-            )
+            rewriter.replace_matched_op(linalg.MulOp(op.operands, [op.lhs], [op.result.type]))
 
 
 @dataclass(frozen=True)

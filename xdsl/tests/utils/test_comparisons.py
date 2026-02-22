@@ -1,13 +1,4 @@
-from xdsl.utils.comparisons import (
-    signed_lower_bound,
-    signed_upper_bound,
-    signed_value_range,
-    signless_value_range,
-    to_signed,
-    to_unsigned,
-    unsigned_upper_bound,
-    unsigned_value_range,
-)
+from xdsl.utils.comparisons import signed_lower_bound, signed_upper_bound, signed_value_range, signless_value_range, to_signed, to_unsigned, unsigned_upper_bound, unsigned_value_range
 
 BITWIDTH = 2
 UNSIGNED_UPPER_BOUND = unsigned_upper_bound(BITWIDTH)

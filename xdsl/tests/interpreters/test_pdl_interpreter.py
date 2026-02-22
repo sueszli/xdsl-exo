@@ -1,15 +1,7 @@
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import arith, pdl, test
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    IntegerAttr,
-    IntegerType,
-    ModuleOp,
-    StringAttr,
-    i32,
-    i64,
-)
+from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, IntegerType, ModuleOp, StringAttr, i32, i64
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.pdl import PDLMatcher, PDLRewriteFunctions, PDLRewritePattern
 from xdsl.ir import Attribute, Block
@@ -26,9 +18,7 @@ def test_interpreter_functions():
     add = arith.AddiOp(c0, c1)
     add_res = add.result
 
-    assert interpreter.run_op(
-        pdl.ResultOp(0, create_ssa_value(pdl.OperationType())), (add,)
-    ) == (add_res,)
+    assert interpreter.run_op(pdl.ResultOp(0, create_ssa_value(pdl.OperationType())), (add,)) == (add_res,)
 
 
 def test_native_constraint():
@@ -56,9 +46,7 @@ def test_native_constraint():
             with ImplicitBuilder(pdl.RewriteOp(op).body):
                 pdl.EraseOp(op)
 
-    pdl_rewrite_op = next(
-        op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
-    )
+    pdl_rewrite_op = next(op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp))
 
     def even_length_string(attr: Attribute) -> bool:
         return isinstance(attr, StringAttr) and len(attr.data) == 4
@@ -136,9 +124,7 @@ def test_match_attribute():
     assert matcher.matching_context == {ssa_value: xdsl_value}
 
     # Other value
-    assert not matcher.match_attribute(
-        ssa_value, pdl_op, "attr", StringAttr("different")
-    )
+    assert not matcher.match_attribute(ssa_value, pdl_op, "attr", StringAttr("different"))
     assert matcher.matching_context == {ssa_value: xdsl_value}
 
 
@@ -252,14 +238,10 @@ def test_match_result():
     # Wrong type
     # Matching should fail if the result's type differs from the expected type
     wrong_type_op = pdl.TypeOp(i64)
-    wrong_type_operation_op = pdl.OperationOp(
-        op_name=None, type_values=(wrong_type_op.result,)
-    )
+    wrong_type_operation_op = pdl.OperationOp(op_name=None, type_values=(wrong_type_op.result,))
     wrong_type_result_op = pdl.ResultOp(0, wrong_type_operation_op.op)
 
-    assert not matcher.match_result(
-        wrong_type_result_op.val, wrong_type_result_op, xdsl_value
-    )
+    assert not matcher.match_result(wrong_type_result_op.val, wrong_type_result_op, xdsl_value)
     assert matcher.matching_context == {
         result_op.val: xdsl_value,
         operation_op.op: xdsl_op,
@@ -270,9 +252,7 @@ def test_match_result():
     # If the operation has only one result, we should not match results at different
     # indices
     out_of_range_result_op = pdl.ResultOp(1, operation_op.op)
-    assert not matcher.match_result(
-        out_of_range_result_op.val, out_of_range_result_op, xdsl_value
-    )
+    assert not matcher.match_result(out_of_range_result_op.val, out_of_range_result_op, xdsl_value)
     assert matcher.matching_context == {
         result_op.val: xdsl_value,
         operation_op.op: xdsl_op,
@@ -283,9 +263,7 @@ def test_match_result():
     # Result patterns should not match on block arguments
     block = Block(arg_types=(i32,))
     block_arg_result_op = pdl.ResultOp(1, operation_op.op)
-    assert not matcher.match_result(
-        block_arg_result_op.val, block_arg_result_op, block.args[0]
-    )
+    assert not matcher.match_result(block_arg_result_op.val, block_arg_result_op, block.args[0])
     assert matcher.matching_context == {
         result_op.val: xdsl_value,
         operation_op.op: xdsl_op,
@@ -303,9 +281,7 @@ def test_match_trivial_operation():
     wrong_name_operation_op = pdl.OperationOp(op_name="wrong.name")
 
     # Match should fail since operation names don't match
-    assert not matcher.match_operation(
-        wrong_name_operation_op.op, wrong_name_operation_op, trivial_op
-    )
+    assert not matcher.match_operation(wrong_name_operation_op.op, wrong_name_operation_op, trivial_op)
     assert matcher.matching_context == {}
 
     # Create PDL pattern to match an operation with required attribute
@@ -316,32 +292,22 @@ def test_match_trivial_operation():
     )
 
     # Match should fail since operation is missing required attribute
-    assert not matcher.match_operation(
-        operation_op_with_attr.op, operation_op_with_attr, trivial_op
-    )
+    assert not matcher.match_operation(operation_op_with_attr.op, operation_op_with_attr, trivial_op)
     assert matcher.matching_context == {}
 
     # Create PDL pattern to match an operation with results
-    operation_op_with_results = pdl.OperationOp(
-        op_name=None, type_values=[pdl.TypeOp(i32).result]
-    )
+    operation_op_with_results = pdl.OperationOp(op_name=None, type_values=[pdl.TypeOp(i32).result])
 
     # Match should fail since operation has no results
-    assert not matcher.match_operation(
-        operation_op_with_results.op, operation_op_with_results, trivial_op
-    )
+    assert not matcher.match_operation(operation_op_with_results.op, operation_op_with_results, trivial_op)
     assert matcher.matching_context == {}
 
     # Create PDL pattern to match an operation with operands
     operand_op = pdl.OperandOp()
-    operation_op_with_operands = pdl.OperationOp(
-        op_name=None, operand_values=(operand_op.value,)
-    )
+    operation_op_with_operands = pdl.OperationOp(op_name=None, operand_values=(operand_op.value,))
 
     # Match should fail since operation has no operands
-    assert not matcher.match_operation(
-        operation_op_with_operands.op, operation_op_with_operands, trivial_op
-    )
+    assert not matcher.match_operation(operation_op_with_operands.op, operation_op_with_operands, trivial_op)
     assert matcher.matching_context == {}
 
     # Create PDL pattern to match an operation with no constraints
@@ -385,9 +351,7 @@ def test_match_operation_with_multiple_constraints():
         attribute_value_names=ArrayAttr([StringAttr("attr1"), StringAttr("attr2")]),
         attribute_values=[pdl_attr1, wrong_attr],
     )
-    assert not matcher.match_operation(
-        operation_wrong_attr.op, operation_wrong_attr, test_op
-    )
+    assert not matcher.match_operation(operation_wrong_attr.op, operation_wrong_attr, test_op)
     assert matcher.matching_context == {
         pdl_attr1: StringAttr("test1"),
     }
@@ -402,9 +366,7 @@ def test_match_operation_with_multiple_constraints():
         attribute_value_names=ArrayAttr([StringAttr("attr1"), StringAttr("attr2")]),
         attribute_values=[pdl_attr1, pdl_attr2],
     )
-    assert not matcher.match_operation(
-        operation_wrong_operand.op, operation_wrong_operand, test_op
-    )
+    assert not matcher.match_operation(operation_wrong_operand.op, operation_wrong_operand, test_op)
     assert matcher.matching_context == {
         pdl_attr1: StringAttr("test1"),
         pdl_attr2: IntegerAttr(42, i32),
@@ -424,9 +386,7 @@ def test_match_operation_with_multiple_constraints():
         attribute_value_names=ArrayAttr([StringAttr("attr1"), StringAttr("attr2")]),
         attribute_values=[pdl_attr1, pdl_attr2],
     )
-    assert not matcher.match_operation(
-        operation_wrong_result.op, operation_wrong_result, test_op
-    )
+    assert not matcher.match_operation(operation_wrong_result.op, operation_wrong_result, test_op)
     assert matcher.matching_context == {
         pdl_type1: i32,
         pdl_type2: i64,
@@ -490,16 +450,10 @@ def test_native_constraint_constant_parameter():
             with ImplicitBuilder(pdl.RewriteOp(op).body):
                 pdl.EraseOp(op)
 
-    pdl_rewrite_op = next(
-        op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
-    )
+    pdl_rewrite_op = next(op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp))
 
     def length_string(attr: Attribute, size: Attribute) -> bool:
-        return (
-            isinstance(attr, StringAttr)
-            and isinstance(size, IntegerAttr)
-            and len(attr.data) == size.value.data
-        )
+        return isinstance(attr, StringAttr) and isinstance(size, IntegerAttr) and len(attr.data) == size.value.data
 
     ctx = Context()
     PDLMatcher.native_constraints["length_string"] = length_string
@@ -539,9 +493,7 @@ def test_insert_operation_without_replace():
                 pdl.OperationOp(op_name="test.op", type_values=())
                 pdl.EraseOp(op)
 
-    pdl_rewrite_op = next(
-        op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
-    )
+    pdl_rewrite_op = next(op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp))
 
     ctx = Context()
     ctx.register_dialect("test", lambda: test.Test)

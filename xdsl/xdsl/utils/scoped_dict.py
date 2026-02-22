@@ -65,12 +65,8 @@ class ScopedDict(Generic[_Key, _Value]):
         assigned to.
         """
         if key in self._local_scope:
-            raise ValueError(
-                f"Cannot overwrite value {self._local_scope[key]} for key {key}"
-            )
+            raise ValueError(f"Cannot overwrite value {self._local_scope[key]} for key {key}")
         self._local_scope[key] = value
 
     def __contains__(self, key: _Key) -> bool:
-        return (
-            key in self._local_scope or self.parent is not None and key in self.parent
-        )
+        return key in self._local_scope or self.parent is not None and key in self.parent

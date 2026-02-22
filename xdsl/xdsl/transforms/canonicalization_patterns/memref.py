@@ -2,11 +2,7 @@ from collections.abc import Sequence
 
 from xdsl.dialects import memref
 from xdsl.ir import Attribute
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 from xdsl.utils.hints import isa
 
 
@@ -22,9 +18,7 @@ class MemRefSubviewOfSubviewFolding(RewritePattern):
         if not all(stride == 1 for stride in current_strides):
             return
 
-        if not all(
-            stride == 1 for stride in source_subview.static_strides.iter_values()
-        ):
+        if not all(stride == 1 for stride in source_subview.static_strides.iter_values()):
             return
 
         if not len(op.static_offsets) == len(source_subview.static_offsets):
@@ -79,8 +73,6 @@ class MemRefSubviewOfSubviewFolding(RewritePattern):
 class ElideUnusedAlloc(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter, /):
-        if len(op.memref.uses) == 1 and isinstance(
-            only_use := tuple(op.memref.uses)[0].operation, memref.DeallocOp
-        ):
+        if len(op.memref.uses) == 1 and isinstance(only_use := tuple(op.memref.uses)[0].operation, memref.DeallocOp):
             rewriter.erase_op(only_use)
             rewriter.erase_matched_op()

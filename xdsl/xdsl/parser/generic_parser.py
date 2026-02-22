@@ -26,9 +26,7 @@ class ParserState(Generic[TokenKindT]):
     current_token: Token[TokenKindT]
     dialect_stack: list[str]
 
-    def __init__(
-        self, lexer: Lexer[TokenKindT], dialect_stack: list[str] | None = None
-    ):
+    def __init__(self, lexer: Lexer[TokenKindT], dialect_stack: list[str] | None = None):
         if dialect_stack is None:
             dialect_stack = ["builtin"]
         self.lexer = lexer
@@ -119,9 +117,7 @@ class GenericParser(Generic[TokenKindT]):
         """
         return self._current_token.span.start
 
-    def _consume_token(
-        self, expected_kind: TokenKindT | None = None
-    ) -> Token[TokenKindT]:
+    def _consume_token(self, expected_kind: TokenKindT | None = None) -> Token[TokenKindT]:
         """
         Advance the lexer to the next token.
         Additionally check that the current token was of a specific kind,
@@ -135,9 +131,7 @@ class GenericParser(Generic[TokenKindT]):
         self._parser_state.current_token = self.lexer.lex()
         return consumed_token
 
-    def _parse_optional_token(
-        self, expected_kind: TokenKindT
-    ) -> Token[TokenKindT] | None:
+    def _parse_optional_token(self, expected_kind: TokenKindT) -> Token[TokenKindT] | None:
         """
         If the current token is of the expected kind, consume it and return it.
         Otherwise, return None.
@@ -148,9 +142,7 @@ class GenericParser(Generic[TokenKindT]):
             return current_token
         return None
 
-    def _parse_token(
-        self, expected_kind: TokenKindT, error_msg: str
-    ) -> Token[TokenKindT]:
+    def _parse_token(self, expected_kind: TokenKindT, error_msg: str) -> Token[TokenKindT]:
         """
         Parse a specific token, and raise an error if it is not present.
         Returns the token that was parsed.
@@ -161,17 +153,13 @@ class GenericParser(Generic[TokenKindT]):
         self._consume_token(expected_kind)
         return current_token
 
-    def _parse_optional_token_in(
-        self, expected_kinds: Iterable[TokenKindT]
-    ) -> Token[TokenKindT] | None:
+    def _parse_optional_token_in(self, expected_kinds: Iterable[TokenKindT]) -> Token[TokenKindT] | None:
         """Parse one of the expected tokens if present, and returns it."""
         if self._current_token.kind not in expected_kinds:
             return None
         return self._consume_token()
 
-    def expect(
-        self, try_parse: Callable[[], _AnyInvT | None], error_message: str
-    ) -> _AnyInvT:
+    def expect(self, try_parse: Callable[[], _AnyInvT | None], error_message: str) -> _AnyInvT:
         """
         This method is used to convert a `parse_optional_*` to a `parse_*`.
         It will run the parsing function, and raise an error if `None` was returned.
@@ -192,9 +180,7 @@ class GenericParser(Generic[TokenKindT]):
         BRACES = ("{", "}")
         NONE = None
 
-    def parse_comma_separated_list(
-        self, delimiter: Delimiter, parse: Callable[[], _AnyInvT], context_msg: str = ""
-    ) -> list[_AnyInvT]:
+    def parse_comma_separated_list(self, delimiter: Delimiter, parse: Callable[[], _AnyInvT], context_msg: str = "") -> list[_AnyInvT]:
         """
         Parses greedily a list of elements separated by commas, and delimited
         by the specified delimiter. The parsing stops when the delimiter is
@@ -225,9 +211,7 @@ class GenericParser(Generic[TokenKindT]):
 
         return elems
 
-    def parse_optional_comma_separated_list(
-        self, delimiter: Delimiter, parse: Callable[[], _AnyInvT], context_msg: str = ""
-    ) -> list[_AnyInvT] | None:
+    def parse_optional_comma_separated_list(self, delimiter: Delimiter, parse: Callable[[], _AnyInvT], context_msg: str = "") -> list[_AnyInvT] | None:
         """
         Parses greedily a list of elements separated by commas, and delimited
         by the specified delimiter. If no opening delimiter was found, return None.
@@ -237,11 +221,7 @@ class GenericParser(Generic[TokenKindT]):
         """
 
         if delimiter == self.Delimiter.NONE:
-            raise ValueError(
-                "Cannot use `Delimiter.NONE` with "
-                "`parse_optional_comma_separated_list`. Use "
-                "`parse_optional_undelimited_comma_separated_list` instead."
-            )
+            raise ValueError("Cannot use `Delimiter.NONE` with " "`parse_optional_comma_separated_list`. Use " "`parse_optional_undelimited_comma_separated_list` instead.")
 
         # Parse the opening bracket, and possibly the closing bracket
         left_punctuation, right_punctuation = delimiter.value

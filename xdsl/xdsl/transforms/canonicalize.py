@@ -2,12 +2,7 @@ from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern
 from xdsl.traits import HasCanonicalizationPatternsTrait
 from xdsl.transforms.dead_code_elimination import RemoveUnusedOperations, region_dce
 
@@ -34,7 +29,5 @@ class CanonicalizePass(ModulePass):
     name = "canonicalize"
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        pattern = GreedyRewritePatternApplier(
-            [RemoveUnusedOperations(), CanonicalizationRewritePattern()]
-        )
+        pattern = GreedyRewritePatternApplier([RemoveUnusedOperations(), CanonicalizationRewritePattern()])
         PatternRewriteWalker(pattern, post_walk_func=region_dce).rewrite_module(op)

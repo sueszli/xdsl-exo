@@ -4,6 +4,7 @@
 from io import StringIO
 
 from benchmarks.workloads import WorkloadBuilder
+
 from xdsl.printer import Printer as XdslPrinter
 
 MODULE_PRINTER = XdslPrinter(stream=StringIO())

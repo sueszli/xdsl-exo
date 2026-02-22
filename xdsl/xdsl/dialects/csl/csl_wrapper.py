@@ -5,35 +5,10 @@ from collections.abc import Iterable, Sequence
 from typing import cast
 
 from xdsl.dialects import builtin
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    IntegerAttr,
-    IntegerType,
-    NoneAttr,
-    StringAttr,
-)
+from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, IntegerType, NoneAttr, StringAttr
 from xdsl.dialects.csl import ParameterDef, csl
-from xdsl.ir import (
-    Attribute,
-    Block,
-    BlockArgument,
-    Dialect,
-    Operation,
-    ParametrizedAttribute,
-    Region,
-    SSAValue,
-)
-from xdsl.irdl import (
-    IRDLOperation,
-    irdl_attr_definition,
-    irdl_op_definition,
-    lazy_traits_def,
-    opt_prop_def,
-    prop_def,
-    region_def,
-    result_def,
-    var_operand_def,
-)
+from xdsl.ir import Attribute, Block, BlockArgument, Dialect, Operation, ParametrizedAttribute, Region, SSAValue
+from xdsl.irdl import IRDLOperation, irdl_attr_definition, irdl_op_definition, lazy_traits_def, opt_prop_def, prop_def, region_def, result_def, var_operand_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator, Pure
@@ -85,9 +60,7 @@ class ParamAttribute(ParametrizedAttribute):
         super().verify()
         if not isinstance(self.value, NoneAttr):
             if self.value.type != self.type:
-                raise VerifyException(
-                    f"Value expected to be of type {self.type}, found {self.value.type}"
-                )
+                raise VerifyException(f"Value expected to be of type {self.type}, found {self.value.type}")
 
 
 @irdl_op_definition
@@ -109,9 +82,7 @@ class ImportOp(IRDLOperation):
     fields = prop_def(ArrayAttr[StringAttr])
     result = result_def(csl.ImportedModuleType)
 
-    def __init__(
-        self, module: str, field_name_mapping: dict[str, Operation | SSAValue]
-    ):
+    def __init__(self, module: str, field_name_mapping: dict[str, Operation | SSAValue]):
         ops: list[Operation | SSAValue] = []
         fields: list[StringAttr] = []
         for field, op in field_name_mapping.items():
@@ -173,9 +144,7 @@ class ModuleOp(IRDLOperation):
         width: int | IntegerAttr[IntegerType],
         height: int | IntegerAttr[IntegerType],
         target: csl.Target | StringAttr,
-        params: (
-            dict[str, IntegerAttr[IntegerType]] | Sequence[ParamAttribute] | None
-        ) = None,
+        params: dict[str, IntegerAttr[IntegerType]] | Sequence[ParamAttribute] | None = None,
     ):
         if not isinstance(width, IntegerAttr):
             width = IntegerAttr(width, i16)
@@ -186,10 +155,7 @@ class ModuleOp(IRDLOperation):
         if params is None:
             params = []
         elif isinstance(params, dict):
-            params = [
-                ParamAttribute([StringAttr(name), val, val.type])
-                for name, val in params.items()
-            ]
+            params = [ParamAttribute([StringAttr(name), val, val.type]) for name, val in params.items()]
         params_attr = ArrayAttr(params)
 
         super().__init__(
@@ -232,17 +198,13 @@ class ModuleOp(IRDLOperation):
             len(self.program_module.block.args)
             == len(self.layout_module.block.args) - 2
             # minus two as layout_module has additional x and y args
-        ), (
-            "program_module block args should only contain args from properties when calling this function"
-        )
+        ), "program_module block args should only contain args from properties when calling this function"
 
         if yield_args is None:
             yield_args = self.layout_yield_op.items()
 
         for name, op in yield_args:
-            arg = self.program_module.block.insert_arg(
-                op.type, len(self.program_module.block.args)
-            )
+            arg = self.program_module.block.insert_arg(op.type, len(self.program_module.block.args))
             arg.name_hint = name
 
     def verify_(self):
@@ -255,9 +217,7 @@ class ModuleOp(IRDLOperation):
 
         # verify that x, y, width, height are i16
         if not all(arg.type == i16 for arg in self.layout_module.block.args[:4]):
-            raise VerifyException(
-                "The first four arguments of the layout block (x, y, width, height) must be of type i16"
-            )
+            raise VerifyException("The first four arguments of the layout block (x, y, width, height) must be of type i16")
 
         # verify that block args are of the right type for the provided params
         for arg, param in zip(
@@ -266,35 +226,24 @@ class ModuleOp(IRDLOperation):
             strict=True,
         ):
             if arg != param.type:
-                raise ValueError(
-                    f"Layout module block arg types do not match for arg {param.key} expected: {param.type} but got: "
-                    f"{arg}. Block arg types must correspond to prop types (in order)"
-                )
+                raise ValueError(f"Layout module block arg types do not match for arg {param.key} expected: {param.type} but got: " f"{arg}. Block arg types must correspond to prop types (in order)")
 
         # verify that the first two program block args (width, height) are correctly typed
         if not all(arg.type == i16 for arg in self.program_module.block.args[:2]):
-            raise VerifyException(
-                "The first two arguments of the program block (width, height) must be of type i16"
-            )
+            raise VerifyException("The first two arguments of the program block (width, height) must be of type i16")
 
         # verify that params and yielded arguments are typed correctly
         # these may be followed by input-output symbols which we cannot verify, therefore setting `strict=False`
         for got, (name, exp) in zip(
             self.program_module.block.arg_types[2:],
             itertools.chain(
-                (
-                    (param.key.data, cast(Attribute, param.type))
-                    for param in self.params
-                ),
+                ((param.key.data, cast(Attribute, param.type)) for param in self.params),
                 ((key, val.type) for key, val in self.layout_yield_op.items()),
             ),
             strict=False,
         ):
             if exp != got:
-                raise VerifyException(
-                    f"Program module block arg types do not match for arg {name} expected: {exp} but got: {got}. "
-                    f"Block arg types must correspond to prop types and layout yield result types (in order)"
-                )
+                raise VerifyException(f"Program module block arg types do not match for arg {name} expected: {exp} but got: {got}. " f"Block arg types must correspond to prop types and layout yield result types (in order)")
 
     def get_layout_param(self, name: str) -> BlockArgument:
         """
@@ -302,9 +251,7 @@ class ModuleOp(IRDLOperation):
         """
         # check static params:
         if name in ("x", "y", "width", "height"):
-            return self.layout_module.block.args[
-                ("x", "y", "width", "height").index(name)
-            ]
+            return self.layout_module.block.args[("x", "y", "width", "height").index(name)]
         # check module params
         for i, param in enumerate(self.params):
             if param.key.data == name:
@@ -354,9 +301,7 @@ class ModuleOp(IRDLOperation):
         """
         Get the exported symbols.
         """
-        return self.program_module.block.args[
-            2 + len(self.params) + len(self.layout_yield_op.fields) :
-        ]
+        return self.program_module.block.args[2 + len(self.params) + len(self.layout_yield_op.fields) :]
 
     def get_program_import(self, name: str) -> ImportOp:
         """Get top-level import op in the program_module"""

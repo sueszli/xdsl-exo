@@ -3,12 +3,7 @@ from typing import cast
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, scf
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
 
 #  This pass flattens pairs nested loops into a single loop.
@@ -45,10 +40,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
         if not isinstance(inner_loop := outer_body.first_op, scf.ForOp):
             # Outer loop must contain inner loop
             return
-        if (
-            inner_loop
-            is not (outer_yield_op := cast(scf.YieldOp, outer_body.last_op)).prev_op
-        ):
+        if inner_loop is not (outer_yield_op := cast(scf.YieldOp, outer_body.last_op)).prev_op:
             # Outer loop must contain only inner loop and yield
             return
 
@@ -57,15 +49,9 @@ class FlattenNestedLoopsPattern(RewritePattern):
                 return
             if len(op.iter_args) != len(inner_loop.iter_args):
                 return
-            if not all(
-                lhs is rhs
-                for (lhs, rhs) in zip(outer_body.args[1:], inner_loop.iter_args)
-            ):
+            if not all(lhs is rhs for (lhs, rhs) in zip(outer_body.args[1:], inner_loop.iter_args)):
                 return
-            if not all(
-                lhs is rhs
-                for (lhs, rhs) in zip(inner_loop.results, outer_yield_op.operands)
-            ):
+            if not all(lhs is rhs for (lhs, rhs) in zip(inner_loop.results, outer_yield_op.operands)):
                 return
         elif inner_loop.iter_args:
             return
@@ -121,9 +107,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
                 return
 
             factor = (inner_ub - inner_lb) // inner_step
-            factor_op = arith.ConstantOp(
-                builtin.IntegerAttr(factor, builtin.IndexType())
-            )
+            factor_op = arith.ConstantOp(builtin.IntegerAttr(factor, builtin.IndexType()))
             new_ub_op = arith.MuliOp(op.ub, factor_op.result)
             rewriter.insert_op_before_matched_op((factor_op, new_ub_op))
             new_ub = new_ub_op.result

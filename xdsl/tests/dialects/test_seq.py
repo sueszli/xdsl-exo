@@ -1,16 +1,7 @@
 import pytest
 
-from xdsl.dialects.builtin import (
-    IntegerAttr,
-    IntegerType,
-    i1,
-    i32,
-)
-from xdsl.dialects.seq import (
-    ClockDividerOp,
-    CompRegOp,
-    clock,
-)
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, i1, i32
+from xdsl.dialects.seq import ClockDividerOp, CompRegOp, clock
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 

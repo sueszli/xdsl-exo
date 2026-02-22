@@ -1,37 +1,6 @@
 from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, memref
-from xdsl.dialects.gpu import (
-    AllocOp,
-    AllReduceOp,
-    AllReduceOpAttr,
-    AllReduceOpEnum,
-    AsyncTokenType,
-    BarrierOp,
-    BlockDimOp,
-    BlockIdOp,
-    DeallocOp,
-    DimensionAttr,
-    DimensionEnum,
-    FuncOp,
-    GlobalIdOp,
-    GridDimOp,
-    HostRegisterOp,
-    HostUnregisterOp,
-    LaneIdOp,
-    LaunchFuncOp,
-    LaunchOp,
-    MemcpyOp,
-    ModuleOp,
-    NumSubgroupsOp,
-    ReturnOp,
-    SetDefaultDeviceOp,
-    SubgroupIdOp,
-    SubgroupSizeOp,
-    TerminatorOp,
-    ThreadIdOp,
-    WaitOp,
-    YieldOp,
-)
+from xdsl.dialects.gpu import AllocOp, AllReduceOp, AllReduceOpAttr, AllReduceOpEnum, AsyncTokenType, BarrierOp, BlockDimOp, BlockIdOp, DeallocOp, DimensionAttr, DimensionEnum, FuncOp, GlobalIdOp, GridDimOp, HostRegisterOp, HostUnregisterOp, LaneIdOp, LaunchFuncOp, LaunchOp, MemcpyOp, ModuleOp, NumSubgroupsOp, ReturnOp, SetDefaultDeviceOp, SubgroupIdOp, SubgroupSizeOp, TerminatorOp, ThreadIdOp, WaitOp, YieldOp
 from xdsl.ir import Block, Operation, Region, SSAValue
 
 
@@ -141,9 +110,7 @@ def test_dealloc():
 
     assert alloc.asyncToken is not None  # For pyright
 
-    dealloc = DeallocOp(
-        buffer=alloc.result, async_dependencies=[alloc.asyncToken], is_async=True
-    )
+    dealloc = DeallocOp(buffer=alloc.result, async_dependencies=[alloc.asyncToken], is_async=True)
 
     assert dealloc.asyncToken is not None
     assert isinstance(dealloc.asyncToken.type, AsyncTokenType)
@@ -341,9 +308,7 @@ def test_memcpy():
     assert memcpy.asyncDependencies == tuple([alloc.asyncToken])
     assert memcpy.asyncToken is None
 
-    memcpy2 = MemcpyOp(
-        alloc.result, host_alloc.memref, [alloc.asyncToken], is_async=True
-    )
+    memcpy2 = MemcpyOp(alloc.result, host_alloc.memref, [alloc.asyncToken], is_async=True)
 
     assert isinstance(memcpy2, MemcpyOp)
     assert memcpy2.src is alloc.result

@@ -3,24 +3,9 @@ import keyword
 from xdsl.builder import Builder, InsertPoint
 from xdsl.dialects.builtin import ArrayAttr, StringAttr
 from xdsl.dialects.irdl import AnyOp
-from xdsl.dialects.irdl.irdl import (
-    AttributeOp,
-    DialectOp,
-    OperandsOp,
-    OperationOp,
-    ParametersOp,
-    ResultsOp,
-    VariadicityArrayAttr,
-    VariadicityAttr,
-)
+from xdsl.dialects.irdl.irdl import AttributeOp, DialectOp, OperandsOp, OperationOp, ParametersOp, ResultsOp, VariadicityArrayAttr, VariadicityAttr
 from xdsl.ir import Attribute, Block, Dialect, ParametrizedAttribute, Region, SSAValue
-from xdsl.irdl import (
-    AttrConstraint,
-    GenericRangeConstraint,
-    IRDLOperation,
-    OptionalDef,
-    VariadicDef,
-)
+from xdsl.irdl import AttrConstraint, GenericRangeConstraint, IRDLOperation, OptionalDef, VariadicDef
 
 
 def depython_name(name: str):
@@ -38,9 +23,7 @@ def constraint_to_irdl(builder: Builder, constraint: AttrConstraint) -> SSAValue
     return any_op.output
 
 
-def range_to_irdl(
-    builder: Builder, constraint: GenericRangeConstraint[Attribute]
-) -> SSAValue:
+def range_to_irdl(builder: Builder, constraint: GenericRangeConstraint[Attribute]) -> SSAValue:
     """
     Convert a range constraint to IRDL.
     This will create new operations at the provided builder location.
@@ -130,9 +113,7 @@ def dialect_to_irdl(dialect: Dialect, name: str) -> DialectOp:
 
     for attribute in dialect.attributes:
         if not issubclass(attribute, ParametrizedAttribute):
-            raise ValueError(
-                "Can only convert ParametrizedAttribute attributes to IRDL"
-            )
+            raise ValueError("Can only convert ParametrizedAttribute attributes to IRDL")
         builder.insert(attr_def_to_irdl(attribute))
 
     for operation in dialect.operations:

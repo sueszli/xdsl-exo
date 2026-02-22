@@ -14,9 +14,7 @@ class BasePrinter:
     _current_line: int = field(default=0, init=False)
     _current_column: int = field(default=0, init=False)
 
-    _next_line_callback: list[Callable[[], None]] = field(
-        default_factory=list[Callable[[], None]], init=False
-    )
+    _next_line_callback: list[Callable[[], None]] = field(default_factory=list[Callable[[], None]], init=False)
 
     def print_string(self, text: str, *, indent: int | None = None) -> None:
         """
@@ -58,17 +56,13 @@ class BasePrinter:
 
     T = TypeVar("T")
 
-    def print_list(
-        self, elems: Iterable[T], print_fn: Callable[[T], Any], delimiter: str = ", "
-    ) -> None:
+    def print_list(self, elems: Iterable[T], print_fn: Callable[[T], Any], delimiter: str = ", ") -> None:
         for i, elem in enumerate(elems):
             if i:
                 self.print_string(delimiter)
             print_fn(elem)
 
-    def _print_new_line(
-        self, indent: int | None = None, print_message: bool = True
-    ) -> None:
+    def _print_new_line(self, indent: int | None = None, print_message: bool = True) -> None:
         indent = self._indent if indent is None else indent
         # Prints a newline, bypassing the `print_string` method
         print(file=self.stream)
@@ -105,9 +99,7 @@ class BasePrinter:
 
         self._next_line_callback.append(callback)
 
-    def _print_message(
-        self, message: str, begin_pos: int, end_pos: int, indent: int | None = None
-    ):
+    def _print_message(self, message: str, begin_pos: int, end_pos: int, indent: int | None = None):
         """
         Print a message.
         This is expected to be called at the beginning of a new line and to create a new
@@ -118,11 +110,7 @@ class BasePrinter:
         indent_size = indent * self.indent_num_spaces
         self.print_string(" " * indent_size)
         message_end_pos = max(map(len, message.split("\n"))) + indent_size + 2
-        first_line = (
-            (begin_pos - indent_size) * "-"
-            + (end_pos - begin_pos) * "^"
-            + (max(message_end_pos, end_pos) - end_pos) * "-"
-        )
+        first_line = (begin_pos - indent_size) * "-" + (end_pos - begin_pos) * "^" + (max(message_end_pos, end_pos) - end_pos) * "-"
         self.print_string(first_line)
         self._print_new_line(indent=indent, print_message=False)
         for message_line in message.split("\n"):

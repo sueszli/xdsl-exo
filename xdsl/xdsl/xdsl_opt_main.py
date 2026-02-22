@@ -107,9 +107,7 @@ class xDSLOptMain(CommandLineTool):
             default="mlir",
         )
 
-        arg_parser.add_argument(
-            "-o", "--output-file", type=str, required=False, help="path to output file"
-        )
+        arg_parser.add_argument("-o", "--output-file", type=str, required=False, help="path to output file")
 
         pass_names = ",".join([name for name in self.available_passes])
         arg_parser.add_argument(
@@ -132,24 +130,21 @@ class xDSLOptMain(CommandLineTool):
             "--verify-diagnostics",
             default=False,
             action="store_true",
-            help="Prints the content of a triggered "
-            "verifier exception and exits with code 0",
+            help="Prints the content of a triggered " "verifier exception and exits with code 0",
         )
 
         arg_parser.add_argument(
             "--parsing-diagnostics",
             default=False,
             action="store_true",
-            help="Prints the content of a triggered "
-            "parsing exception and exits with code 0",
+            help="Prints the content of a triggered " "parsing exception and exits with code 0",
         )
 
         arg_parser.add_argument(
             "--split-input-file",
             default=False,
             action="store_true",
-            help="Split the input file into pieces and process each chunk "
-            "independently by using `// -----`",
+            help="Split the input file into pieces and process each chunk " "independently by using `// -----`",
         )
 
         arg_parser.add_argument(
@@ -186,9 +181,7 @@ class xDSLOptMain(CommandLineTool):
             help="Return success on exit if ShrinkException was raised.",
         )
 
-    def register_pass(
-        self, pass_name: str, pass_factory: Callable[[], type[ModulePass]]
-    ):
+    def register_pass(self, pass_name: str, pass_factory: Callable[[], type[ModulePass]]):
         self.available_passes[pass_name] = pass_factory
 
     def register_all_passes(self):
@@ -286,9 +279,7 @@ class xDSLOptMain(CommandLineTool):
         Fails, if not all passes are registered.
         """
 
-        def callback(
-            previous_pass: ModulePass, module: ModuleOp, next_pass: ModulePass
-        ) -> None:
+        def callback(previous_pass: ModulePass, module: ModuleOp, next_pass: ModulePass) -> None:
             if not self.args.disable_verify:
                 module.verify()
             if self.args.print_between_passes:
@@ -298,12 +289,7 @@ class xDSLOptMain(CommandLineTool):
                 print("\n\n\n")
 
         self.pipeline = PipelinePass(
-            tuple(
-                pass_type.from_pass_spec(spec)
-                for pass_type, spec in PipelinePass.build_pipeline_tuples(
-                    self.available_passes, parse_pipeline(self.args.passes)
-                )
-            ),
+            tuple(pass_type.from_pass_spec(spec) for pass_type, spec in PipelinePass.build_pipeline_tuples(self.available_passes, parse_pipeline(self.args.passes))),
             callback,
         )
 
@@ -321,13 +307,8 @@ class xDSLOptMain(CommandLineTool):
         chunks = [(f, 0)]
         if self.args.split_input_file:
             chunks_str = [chunk for chunk in f.read().split("// -----")]
-            chunks_off = accumulate(
-                [0, *[chunk.count("\n") for chunk in chunks_str[:-1]]]
-            )
-            chunks = [
-                (StringIO(chunk), off)
-                for chunk, off in zip(chunks_str, chunks_off, strict=True)
-            ]
+            chunks_off = accumulate([0, *[chunk.count("\n") for chunk in chunks_str[:-1]]])
+            chunks = [(StringIO(chunk), off) for chunk, off in zip(chunks_str, chunks_off, strict=True)]
             f.close()
         if self.args.frontend:
             file_extension = self.args.frontend

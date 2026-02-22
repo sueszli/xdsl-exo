@@ -2,13 +2,7 @@ from __future__ import annotations
 
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
-from xdsl.irdl import (
-    IRDLOperation,
-    irdl_op_definition,
-    operand_def,
-    prop_def,
-    result_def,
-)
+from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def, prop_def, result_def
 
 
 @irdl_op_definition

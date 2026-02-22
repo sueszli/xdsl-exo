@@ -5,16 +5,7 @@ from math import copysign, isnan
 import pytest
 
 from xdsl.dialects import arith, test
-from xdsl.dialects.arith import (
-    AddfOp,
-    AddiOp,
-    CmpiOp,
-    ConstantOp,
-    MulfOp,
-    MuliOp,
-    SubfOp,
-    SubiOp,
-)
+from xdsl.dialects.arith import AddfOp, AddiOp, CmpiOp, ConstantOp, MulfOp, MuliOp, SubfOp, SubiOp
 from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, Signedness
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
@@ -171,9 +162,7 @@ def test_minmax_corner():
         ("uge", operator.ge),
     ],
 )
-def test_cmpi(
-    lhs_value: int, rhs_value: int, pred: tuple[str, Callable[[int, int], int]]
-):
+def test_cmpi(lhs_value: int, rhs_value: int, pred: tuple[str, Callable[[int, int], int]]):
     arg, fn = pred
     cmpi = CmpiOp(lhs_op, rhs_op, arg)
 

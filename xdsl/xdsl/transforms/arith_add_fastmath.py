@@ -6,13 +6,7 @@ from typing import Literal
 from xdsl.dialects import arith, builtin
 from xdsl.dialects.utils import FastMathFlag
 from xdsl.passes import Context, ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 _FASTMATH_NAMES_TO_ENUM = {str(member.value): member for member in FastMathFlag}
 
@@ -61,9 +55,7 @@ class AddArithFastMathFlagsPass(ModulePass):
             fm_flags = arith.FastMathFlagsAttr(self.flags)
         else:
             if "none" in self.flags or "fast" in self.flags:
-                raise ValueError(
-                    'f{"none" or "fast" cannot be provided along with other fastmath flags'
-                )
+                raise ValueError('f{"none" or "fast" cannot be provided along with other fastmath flags')
 
             fm_flags = arith.FastMathFlagsAttr(_get_flag_list(self.flags))
 

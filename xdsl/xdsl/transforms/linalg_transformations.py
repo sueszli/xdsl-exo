@@ -7,17 +7,10 @@ from xdsl.dialects.builtin import AffineMapAttr, DenseIntOrFPElementsAttr, Modul
 from xdsl.ir import BlockArgument, OpResult, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
-def build_generic_fma(
-    mul_op1: SSAValue, mul_op2: SSAValue, add_op: SSAValue, out: SSAValue
-) -> linalg.GenericOp:
+def build_generic_fma(mul_op1: SSAValue, mul_op2: SSAValue, add_op: SSAValue, out: SSAValue) -> linalg.GenericOp:
     inputs = (mul_op1, mul_op2, add_op)
     outputs = (out,)
 
@@ -46,36 +39,19 @@ class FuseMultiplyAddPass(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, mul: linalg.MulOp, rewriter: PatternRewriter, /):
-        if (
-            len(mul.res) != 1
-            or self.require_erasable_mul
-            and len(set(use.operation for use in mul.res[0].uses)) != 1
-        ):
+        if len(mul.res) != 1 or self.require_erasable_mul and len(set(use.operation for use in mul.res[0].uses)) != 1:
             return
 
-        for add in set(
-            use.operation
-            for use in mul.res[0].uses
-            if isinstance(use.operation, linalg.AddOp)
-            and mul.res[0] in use.operation.inputs
-        ):
+        for add in set(use.operation for use in mul.res[0].uses if isinstance(use.operation, linalg.AddOp) and mul.res[0] in use.operation.inputs):
             # if the `require_scalar_factor` flag is set, check if either operand of `mul` is a scalar
-            if (
-                self.require_scalar_factor
-                and not self.is_scalar_constant(mul.inputs[0])
-                and not self.is_scalar_constant(mul.inputs[1])
-            ):
+            if self.require_scalar_factor and not self.is_scalar_constant(mul.inputs[0]) and not self.is_scalar_constant(mul.inputs[1]):
                 return
 
             # the operand of `add` that is not the `mul` result
-            add_operand = (
-                add.inputs[0] if mul.res[0] == add.inputs[1] else add.inputs[1]
-            )
+            add_operand = add.inputs[0] if mul.res[0] == add.inputs[1] else add.inputs[1]
 
             # build fma op
-            fma = build_generic_fma(
-                mul.inputs[0], mul.inputs[1], add_operand, mul.outputs[0]
-            )
+            fma = build_generic_fma(mul.inputs[0], mul.inputs[1], add_operand, mul.outputs[0])
 
             # replace in position of the add op
             rewriter.replace_op(add, fma)
@@ -88,14 +64,7 @@ class FuseMultiplyAddPass(RewritePattern):
         Returns if the value is a scalar. This currently checks for scalar constants, and could
         in the future be extended to check for dynamically provided scalar values expanded via linalg.fill
         """
-        return (
-            isinstance(op, OpResult)
-            and isinstance(op.op, arith.ConstantOp)
-            and (
-                not isinstance(v := op.op.value, DenseIntOrFPElementsAttr)
-                or v.is_splat()
-            )
-        )
+        return isinstance(op, OpResult) and isinstance(op.op, arith.ConstantOp) and (not isinstance(v := op.op.value, DenseIntOrFPElementsAttr) or v.is_splat())
 
 
 @dataclass(frozen=True)

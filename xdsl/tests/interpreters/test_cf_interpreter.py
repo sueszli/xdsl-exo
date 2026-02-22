@@ -49,9 +49,7 @@ def sum_to_op():
         (result,) = epilogue.args
         func.ReturnOp(result)
 
-    func.FuncOp(
-        "sum_to", ((i32,), (i32,)), Region([prologue, loop_iter, loop_body, epilogue])
-    )
+    func.FuncOp("sum_to", ((i32,), (i32,)), Region([prologue, loop_iter, loop_body, epilogue]))
 
 
 def sum_to_interp(n: int) -> int:

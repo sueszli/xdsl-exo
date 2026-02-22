@@ -4,10 +4,7 @@ import pytest
 from typing_extensions import Self
 
 from xdsl.backend.register_allocatable import RegisterConstraints
-from xdsl.backend.riscv.register_allocation import (
-    RegisterAllocatorLivenessBlockNaive,
-    reg_types_by_name,
-)
+from xdsl.backend.riscv.register_allocation import RegisterAllocatorLivenessBlockNaive, reg_types_by_name
 from xdsl.backend.riscv.riscv_register_queue import RiscvRegisterQueue
 from xdsl.dialects import riscv
 from xdsl.dialects.test import TestOp
@@ -54,9 +51,7 @@ def test_default_reserved_registers():
 
     with pytest.raises(
         DiagnosticException,
-        match=re.escape(
-            "Cannot allocate registers to the same register ['!riscv.reg<j_2>', '!riscv.reg<j_3>']"
-        ),
+        match=re.escape("Cannot allocate registers to the same register ['!riscv.reg<j_2>', '!riscv.reg<j_3>']"),
     ):
         register_allocator.allocate_same(op_d.results)
 
@@ -64,9 +59,7 @@ def test_default_reserved_registers():
 
     with pytest.raises(
         DiagnosticException,
-        match=re.escape(
-            "Cannot allocate registers to the same register ['!riscv.reg', '!riscv.reg<j_2>', '!riscv.reg<j_3>']"
-        ),
+        match=re.escape("Cannot allocate registers to the same register ['!riscv.reg', '!riscv.reg<j_2>', '!riscv.reg<j_3>']"),
     ):
         register_allocator.allocate_same(op_e.results)
 
@@ -92,9 +85,7 @@ def test_allocate_with_inout_constraints():
             )
 
         def get_register_constraints(self) -> RegisterConstraints:
-            return RegisterConstraints(
-                (self.rs0,), (self.rd0,), ((self.rs1, self.rd1),)
-            )
+            return RegisterConstraints((self.rs0,), (self.rd0,), ((self.rs1, self.rd1),))
 
     register_queue = RiscvRegisterQueue()
     register_allocator = RegisterAllocatorLivenessBlockNaive(register_queue)

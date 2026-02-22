@@ -13,25 +13,9 @@ from abc import ABC
 from collections.abc import Sequence
 from typing import ClassVar
 
-from xdsl.dialects.builtin import (
-    I32,
-    I64,
-    IntegerAttr,
-    IntegerType,
-    UnitAttr,
-)
+from xdsl.dialects.builtin import I32, I64, IntegerAttr, IntegerType, UnitAttr
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue, TypeAttribute
-from xdsl.irdl import (
-    IRDLOperation,
-    VarConstraint,
-    attr_def,
-    base,
-    irdl_op_definition,
-    operand_def,
-    opt_attr_def,
-    result_def,
-    var_operand_def,
-)
+from xdsl.irdl import IRDLOperation, VarConstraint, attr_def, base, irdl_op_definition, operand_def, opt_attr_def, result_def, var_operand_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -85,7 +69,7 @@ class BinCombOperation(IRDLOperation, ABC):
         rhs = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
-        (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [result_type], parser.pos)
+        lhs, rhs = parser.resolve_operands([lhs, rhs], 2 * [result_type], parser.pos)
         return cls(lhs, rhs, result_type)
 
     def print(self, printer: Printer):
@@ -131,14 +115,10 @@ class VariadicCombOperation(IRDLOperation, ABC):
 
     @classmethod
     def parse(cls, parser: Parser):
-        inputs = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_unresolved_operand
-        )
+        inputs = parser.parse_comma_separated_list(parser.Delimiter.NONE, parser.parse_unresolved_operand)
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
-        inputs = parser.resolve_operands(
-            inputs, len(inputs) * [result_type], parser.pos
-        )
+        inputs = parser.resolve_operands(inputs, len(inputs) * [result_type], parser.pos)
         return cls.create(operands=inputs, result_types=[result_type])
 
     def print(self, printer: Printer):
@@ -270,9 +250,7 @@ class ICmpOp(IRDLOperation, ABC):
     two_state = opt_attr_def(UnitAttr, attr_name="twoState")
 
     @staticmethod
-    def _get_comparison_predicate(
-        mnemonic: str, comparison_operations: dict[str, int]
-    ) -> int:
+    def _get_comparison_predicate(mnemonic: str, comparison_operations: dict[str, int]) -> int:
         if mnemonic in comparison_operations:
             return comparison_operations[mnemonic]
         else:
@@ -324,9 +302,7 @@ class ICmpOp(IRDLOperation, ABC):
         operand2 = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
         input_type = parser.parse_type()
-        (operand1, operand2) = parser.resolve_operands(
-            [operand1, operand2], 2 * [input_type], parser.pos
-        )
+        operand1, operand2 = parser.resolve_operands([operand1, operand2], 2 * [input_type], parser.pos)
 
         return cls(operand1, operand2, arg, has_two_state_semantics)
 
@@ -354,9 +330,7 @@ class ParityOp(IRDLOperation):
 
     two_state = opt_attr_def(UnitAttr, attr_name="twoState")
 
-    def __init__(
-        self, operand: Operation | SSAValue, two_state: UnitAttr | None = None
-    ):
+    def __init__(self, operand: Operation | SSAValue, two_state: UnitAttr | None = None):
         operand = SSAValue.get(operand)
         return super().__init__(
             attributes={"twoState": two_state},
@@ -418,16 +392,8 @@ class ExtractOp(IRDLOperation):
     def verify_(self) -> None:
         assert isinstance(self.input.type, IntegerType)
         assert isinstance(self.result.type, IntegerType)
-        if (
-            self.low_bit.value.data + self.result.type.width.data
-            > self.input.type.width.data + 1
-        ):
-            raise VerifyException(
-                f"output width {self.result.type.width.data} is "
-                f"too large for input of width "
-                f"{self.input.type.width.data} (included low bit "
-                f"is at {self.low_bit.value.data})"
-            )
+        if self.low_bit.value.data + self.result.type.width.data > self.input.type.width.data + 1:
+            raise VerifyException(f"output width {self.result.type.width.data} is " f"too large for input of width " f"{self.input.type.width.data} (included low bit " f"is at {self.low_bit.value.data})")
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -437,13 +403,9 @@ class ExtractOp(IRDLOperation):
         parser.parse_punctuation(":")
         result_type = parser.parse_function_type()
         if len(result_type.inputs.data) != 1 or len(result_type.outputs.data) != 1:
-            parser.raise_error(
-                "expected exactly one input and exactly one output types"
-            )
+            parser.raise_error("expected exactly one input and exactly one output types")
         if not isinstance(result_type.outputs.data[0], IntegerType):
-            parser.raise_error(
-                f"expected output to be an integer type, got '{result_type.outputs.data[0]}'"
-            )
+            parser.raise_error(f"expected output to be an integer type, got '{result_type.outputs.data[0]}'")
         (op,) = parser.resolve_operands([op], result_type.inputs.data, parser.pos)
         return cls(op, IntegerAttr(bit, 32), result_type.outputs.data[0])
 
@@ -497,21 +459,13 @@ class ConcatOp(IRDLOperation):
         assert sum_of_width is not None
         assert isinstance(self.result.type, IntegerType)
         if sum_of_width != self.result.type.width.data:
-            raise VerifyException(
-                f"Sum of integer width ({sum_of_width}) "
-                f"is different from result "
-                f"width ({self.result.type.width.data})"
-            )
+            raise VerifyException(f"Sum of integer width ({sum_of_width}) " f"is different from result " f"width ({self.result.type.width.data})")
 
     @classmethod
     def parse(cls, parser: Parser):
-        inputs = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_unresolved_operand
-        )
+        inputs = parser.parse_comma_separated_list(parser.Delimiter.NONE, parser.parse_unresolved_operand)
         parser.parse_punctuation(":")
-        input_types = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_type
-        )
+        input_types = parser.parse_comma_separated_list(parser.Delimiter.NONE, parser.parse_type)
         sum_of_width = _get_sum_of_int_width(input_types)
         if sum_of_width is None:
             parser.raise_error("expected only integer types as input")
@@ -576,9 +530,7 @@ class MuxOp(IRDLOperation):
         false_val: Operation | SSAValue,
     ):
         operand2 = SSAValue.get(true_val)
-        return super().__init__(
-            operands=[condition, true_val, false_val], result_types=[operand2.type]
-        )
+        return super().__init__(operands=[condition, true_val, false_val], result_types=[operand2.type])
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -589,7 +541,7 @@ class MuxOp(IRDLOperation):
         false_val = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
-        (condition, true_val, false_val) = parser.resolve_operands(
+        condition, true_val, false_val = parser.resolve_operands(
             [condition, true_val, false_val],
             [IntegerType(1), result_type, result_type],
             parser.pos,

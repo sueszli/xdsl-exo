@@ -43,8 +43,6 @@ class PassFailedException(DiagnosticException):
     signify that the pass did not succeed.
     """
 
-    pass
-
 
 class PyRDLError(Exception):
     pass
@@ -74,15 +72,11 @@ class ShrinkException(Exception):
     `shrinkray "xdsl-opt -p my,pass,pipeline --shrink" input_file.mlir`.
     """
 
-    pass
-
 
 class InterpretationError(Exception):
     """
     An error that can be raised during interpretation, or Interpreter setup.
     """
-
-    pass
 
 
 @dataclass
@@ -96,10 +90,7 @@ class BuilderNotFoundException(Exception):
     args: tuple[Any, ...]
 
     def __str__(self) -> str:
-        return (
-            f"No builder found for attribute {self.attribute} with "
-            f"arguments {self.args}"
-        )
+        return f"No builder found for attribute {self.attribute} with " f"arguments {self.args}"
 
 
 @dataclass
@@ -127,7 +118,4 @@ class MultipleSpansParseError(ParseError):
 
 class PassPipelineParseError(BaseException):
     def __init__(self, token: Token, msg: str):
-        super().__init__(
-            "Error parsing pass pipeline specification:\n"
-            + token.span.print_with_context(msg)
-        )
+        super().__init__("Error parsing pass pipeline specification:\n" + token.span.print_with_context(msg))

@@ -12,38 +12,9 @@ from typing import Annotated, Any, Generic, TypeAlias, TypeVar, cast
 
 import pytest
 
-from xdsl.dialects.builtin import (
-    IndexType,
-    IntAttr,
-    IntegerAttr,
-    IntegerType,
-    NoneAttr,
-    Signedness,
-)
-from xdsl.ir import (
-    Attribute,
-    BitEnumAttribute,
-    BuiltinAttribute,
-    Data,
-    EnumAttribute,
-    ParametrizedAttribute,
-    SpacedOpaqueSyntaxAttribute,
-    StrEnum,
-    TypedAttribute,
-)
-from xdsl.irdl import (
-    AnyAttr,
-    AttrConstraint,
-    BaseAttr,
-    ConstraintContext,
-    ConstraintVar,
-    GenericData,
-    MessageConstraint,
-    ParamAttrDef,
-    ParameterDef,
-    irdl_attr_definition,
-    irdl_to_attr_constraint,
-)
+from xdsl.dialects.builtin import IndexType, IntAttr, IntegerAttr, IntegerType, NoneAttr, Signedness
+from xdsl.ir import Attribute, BitEnumAttribute, BuiltinAttribute, Data, EnumAttribute, ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, StrEnum, TypedAttribute
+from xdsl.irdl import AnyAttr, AttrConstraint, BaseAttr, ConstraintContext, ConstraintVar, GenericData, MessageConstraint, ParamAttrDef, ParameterDef, irdl_attr_definition, irdl_to_attr_constraint
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
@@ -58,7 +29,6 @@ def test_wrong_attribute_type():
         @irdl_attr_definition
         class AbstractAttribute(Attribute):  # pyright: ignore[reportUnusedClass]
             name = "test.wrong"
-            pass
 
 
 ################################################################################
@@ -184,13 +154,9 @@ def test_enum_attribute():
 
 def test_indirect_enum_guard():
     EnumType = TypeVar("EnumType", bound=StrEnum)
-    with pytest.raises(
-        TypeError, match="Only direct inheritance from EnumAttribute is allowed."
-    ):
+    with pytest.raises(TypeError, match="Only direct inheritance from EnumAttribute is allowed."):
 
-        class IndirectEnumData(  # pyright: ignore[reportUnusedClass]
-            EnumAttribute[EnumType]
-        ):
+        class IndirectEnumData(EnumAttribute[EnumType]):  # pyright: ignore[reportUnusedClass]
             name = "test.indirect_enum"
 
 
@@ -200,9 +166,7 @@ def test_identifier_enum_guard():
         match="All StrEnum values of an EnumAttribute must be parsable as an identifer.",
     ):
 
-        class IndirectEnumData(  # pyright: ignore[reportUnusedClass]
-            EnumAttribute[TestNonIdentifierEnum]
-        ):
+        class IndirectEnumData(EnumAttribute[TestNonIdentifierEnum]):  # pyright: ignore[reportUnusedClass]
             name = "test.non_identifier_enum"
 
 
@@ -251,9 +215,7 @@ def test_typed_attribute():
     ):
 
         @irdl_attr_definition
-        class TypedAttr(  # pyright: ignore[reportUnusedClass]
-            TypedAttribute
-        ):
+        class TypedAttr(TypedAttribute):  # pyright: ignore[reportUnusedClass]
             name = "test.typed"
 
 
@@ -370,9 +332,7 @@ def test_union_constraint_fail():
 class PositiveIntConstr(AttrConstraint):
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if not isinstance(attr, IntData):
-            raise VerifyException(
-                f"Expected {IntData.name} attribute, but got {attr.name}."
-            )
+            raise VerifyException(f"Expected {IntData.name} attribute, but got {attr.name}.")
         if attr.data <= 0:
             raise VerifyException(f"Expected positive integer, got {attr.data}.")
 
@@ -458,10 +418,7 @@ def test_param_attr_constraint():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert (
-        stream.getvalue()
-        == "#test.param_constr<#test.int_or_bool_generic<#test.int<42>>>"
-    )
+    assert stream.getvalue() == "#test.param_constr<#test.int_or_bool_generic<#test.int<42>>>"
 
 
 def test_param_attr_constraint_fail():
@@ -496,10 +453,7 @@ def test_nested_generic_constraint():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert (
-        stream.getvalue()
-        == "#test.nested_param_wrapper<#test.int_or_bool_generic<#test.int<42>>>"
-    )
+    assert stream.getvalue() == "#test.nested_param_wrapper<#test.int_or_bool_generic<#test.int<42>>>"
 
 
 def test_nested_generic_constraint_fail():
@@ -523,16 +477,11 @@ def test_nested_param_attr_constraint():
     """
     Test the verifier of a nested parametric constraint.
     """
-    attr = NestedParamConstrAttr(
-        (NestedParamWrapperAttr(ParamWrapperAttr(IntData(42))),)
-    )
+    attr = NestedParamConstrAttr((NestedParamWrapperAttr(ParamWrapperAttr(IntData(42))),))
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert (
-        stream.getvalue()
-        == "#test.nested_param_constr<#test.nested_param_wrapper<#test.int_or_bool_generic<#test.int<42>>>>"
-    )
+    assert stream.getvalue() == "#test.nested_param_constr<#test.nested_param_wrapper<#test.int_or_bool_generic<#test.int<42>>>>"
 
 
 def test_nested_param_attr_constraint_fail():
@@ -624,11 +573,7 @@ def test_data_with_generic_missing_generic_data_failure():
     """
     with pytest.raises(Exception) as e:
         irdl_attr_definition(MissingGenericDataDataWrapper)
-    assert e.value.args[0] == (
-        "Generic `Data` type 'test.missing_genericdata' cannot be converted to "
-        "an attribute constraint. Consider making it inherit from "
-        "`GenericData` instead of `Data`."
-    )
+    assert e.value.args[0] == ("Generic `Data` type 'test.missing_genericdata' cannot be converted to " "an attribute constraint. Consider making it inherit from " "`GenericData` instead of `Data`.")
 
 
 A = TypeVar("A", bound=Attribute)
@@ -689,10 +634,7 @@ class Test_generic_data_verifier:
         stream = StringIO()
         p = Printer(stream=stream)
         p.print_attribute(attr)
-        assert (
-            stream.getvalue()
-            == "#test.list<[#test.bool<True>, #test.list<[#test.bool<False>]>]>"
-        )
+        assert stream.getvalue() == "#test.list<[#test.bool<True>, #test.list<[#test.bool<False>]>]>"
 
 
 @irdl_attr_definition
@@ -710,10 +652,7 @@ def test_generic_data_wrapper_verifier():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert (
-        stream.getvalue()
-        == "#test.list_wrapper<#test.list<[#test.bool<True>, #test.bool<False>]>>"
-    )
+    assert stream.getvalue() == "#test.list_wrapper<#test.list<[#test.bool<True>, #test.bool<False>]>>"
 
 
 def test_generic_data_wrapper_verifier_failure():
@@ -723,14 +662,8 @@ def test_generic_data_wrapper_verifier_failure():
     """
     with pytest.raises(VerifyException) as e:
         ListDataWrapper((ListData([BoolData(True), ListData([BoolData(False)])]),))
-    assert (
-        e.value.args[0]
-        == "#test.list<[#test.bool<False>]> should be of base attribute test.bool"
-    )
-    assert (
-        e.value.args[0]
-        == "#test.list<[#test.bool<False>]> should be of base attribute test.bool"
-    )
+    assert e.value.args[0] == "#test.list<[#test.bool<False>]> should be of base attribute test.bool"
+    assert e.value.args[0] == "#test.list<[#test.bool<False>]> should be of base attribute test.bool"
 
 
 @irdl_attr_definition
@@ -744,16 +677,11 @@ def test_generic_data_no_generics_wrapper_verifier():
     """
     Test that GenericType can be used in constraints without a parameter.
     """
-    attr = ListDataNoGenericsWrapper(
-        (ListData([BoolData(True), ListData([BoolData(False)])]),)
-    )
+    attr = ListDataNoGenericsWrapper((ListData([BoolData(True), ListData([BoolData(False)])]),))
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert (
-        stream.getvalue()
-        == "#test.list_no_generics_wrapper<#test.list<[#test.bool<True>, #test.list<[#test.bool<False>]>]>>"
-    )
+    assert stream.getvalue() == "#test.list_no_generics_wrapper<#test.list<[#test.bool<True>, #test.list<[#test.bool<False>]>]>>"
 
 
 ################################################################################
@@ -776,9 +704,7 @@ class ParamAttrDefAttr(ParametrizedAttribute):
 def test_irdl_definition():
     """Test that we can get the IRDL definition of a parametrized attribute."""
 
-    assert ParamAttrDefAttr.get_irdl_definition() == ParamAttrDef(
-        "test.param_attr_def_attr", [("arg1", AnyAttr()), ("arg2", BaseAttr(BoolData))]
-    )
+    assert ParamAttrDefAttr.get_irdl_definition() == ParamAttrDef("test.param_attr_def_attr", [("arg1", AnyAttr()), ("arg2", BaseAttr(BoolData))])
 
 
 class InvalidTypedFieldTestAttr(ParametrizedAttribute):
@@ -868,9 +794,7 @@ def test_constraint_var_fail_non_equal():
 def test_constraint_var_fail_not_satisfy_constraint():
     """Test that constraint variables must satisfy the underlying constraint."""
     with pytest.raises(VerifyException):
-        ConstraintVarAttr.new(
-            [IntegerAttr(42, IndexType()), IntegerAttr(17, IndexType())]
-        )
+        ConstraintVarAttr.new([IntegerAttr(42, IndexType()), IntegerAttr(17, IndexType())])
 
 
 ################################################################################
@@ -886,9 +810,7 @@ def test_non_builtin_name_fail():
     with pytest.raises(PyRDLAttrDefinitionError, match="is not a valid attribute name"):
 
         @irdl_attr_definition
-        class NonBuiltinNameAttr(  # pyright: ignore[reportUnusedClass]
-            ParametrizedAttribute
-        ):
+        class NonBuiltinNameAttr(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
             name = "vector"
 
 
@@ -899,9 +821,7 @@ def test_non_builtin_name():
     """
 
     @irdl_attr_definition
-    class NonBuiltinNameAttr(  # pyright: ignore[reportUnusedClass]
-        ParametrizedAttribute
-    ):
+    class NonBuiltinNameAttr(ParametrizedAttribute):  # pyright: ignore[reportUnusedClass]
         name = "test.vector"
 
 
@@ -911,7 +831,5 @@ def test_builtin_name():
     """
 
     @irdl_attr_definition
-    class BuiltinNameAttr(  # pyright: ignore[reportUnusedClass]
-        ParametrizedAttribute, BuiltinAttribute
-    ):
+    class BuiltinNameAttr(ParametrizedAttribute, BuiltinAttribute):  # pyright: ignore[reportUnusedClass]
         name = "builtin.vector"

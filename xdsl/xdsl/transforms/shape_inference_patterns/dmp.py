@@ -1,11 +1,7 @@
 from xdsl.dialects import builtin, stencil
 from xdsl.dialects.experimental import dmp
 from xdsl.ir import Attribute
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 from xdsl.utils.hints import isa
 
 
@@ -68,10 +64,7 @@ class DmpSwapSwapsInference(RewritePattern):
                 arg_idx = apply_op.operands.index(op.swapped_values)
                 arg = apply_op.region.block.args[arg_idx]
                 for arg_use in arg.uses:
-                    if (
-                        not isinstance(access_op := arg_use.operation, stencil.AccessOp)
-                        or not access_op.offset_mapping
-                    ):
+                    if not isinstance(access_op := arg_use.operation, stencil.AccessOp) or not access_op.offset_mapping:
                         continue
                     accessed_dims = tuple(access_op.offset_mapping)
 

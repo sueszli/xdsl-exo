@@ -89,9 +89,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_convert_memref_stream_to_snitch_stream():
         from xdsl.transforms import convert_memref_stream_to_snitch_stream
 
-        return (
-            convert_memref_stream_to_snitch_stream.ConvertMemRefStreamToSnitchStreamPass
-        )
+        return convert_memref_stream_to_snitch_stream.ConvertMemRefStreamToSnitchStreamPass
 
     def get_convert_memref_to_ptr():
         from xdsl.transforms import convert_memref_to_ptr

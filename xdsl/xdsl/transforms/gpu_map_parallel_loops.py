@@ -5,13 +5,7 @@ from xdsl.dialects.scf import ParallelOp
 from xdsl.ir import Operation
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 MappingAttrName = "mapping"
 
@@ -67,14 +61,9 @@ def mapParallelOp(parallelOp: ParallelOp, mappingLevel: int = MapGrid):
     while (anchor is not None) and (not isinstance(anchor, ParallelOp)):
         anchor = anchor.parent_op()
 
-    if (MappingAttrName in parallelOp.attributes) or (
-        (mappingLevel == MapGrid) and anchor is not None
-    ):
+    if (MappingAttrName in parallelOp.attributes) or ((mappingLevel == MapGrid) and anchor is not None):
         return
-    attrs = [
-        getHardwareIdForMapping(mappingLevel, i)
-        for i in range(len(parallelOp.lowerBound))
-    ]
+    attrs = [getHardwareIdForMapping(mappingLevel, i) for i in range(len(parallelOp.lowerBound))]
     attrs = ArrayAttr(
         [
             LoopDimMapAttr(
@@ -104,7 +93,5 @@ class GpuMapParallelLoopsPass(ModulePass):
     name = "gpu-map-parallel-loops"
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
-        walker = PatternRewriteWalker(
-            GreedyRewritePatternApplier([GpuMapParallelLoopsPattern()])
-        )
+        walker = PatternRewriteWalker(GreedyRewritePatternApplier([GpuMapParallelLoopsPattern()]))
         walker.rewrite_module(op)

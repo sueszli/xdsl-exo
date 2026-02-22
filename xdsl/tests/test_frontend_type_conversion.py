@@ -7,9 +7,7 @@ from typing import Any, Generic, Literal, TypeAlias, TypeVar
 
 import pytest
 
-from xdsl.frontend.pyast.dialects.builtin import (
-    _FrontendType,  # pyright: ignore[reportPrivateUsage]
-)
+from xdsl.frontend.pyast.dialects.builtin import _FrontendType  # pyright: ignore[reportPrivateUsage]
 from xdsl.frontend.pyast.exception import CodeGenerationException
 from xdsl.frontend.pyast.type_conversion import TypeConverter
 from xdsl.ir import ParametrizedAttribute
@@ -72,9 +70,7 @@ def test_raises_exception_on_non_frontend_type_I():
 
     with pytest.raises(CodeGenerationException) as err:
         type_converter.convert_type_hint(type_hint)
-    assert (
-        err.value.msg == "Unknown type hint for type 'b' inside 'ast.Name' expression."
-    )
+    assert err.value.msg == "Unknown type hint for type 'b' inside 'ast.Name' expression."
 
 
 def test_raises_exception_on_non_frontend_type_II():
@@ -92,10 +88,7 @@ def test_raises_exception_on_nontrivial_generics():
 
     with pytest.raises(CodeGenerationException) as err:
         type_converter.convert_type_hint(type_hint)
-    assert (
-        err.value.msg
-        == "Expected 1 type argument for generic type 'd12', got 2 type arguments instead."
-    )
+    assert err.value.msg == "Expected 1 type argument for generic type 'd12', got 2 type arguments instead."
 
 
 def test_type_conversion_caches_type():

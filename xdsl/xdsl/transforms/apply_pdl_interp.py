@@ -24,9 +24,7 @@ class PDLInterpRewritePattern(RewritePattern):
     functions: PDLInterpFunctions
     matcher: pdl_interp.FuncOp
 
-    def __init__(
-        self, matcher: pdl_interp.FuncOp, ctx: Context, file: IO[str] | None = None
-    ):
+    def __init__(self, matcher: pdl_interp.FuncOp, ctx: Context, file: IO[str] | None = None):
         # Create interpreter and register implementations
         self.ctx = ctx
         self.functions = PDLInterpFunctions(ctx)

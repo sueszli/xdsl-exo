@@ -2,12 +2,7 @@ from xdsl.context import Context
 from xdsl.dialects import arith, builtin, scf
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
 def is_foldable(val: SSAValue, for_op: scf.ForOp):
@@ -72,6 +67,4 @@ class ScfForLoopRangeFoldingPass(ModulePass):
     name = "scf-for-loop-range-folding"
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(
-            ScfForLoopRangeFolding(), apply_recursively=False, walk_regions_first=True
-        ).rewrite_module(op)
+        PatternRewriteWalker(ScfForLoopRangeFolding(), apply_recursively=False, walk_regions_first=True).rewrite_module(op)

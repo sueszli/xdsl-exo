@@ -87,9 +87,7 @@ class PipelineLexer:
                     pos = match.end()
                     break
             if token is None:
-                raise PassPipelineParseError(
-                    Token(Span(pos, pos + 1, input), Token.Kind.IDENT), "Unknown token"
-                )
+                raise PassPipelineParseError(Token(Span(pos, pos + 1, input), Token.Kind.IDENT), "Unknown token")
             yield token
             if pos >= end:
                 yield Token(Span(pos, pos + 1, input), Token.Kind.EOF)
@@ -153,10 +151,7 @@ class PipelinePassSpec:
         and respective values for use on the commandline.
         """
         query = f"{self.name}"
-        arguments_pipeline = " ".join(
-            _pass_arg_list_type_str(arg_name, arg_val)
-            for arg_name, arg_val in self.args.items()
-        )
+        arguments_pipeline = " ".join(_pass_arg_list_type_str(arg_name, arg_val) for arg_name, arg_val in self.args.items())
         query += f"{{{arguments_pipeline}}}" if self.args else ""
 
         return query
@@ -216,9 +211,7 @@ def parse_pipeline(
                 )
             case invalid:
                 # every other token is invalid
-                raise PassPipelineParseError(
-                    invalid, "Expected a comma or pass arguments here"
-                )
+                raise PassPipelineParseError(invalid, "Expected a comma or pass arguments here")
 
         # check for comma or EOF
         match lexer.lex():
@@ -230,9 +223,7 @@ def parse_pipeline(
                 continue
             case invalid:
                 # every other token is invalid
-                raise PassPipelineParseError(
-                    invalid, "Expected a comma after pass argument dict here"
-                )
+                raise PassPipelineParseError(invalid, "Expected a comma after pass argument dict here")
 
 
 def _parse_pass_args(lexer: PipelineLexer) -> dict[str, PassArgListType]:
@@ -276,9 +267,7 @@ def _parse_pass_args(lexer: PipelineLexer) -> dict[str, PassArgListType]:
                 args[name.span.text] = _parse_arg_value(lexer)
             case invalid:
                 # every other token is invalid
-                raise PassPipelineParseError(
-                    invalid, "Expected equals, space or end of arguments here"
-                )
+                raise PassPipelineParseError(invalid, "Expected equals, space or end of arguments here")
 
         # next token must be either space or `}`
         match lexer.lex():
@@ -337,6 +326,5 @@ def _parse_arg_value_element(lexer: PipelineLexer) -> PassArgElementType:
             # every other token type is invalid as a value
             raise PassPipelineParseError(
                 token,
-                "Unknown argument value, wrap argument in quotes to pass arbitrary "
-                "string values",
+                "Unknown argument value, wrap argument in quotes to pass arbitrary " "string values",
             )

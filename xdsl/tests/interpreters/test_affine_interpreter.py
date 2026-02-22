@@ -82,12 +82,8 @@ def test_functions():
     res = interpreter.call_op("my_func", ())
 
     assert res == (
-        ShapedArray(
-            TypedPtr.new_index([0, 1, 2, 1, 2, 3], interpreter.index_bitwidth), [2, 3]
-        ),
-        ShapedArray(
-            TypedPtr.new_index([0, 1, 1, 2, 2, 3], interpreter.index_bitwidth), [3, 2]
-        ),
+        ShapedArray(TypedPtr.new_index([0, 1, 2, 1, 2, 3], interpreter.index_bitwidth), [2, 3]),
+        ShapedArray(TypedPtr.new_index([0, 1, 1, 2, 2, 3], interpreter.index_bitwidth), [3, 2]),
     )
 
 

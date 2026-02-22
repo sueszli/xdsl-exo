@@ -2,13 +2,7 @@ from xdsl.context import Context
 from xdsl.dialects import arith, builtin, llvm, memref, mpi, scf, stencil
 from xdsl.ir import Operation, TypeAttribute
 from xdsl.irdl import Operand
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.utils.hints import isa
 
 AnyNumericType = builtin.AnyFloat | builtin.IntegerType
@@ -16,9 +10,7 @@ AnyNumericType = builtin.AnyFloat | builtin.IntegerType
 
 class ApplyMPIToExternalLoad(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: stencil.ExternalLoadOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: stencil.ExternalLoadOp, rewriter: PatternRewriter, /):
         assert isa(op.field.type, memref.MemRefType[AnyNumericType])
         memref_type: memref.MemRefType[AnyNumericType] = op.field.type
         if len(memref_type.shape) <= 1:
@@ -44,9 +36,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         # The underlying datatype we use in communications and size in dimension zero
         element_type: TypeAttribute = memref_type.element_type
         datatype_op = mpi.GetDtypeOp(element_type)
-        int_attr: builtin.IntegerAttr[builtin.IndexType] = builtin.IntegerAttr(
-            0, builtin.IndexType()
-        )
+        int_attr: builtin.IntegerAttr[builtin.IndexType] = builtin.IntegerAttr(0, builtin.IndexType())
         dim_zero_const = arith.ConstantOp(int_attr, builtin.IndexType())
         dim_zero_size_op = memref.DimOp.from_source_and_index(op.field, dim_zero_const)
         dim_zero_i32_op = arith.IndexCastOp(dim_zero_size_op, builtin.i32)
@@ -116,13 +106,9 @@ class ApplyMPIToExternalLoad(RewritePattern):
         )
 
         # Else set empty request handles
-        zero_conv = builtin.UnrealizedConversionCastOp.get(
-            [alloc_lookup_op_zero], [llvm.LLVMPointerType.opaque()]
-        )
+        zero_conv = builtin.UnrealizedConversionCastOp.get([alloc_lookup_op_zero], [llvm.LLVMPointerType.opaque()])
         null_req_zero = llvm.StoreOp(mpi_request_null, zero_conv)
-        one_conv = builtin.UnrealizedConversionCastOp.get(
-            [alloc_lookup_op_one], [llvm.LLVMPointerType.opaque()]
-        )
+        one_conv = builtin.UnrealizedConversionCastOp.get([alloc_lookup_op_one], [llvm.LLVMPointerType.opaque()])
         null_req_one = llvm.StoreOp(mpi_request_null, one_conv)
 
         top_halo_exhange = scf.IfOp(
@@ -179,13 +165,9 @@ class ApplyMPIToExternalLoad(RewritePattern):
         )
 
         # Else set empty request handles
-        two_conv = builtin.UnrealizedConversionCastOp.get(
-            [alloc_lookup_op_two], [llvm.LLVMPointerType.opaque()]
-        )
+        two_conv = builtin.UnrealizedConversionCastOp.get([alloc_lookup_op_two], [llvm.LLVMPointerType.opaque()])
         null_req_two = llvm.StoreOp(mpi_request_null, two_conv)
-        three_conv = builtin.UnrealizedConversionCastOp.get(
-            [alloc_lookup_op_three], [llvm.LLVMPointerType.opaque()]
-        )
+        three_conv = builtin.UnrealizedConversionCastOp.get([alloc_lookup_op_three], [llvm.LLVMPointerType.opaque()])
         null_req_three = llvm.StoreOp(mpi_request_null, three_conv)
 
         bottom_halo_exhange = scf.IfOp(

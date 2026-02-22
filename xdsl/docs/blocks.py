@@ -3,11 +3,9 @@ import xml.etree.ElementTree as etree
 from typing import Any
 
 from pymdownx.blocks import BlocksExtension  # pyright: ignore[reportMissingTypeStubs]
-from pymdownx.blocks.block import (  # pyright: ignore[reportMissingTypeStubs]
-    Block,
-    type_string,  # pyright: ignore[reportUnknownVariableType]
-    type_string_in,  # pyright: ignore[reportUnknownVariableType]
-)
+from pymdownx.blocks.block import type_string  # pyright: ignore[reportUnknownVariableType]
+from pymdownx.blocks.block import type_string_in  # pyright: ignore[reportUnknownVariableType]
+from pymdownx.blocks.block import Block  # pyright: ignore[reportMissingTypeStubs]
 
 
 class BaseMarimoBlock(Block):
@@ -44,8 +42,7 @@ class BaseMarimoBlock(Block):
         iframe.set("src", url)
         iframe.set(
             "allow",
-            "camera; geolocation; microphone; fullscreen; autoplay; encrypted-media; "
-            "picture-in-picture; clipboard-read; clipboard-write",
+            "camera; geolocation; microphone; fullscreen; autoplay; encrypted-media; " "picture-in-picture; clipboard-read; clipboard-write",
         )
         iframe.set("width", "100%")
         iframe.set("frameborder", "0")
@@ -116,10 +113,7 @@ class MarimoEmbedFileBlock(BaseMarimoBlock):
             # container.text = result
 
             copy_paste_container = etree.SubElement(details, "p")
-            copy_paste_container.text = (
-                "Tip: paste this code into an empty cell, and the marimo editor will "
-                "create cells for you"
-            )
+            copy_paste_container.text = "Tip: paste this code into an empty cell, and the marimo editor will " "create cells for you"
 
             code_container = etree.SubElement(details, "pre")
             code_container.set("class", "marimo-source-code")

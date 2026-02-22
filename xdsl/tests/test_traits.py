@@ -12,53 +12,10 @@ from typing import Any
 import pytest
 
 from xdsl.dialects import test
-from xdsl.dialects.builtin import (
-    DYNAMIC_INDEX,
-    AnyTensorTypeConstr,
-    AnyUnrankedMemRefTypeConstr,
-    AnyUnrankedTensorTypeConstr,
-    IntegerAttr,
-    IntegerType,
-    MemRefType,
-    NoneAttr,
-    StringAttr,
-    SymbolRefAttr,
-    TensorType,
-    UnrankedTensorType,
-    i1,
-    i32,
-    i64,
-)
+from xdsl.dialects.builtin import DYNAMIC_INDEX, AnyTensorTypeConstr, AnyUnrankedMemRefTypeConstr, AnyUnrankedTensorTypeConstr, IntegerAttr, IntegerType, MemRefType, NoneAttr, StringAttr, SymbolRefAttr, TensorType, UnrankedTensorType, i1, i32, i64
 from xdsl.ir import Attribute, Operation, OpTrait, OpTraits, SSAValue
-from xdsl.irdl import (
-    Block,
-    IRDLOperation,
-    Region,
-    attr_def,
-    irdl_op_definition,
-    lazy_traits_def,
-    operand_def,
-    opt_attr_def,
-    opt_region_def,
-    prop_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-    var_result_def,
-)
-from xdsl.traits import (
-    AlwaysSpeculatable,
-    ConditionallySpeculatable,
-    HasAncestor,
-    HasParent,
-    OptionalSymbolOpInterface,
-    RecursivelySpeculatable,
-    SameOperandsAndResultType,
-    SymbolOpInterface,
-    SymbolTable,
-    is_speculatable,
-)
+from xdsl.irdl import Block, IRDLOperation, Region, attr_def, irdl_op_definition, lazy_traits_def, operand_def, opt_attr_def, opt_region_def, prop_def, region_def, result_def, traits_def, var_operand_def, var_result_def
+from xdsl.traits import AlwaysSpeculatable, ConditionallySpeculatable, HasAncestor, HasParent, OptionalSymbolOpInterface, RecursivelySpeculatable, SameOperandsAndResultType, SymbolOpInterface, SymbolTable, is_speculatable
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
@@ -83,10 +40,7 @@ class LargerOperandTrait(OpTrait):
         assert isinstance(op.results[0].type, IntegerType)
         assert isinstance(op.operands[0].type, IntegerType)
         if op.results[0].type.width.data >= op.operands[0].type.width.data:
-            raise VerifyException(
-                "Operation has a result bitwidth greater "
-                "or equal to the operand bitwidth."
-            )
+            raise VerifyException("Operation has a result bitwidth greater " "or equal to the operand bitwidth.")
 
 
 @dataclass(frozen=True)
@@ -114,9 +68,7 @@ class BitwidthSumLessThanTrait(OpTrait):
             sum_bitwidth += result.type.width.data
 
         if sum_bitwidth >= self.max_sum:
-            raise VerifyException(
-                f"Operation has a bitwidth sum greater or equal to {self.max_sum}."
-            )
+            raise VerifyException(f"Operation has a bitwidth sum greater or equal to {self.max_sum}.")
 
 
 @irdl_op_definition
@@ -145,9 +97,7 @@ def test_get_traits_of_type():
     """
     assert TestOp.get_traits_of_type(LargerOperandTrait) == [LargerOperandTrait()]
     assert TestOp.get_traits_of_type(LargerResultTrait) == []
-    assert TestOp.get_traits_of_type(BitwidthSumLessThanTrait) == [
-        BitwidthSumLessThanTrait(64)
-    ]
+    assert TestOp.get_traits_of_type(BitwidthSumLessThanTrait) == [BitwidthSumLessThanTrait(64)]
 
 
 def test_verifier():
@@ -159,16 +109,12 @@ def test_verifier():
     operand1 = create_ssa_value(i1)
     op = TestOp.create(operands=[operand1], result_types=[i32])
 
-    message = (
-        "Operation has a result bitwidth greater or equal to the operand bitwidth."
-    )
+    message = "Operation has a result bitwidth greater or equal to the operand bitwidth."
     with pytest.raises(VerifyException, match=message):
         op.verify()
 
     op = TestOp.create(operands=[operand64], result_types=[i32])
-    with pytest.raises(
-        VerifyException, match="Operation has a bitwidth sum greater or equal to 64."
-    ):
+    with pytest.raises(VerifyException, match="Operation has a bitwidth sum greater or equal to 64."):
         op.verify()
 
     op = TestOp.create(operands=[operand32], result_types=[i1])
@@ -199,9 +145,7 @@ def test_trait_inheritance():
     """
     Check that traits are correctly inherited from parent classes.
     """
-    assert TestCopyOp.traits == traits_def(
-        LargerOperandTrait(), BitwidthSumLessThanTrait(64)
-    )
+    assert TestCopyOp.traits == traits_def(LargerOperandTrait(), BitwidthSumLessThanTrait(64))
 
 
 @irdl_op_definition
@@ -275,13 +219,8 @@ def test_get_trait_specialized():
     """
     assert HasInterfaceOp.has_trait(GetNumResultsTrait)
     assert HasInterfaceOp.has_trait(GetNumResultsTraitForOpWithOneResult)
-    assert (
-        HasInterfaceOp.get_trait(GetNumResultsTrait)
-        == GetNumResultsTraitForOpWithOneResult()
-    )
-    assert HasInterfaceOp.get_traits_of_type(GetNumResultsTrait) == [
-        GetNumResultsTraitForOpWithOneResult()
-    ]
+    assert HasInterfaceOp.get_trait(GetNumResultsTrait) == GetNumResultsTraitForOpWithOneResult()
+    assert HasInterfaceOp.get_traits_of_type(GetNumResultsTrait) == [GetNumResultsTraitForOpWithOneResult()]
 
 
 def test_symbol_op_interface():
@@ -296,9 +235,7 @@ def test_symbol_op_interface():
 
     op0 = NoSymNameOp()
 
-    with pytest.raises(
-        VerifyException, match='Operation no_sym_name must have a "sym_name" attribute'
-    ):
+    with pytest.raises(VerifyException, match='Operation no_sym_name must have a "sym_name" attribute'):
         op0.verify()
 
     @irdl_op_definition
@@ -308,9 +245,7 @@ def test_symbol_op_interface():
         sym_name = attr_def(IntegerAttr)
         traits = traits_def(SymbolOpInterface())
 
-    op1 = SymNameWrongTypeOp(
-        attributes={"sym_name": IntegerAttr.from_int_and_width(1, 32)}
-    )
+    op1 = SymNameWrongTypeOp(attributes={"sym_name": IntegerAttr.from_int_and_width(1, 32)})
 
     with pytest.raises(
         VerifyException,
@@ -417,9 +352,7 @@ def test_symbol_table(SymbolOp: type[PropSymbolOp | SymbolOp]):
     # Check that symbol uniqueness is verified
     symbol = SymbolOp("name")
     dup_symbol = SymbolOp("name")
-    op = SymbolTableOp(
-        regions=[Region(Block([symbol, dup_symbol, terminator.clone()])), []]
-    )
+    op = SymbolTableOp(regions=[Region(Block([symbol, dup_symbol, terminator.clone()])), []])
     with pytest.raises(
         VerifyException,
         match='Redefinition of symbol "name"',
@@ -480,9 +413,7 @@ def test_has_ancestor():
     assert op.get_traits_of_type(HasAncestor) == [HasAncestor(TestOp)]
     assert op.has_trait(HasAncestor(TestOp))
 
-    with pytest.raises(
-        VerifyException, match="'test.ancestor' expects ancestor op 'test.test'"
-    ):
+    with pytest.raises(VerifyException, match="'test.ancestor' expects ancestor op 'test.test'"):
         op.verify()
 
 
@@ -583,9 +514,7 @@ def test_same_operands_and_result_type_trait_for_scalar_types(
 
     op = SameOperandsAndResultTypeOp(operands=operands, result_types=result_types)
 
-    with pytest.raises(
-        VerifyException, match="requires at least one result or operand"
-    ):
+    with pytest.raises(VerifyException, match="requires at least one result or operand"):
         op.verify()
 
 
@@ -593,19 +522,9 @@ def test_same_operands_and_result_type_trait_for_scalar_types(
 class SameOperandsAndResultTypeOp(IRDLOperation):
     name = "test.same_operand_and_result_type"
 
-    ops = var_operand_def(
-        MemRefType.constr()
-        | AnyUnrankedMemRefTypeConstr
-        | AnyUnrankedTensorTypeConstr
-        | AnyTensorTypeConstr
-    )
+    ops = var_operand_def(MemRefType.constr() | AnyUnrankedMemRefTypeConstr | AnyUnrankedTensorTypeConstr | AnyTensorTypeConstr)
 
-    res = var_result_def(
-        MemRefType.constr()
-        | AnyUnrankedMemRefTypeConstr
-        | AnyUnrankedTensorTypeConstr
-        | AnyTensorTypeConstr
-    )
+    res = var_result_def(MemRefType.constr() | AnyUnrankedMemRefTypeConstr | AnyUnrankedTensorTypeConstr | AnyTensorTypeConstr)
 
     traits = traits_def(SameOperandsAndResultType())
 
@@ -651,11 +570,7 @@ def test_same_operands_and_result_type_trait_for_result_element_type_of_shaped_t
     result_shape2: tuple[int],
 ):
     op = SameOperandsAndResultTypeOp(
-        operands=[
-            create_ssa_value(
-                TensorType(operand1_and_result_element_type, operand_and_result_shape1)
-            )
-        ],
+        operands=[create_ssa_value(TensorType(operand1_and_result_element_type, operand_and_result_shape1))],
         result_types=[
             [
                 TensorType(operand1_and_result_element_type, operand_and_result_shape1),
@@ -927,16 +842,12 @@ def test_same_operands_and_result_type_trait_for_ranked_mixed_shapes(
     op = SameOperandsAndResultTypeOp(
         operands=[
             [
-                create_ssa_value(
-                    TensorType(test.TestType("foo"), operand1_and_result_shape)
-                ),
+                create_ssa_value(TensorType(test.TestType("foo"), operand1_and_result_shape)),
                 create_ssa_value(TensorType(test.TestType("foo"), operand2_shape)),
             ]
             * operands_num,
         ],
-        result_types=[
-            [TensorType(test.TestType("foo"), operand1_and_result_shape)] * results_num
-        ],
+        result_types=[[TensorType(test.TestType("foo"), operand1_and_result_shape)] * results_num],
     )
 
     op.verify()
@@ -967,16 +878,12 @@ def test_same_operands_and_result_type_trait_for_mixed_rank_and_mixed_shapes(
     op = SameOperandsAndResultTypeOp(
         operands=[
             [
-                create_ssa_value(
-                    TensorType(test.TestType("foo"), operand1_and_result_shape)
-                ),
+                create_ssa_value(TensorType(test.TestType("foo"), operand1_and_result_shape)),
                 create_ssa_value(UnrankedTensorType(test.TestType("foo"))),
             ]
             * operands_num,
         ],
-        result_types=[
-            [TensorType(test.TestType("foo"), operand1_and_result_shape)] * results_num
-        ],
+        result_types=[[TensorType(test.TestType("foo"), operand1_and_result_shape)] * results_num],
     )
 
     op.verify()

@@ -160,12 +160,7 @@ class ToyLexer(Lexer[ToyTokenKind]):
         # Hexadecimal case, we only parse it if we see the first '0x' characters,
         # and then a first digit.
         # Otherwise, a string like '0xi32' would not be parsed correctly.
-        if (
-            first_digit == "0"
-            and self._peek_chars() == "x"
-            and self._is_in_bounds(2)
-            and cast(str, self.input.at(self.pos + 1)) in hexdigits
-        ):
+        if first_digit == "0" and self._peek_chars() == "x" and self._is_in_bounds(2) and cast(str, self.input.at(self.pos + 1)) in hexdigits:
             self._consume_chars(2)
             self._consume_regex(self._hexdigits_star_regex)
             return self._form_token(ToyTokenKind.NUMBER, start_pos)

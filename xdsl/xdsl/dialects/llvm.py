@@ -6,72 +6,13 @@ from dataclasses import dataclass
 from types import EllipsisType
 from typing import ClassVar, TypeAlias, cast
 
-from xdsl.dialects.builtin import (
-    I64,
-    AnyFloat,
-    AnyFloatConstr,
-    AnySignlessIntegerType,
-    ArrayAttr,
-    ContainerType,
-    DenseArrayBase,
-    DenseI32ArrayConstr,
-    DenseI64ArrayConstr,
-    IndexType,
-    IntAttr,
-    IntegerAttr,
-    IntegerType,
-    NoneAttr,
-    SignlessIntegerConstraint,
-    StringAttr,
-    SymbolRefAttr,
-    UnitAttr,
-    VectorOf,
-    VectorType,
-    i1,
-    i32,
-    i64,
-)
+from xdsl.dialects.builtin import I64, AnyFloat, AnyFloatConstr, AnySignlessIntegerType, ArrayAttr, ContainerType, DenseArrayBase, DenseI32ArrayConstr, DenseI64ArrayConstr, IndexType, IntAttr, IntegerAttr, IntegerType, NoneAttr, SignlessIntegerConstraint, StringAttr, SymbolRefAttr, UnitAttr, VectorOf, VectorType, i1, i32, i64
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
-from xdsl.ir import (
-    Attribute,
-    BitEnumAttribute,
-    Dialect,
-    EnumAttribute,
-    Operation,
-    ParametrizedAttribute,
-    Region,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    AnyOf,
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    ParameterDef,
-    ParsePropInAttrDict,
-    VarConstraint,
-    base,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_operand_def,
-    opt_prop_def,
-    opt_result_def,
-    prop_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.ir import Attribute, BitEnumAttribute, Dialect, EnumAttribute, Operation, ParametrizedAttribute, Region, SSAValue, TypeAttribute
+from xdsl.irdl import AnyOf, AttrSizedOperandSegments, IRDLOperation, ParameterDef, ParsePropInAttrDict, VarConstraint, base, irdl_attr_definition, irdl_op_definition, operand_def, opt_operand_def, opt_prop_def, opt_result_def, prop_def, region_def, result_def, traits_def, var_operand_def
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import (
-    IsTerminator,
-    NoMemoryEffect,
-    Pure,
-    SameOperandsAndResultType,
-    SymbolOpInterface,
-)
+from xdsl.traits import IsTerminator, NoMemoryEffect, Pure, SameOperandsAndResultType, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
@@ -83,9 +24,7 @@ LLVMCompatibleSignlessIntegerConstraint = AnyOf(
     ]
 )
 
-LLVMCompatibleSignlessIntegerType: TypeAlias = (
-    AnySignlessIntegerType | VectorType[AnySignlessIntegerType]
-)
+LLVMCompatibleSignlessIntegerType: TypeAlias = AnySignlessIntegerType | VectorType[AnySignlessIntegerType]
 
 LLVMCompatibleFloatConstraint = AnyOf(
     [
@@ -103,9 +42,7 @@ LLVMCompatibleNumericConstraint = AnyOf(
     ]
 )
 
-LLVMCompatibleNumericType: TypeAlias = (
-    LLVMCompatibleSignlessIntegerType | LLVMCompatibleFloatType
-)
+LLVMCompatibleNumericType: TypeAlias = LLVMCompatibleSignlessIntegerType | LLVMCompatibleFloatType
 
 GEP_USE_SSA_VAL = -2147483648
 """
@@ -176,17 +113,13 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
         else:
             parser.parse_characters(",", " after type")
 
-        params = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: parse_llvm_type(parser)
-        )
+        params = parser.parse_comma_separated_list(parser.Delimiter.PAREN, lambda: parse_llvm_type(parser))
         parser.parse_characters(">", " to close LLVM struct parameters")
         return [StringAttr(struct_name), ArrayAttr(params)]
 
 
 @irdl_attr_definition
-class LLVMPointerType(
-    ParametrizedAttribute, TypeAttribute, ContainerType[Attribute | None]
-):
+class LLVMPointerType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute | None]):
     name = "llvm.ptr"
 
     type: ParameterDef[Attribute | NoneAttr]
@@ -338,9 +271,7 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
                 return ...
             return parse_llvm_type(parser)
 
-        inputs = parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, _parse_attr_or_variadic
-        )
+        inputs = parser.parse_comma_separated_list(Parser.Delimiter.PAREN, _parse_attr_or_variadic)
         is_varargs: NoneAttr | UnitAttr = NoneAttr()
         if inputs and inputs[-1] is Ellipsis:
             is_varargs = UnitAttr()
@@ -590,9 +521,7 @@ class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
 
     traits = traits_def(NoMemoryEffect())
 
-    assembly_format = (
-        "(`disjoint` $isDisjoint^)? $lhs `,` $rhs attr-dict `:` type($res)"
-    )
+    assembly_format = "(`disjoint` $isDisjoint^)? $lhs `,` $rhs attr-dict `:` type($res)"
 
     def __init__(
         self,
@@ -796,9 +725,7 @@ class TruncOp(IntegerConversionOpOverflow):
         assert isinstance(res_type, IntegerType)
 
         if arg_type.bitwidth <= res_type.bitwidth:
-            raise VerifyException(
-                f"invalid cast opcode for cast from {arg_type} to {res_type}"
-            )
+            raise VerifyException(f"invalid cast opcode for cast from {arg_type} to {res_type}")
         super().verify(verify_nested_ops)
 
 
@@ -821,9 +748,7 @@ class ZExtOp(IntegerConversionOpNNeg):
         assert isinstance(res_type, IntegerType)
 
         if arg_type.bitwidth >= res_type.bitwidth:
-            raise VerifyException(
-                f"invalid cast opcode for cast from {arg_type} to {res_type}"
-            )
+            raise VerifyException(f"invalid cast opcode for cast from {arg_type} to {res_type}")
         super().verify(verify_nested_ops)
 
 
@@ -846,9 +771,7 @@ class SExtOp(IntegerConversionOp):
         assert isinstance(res_type, IntegerType)
 
         if arg_type.bitwidth >= res_type.bitwidth:
-            raise VerifyException(
-                f"invalid cast opcode for cast from {arg_type} to {res_type}"
-            )
+            raise VerifyException(f"invalid cast opcode for cast from {arg_type} to {res_type}")
         super().verify(verify_nested_ops)
 
 
@@ -1102,9 +1025,7 @@ class GEPOp(IRDLOperation):
         if inbounds:
             props["inbounds"] = UnitAttr()
 
-        super().__init__(
-            operands=[ptr, ssa_indices], result_types=[result_type], properties=props
-        )
+        super().__init__(operands=[ptr, ssa_indices], result_types=[result_type], properties=props)
 
     @staticmethod
     def from_mixed_indices(
@@ -1159,9 +1080,7 @@ class AllocaOp(IRDLOperation):
         alignment: int = 32,
         as_untyped_ptr: bool = True,
     ):
-        props: dict[str, Attribute] = {
-            "alignment": IntegerAttr.from_int_and_width(alignment, 64)
-        }
+        props: dict[str, Attribute] = {"alignment": IntegerAttr.from_int_and_width(alignment, 64)}
         if as_untyped_ptr:
             ptr_type = LLVMPointerType.opaque()
             props["elem_type"] = elem_type
@@ -1274,9 +1193,7 @@ class LoadOp(IRDLOperation):
             assert isinstance(ptr.type, LLVMPointerType)
 
             if isinstance(ptr.type.type, NoneAttr):
-                raise ValueError(
-                    "llvm.load requires either a result type or a typed pointer!"
-                )
+                raise ValueError("llvm.load requires either a result type or a typed pointer!")
             result_type = ptr.type.type
 
         super().__init__(operands=[ptr], result_types=[result_type])
@@ -1506,9 +1423,7 @@ class AddressOfOp(IRDLOperation):
         if isinstance(global_name, StringAttr | str):
             global_name = SymbolRefAttr(global_name)
 
-        super().__init__(
-            properties={"global_name": global_name}, result_types=[result_type]
-        )
+        super().__init__(properties={"global_name": global_name}, result_types=[result_type])
 
 
 LLVM_CALLING_CONVS: set[str] = {
@@ -1742,12 +1657,8 @@ class CallOp(IRDLOperation):
     var_callee_type = opt_prop_def(LLVMFunctionType)
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr("none"))
     CConv = prop_def(CallingConventionAttr, default_value=CallingConventionAttr("ccc"))
-    op_bundle_sizes = prop_def(
-        DenseI32ArrayConstr, default_value=DenseArrayBase.create_dense_int(i32, ())
-    )
-    TailCallKind = prop_def(
-        TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE)
-    )
+    op_bundle_sizes = prop_def(DenseI32ArrayConstr, default_value=DenseArrayBase.create_dense_int(i32, ()))
+    TailCallKind = prop_def(TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE))
     returned = opt_result_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -1768,9 +1679,7 @@ class CallOp(IRDLOperation):
         op_result_type = [return_type]
         if return_type is None:
             return_type = LLVMVoidType()
-        input_types = [
-            SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]
-        ]
+        input_types = [SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]]
         var_callee_type = LLVMFunctionType(input_types, return_type, variadic_args > 0)
         super().__init__(
             operands=[args, op_bundle_operands],
@@ -1785,16 +1694,8 @@ class CallOp(IRDLOperation):
         )
 
 
-LLVMType = (
-    LLVMStructType | LLVMPointerType | LLVMArrayType | LLVMVoidType | LLVMFunctionType
-)
-LLVMTypeConstr = (
-    base(LLVMStructType)
-    | base(LLVMPointerType)
-    | base(LLVMArrayType)
-    | base(LLVMVoidType)
-    | base(LLVMFunctionType)
-)
+LLVMType = LLVMStructType | LLVMPointerType | LLVMArrayType | LLVMVoidType | LLVMFunctionType
+LLVMTypeConstr = base(LLVMStructType) | base(LLVMPointerType) | base(LLVMArrayType) | base(LLVMVoidType) | base(LLVMFunctionType)
 
 
 @irdl_op_definition

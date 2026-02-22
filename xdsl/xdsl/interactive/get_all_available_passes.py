@@ -1,11 +1,6 @@
 from collections.abc import Callable
 
-from xdsl.interactive.passes import (
-    AvailablePass,
-    apply_passes_to_module,
-    get_condensed_pass_list,
-    get_new_registered_context,
-)
+from xdsl.interactive.passes import AvailablePass, apply_passes_to_module, get_condensed_pass_list, get_new_registered_context
 from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.ir import Dialect
 from xdsl.parser import Parser

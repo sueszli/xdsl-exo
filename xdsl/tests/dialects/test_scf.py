@@ -9,15 +9,7 @@ import pytest
 from xdsl.builder import Builder
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IndexType, ModuleOp, i32, i64
-from xdsl.dialects.scf import (
-    ForOp,
-    IfOp,
-    ParallelOp,
-    ReduceOp,
-    ReduceReturnOp,
-    WhileOp,
-    YieldOp,
-)
+from xdsl.dialects.scf import ForOp, IfOp, ParallelOp, ReduceOp, ReduceReturnOp, WhileOp, YieldOp
 from xdsl.dialects.test import TestTermOp
 from xdsl.ir import Block, BlockArgument, Region
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
@@ -286,11 +278,7 @@ def test_reduce_op():
     assert reduce_op.args[0].type is i32
     assert len(reduce_op.reductions[0].blocks) == 1
     assert len(reduce_op.reductions[0].block.args) == 2
-    assert (
-        reduce_op.reductions[0].block.args[0].type
-        == reduce_op.reductions[0].block.args[0].type
-        == i32
-    )
+    assert reduce_op.reductions[0].block.args[0].type == reduce_op.reductions[0].block.args[0].type == i32
 
 
 def test_reduce_op_num_block_args():
@@ -302,9 +290,7 @@ def test_reduce_op_num_block_args():
         match="scf.reduce block must have exactly two arguments, but ",
     ):
         rro = ReduceReturnOp(reduce_constant)
-        ReduceOp(
-            (init_val,), (Region(Block([rro], arg_types=[i32, i32, i32])),)
-        ).verify()
+        ReduceOp((init_val,), (Region(Block([rro], arg_types=[i32, i32, i32])),)).verify()
 
     with pytest.raises(
         VerifyException,
@@ -360,9 +346,7 @@ def test_reduce_return_op_at_end():
         VerifyException,
         match="'scf.reduce' terminates with operation test.termop instead of scf.reduce.return",
     ):
-        ReduceOp(
-            (init_val,), (Region(Block([TestTermOp.create()], arg_types=[i32, i32])),)
-        ).verify()
+        ReduceOp((init_val,), (Region(Block([TestTermOp.create()], arg_types=[i32, i32])),)).verify()
 
 
 def test_reduce_return_type_is_arg_type():

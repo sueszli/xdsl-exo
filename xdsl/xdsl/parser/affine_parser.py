@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-from xdsl.ir.affine import (
-    AffineConstraintExpr,
-    AffineConstraintKind,
-    AffineExpr,
-    AffineMap,
-    AffineSet,
-)
+from xdsl.ir.affine import AffineConstraintExpr, AffineConstraintKind, AffineExpr, AffineMap, AffineSet
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.mlir_lexer import MLIRToken, MLIRTokenKind
 
@@ -46,9 +40,7 @@ class AffineParser(BaseParser):
             elif bare_id.text in syms:
                 return AffineExpr.symbol(syms.index(bare_id.text))
             else:
-                raise ParseError(
-                    bare_id.span, f"Identifier not in space {bare_id.text}"
-                )
+                raise ParseError(bare_id.span, f"Identifier not in space {bare_id.text}")
         # Handle integer literal
         if int_lit := self._parse_optional_token(MLIRTokenKind.INTEGER_LIT):
             return AffineExpr.constant(int_lit.kind.get_int_value(int_lit.span))
@@ -61,9 +53,7 @@ class AffineParser(BaseParser):
     def _get_token_precedence(self) -> int:
         return self._BINOP_PRECEDENCE.get(self._current_token.text, -1)
 
-    def _create_binop_expr(
-        self, lhs: AffineExpr, rhs: AffineExpr, binop: MLIRToken
-    ) -> AffineExpr:
+    def _create_binop_expr(self, lhs: AffineExpr, rhs: AffineExpr, binop: MLIRToken) -> AffineExpr:
         match binop.text:
             case "+":
                 return lhs + rhs
@@ -80,9 +70,7 @@ class AffineParser(BaseParser):
             case _:
                 raise ParseError(binop.span, f"Unknown binary operator {binop.text}")
 
-    def _parse_binop_rhs(
-        self, lhs: AffineExpr, prec: int, dims: list[str], syms: list[str]
-    ) -> AffineExpr:
+    def _parse_binop_rhs(self, lhs: AffineExpr, prec: int, dims: list[str], syms: list[str]) -> AffineExpr:
         while True:
             tok_prec = self._get_token_precedence()
             # This works even if the token does not exist, since -1 is returned.
@@ -116,9 +104,7 @@ class AffineParser(BaseParser):
         lhs = self._parse_primary(dims, syms)
         return self._parse_binop_rhs(lhs, 0, dims, syms)
 
-    def _parse_multi_affine_expr(
-        self, dims: list[str], syms: list[str]
-    ) -> list[AffineExpr]:
+    def _parse_multi_affine_expr(self, dims: list[str], syms: list[str]) -> list[AffineExpr]:
         """
         multi-affine-expr ::= `(` `)`
                                 | `(` affine-expr (`,` affine-expr)* `)`
@@ -130,9 +116,7 @@ class AffineParser(BaseParser):
         return self.parse_comma_separated_list(self.Delimiter.PAREN, parse_expr)
 
     # TODO: Extend to semi-affine maps; see https://github.com/xdslproject/xdsl/issues/1087
-    def _parse_affine_constraint(
-        self, dims: list[str], syms: list[str]
-    ) -> AffineConstraintExpr:
+    def _parse_affine_constraint(self, dims: list[str], syms: list[str]) -> AffineConstraintExpr:
         """
         affine-expr ::= `(` affine-expr `)`
                       | `-`? integer-literal
@@ -148,17 +132,13 @@ class AffineParser(BaseParser):
         lhs = self._parse_affine_expr(dims, syms)
         op = self._consume_token().text + self._consume_token().text
         if op not in set(k.value for k in AffineConstraintKind):
-            self.raise_error(
-                f"Expected one of {', '.join(f'`{k.value}`' for k in AffineConstraintKind)}, got {op}."
-            )
+            self.raise_error(f"Expected one of {', '.join(f'`{k.value}`' for k in AffineConstraintKind)}, got {op}.")
         op = AffineConstraintKind(op)
         rhs = self._parse_affine_expr(dims, syms)
 
         return AffineConstraintExpr(op, lhs, rhs)
 
-    def _parse_multi_affine_constaint(
-        self, dims: list[str], syms: list[str]
-    ) -> list[AffineConstraintExpr]:
+    def _parse_multi_affine_constaint(self, dims: list[str], syms: list[str]) -> list[AffineConstraintExpr]:
         """
         multi-affine-expr ::= `(` `)`
                                 | `(` affine-expr (`,` affine-expr)* `)`
@@ -177,9 +157,7 @@ class AffineParser(BaseParser):
         """
 
         def parse_id() -> str:
-            return self._parse_token(
-                MLIRTokenKind.BARE_IDENT, "Expected identifier"
-            ).text
+            return self._parse_token(MLIRTokenKind.BARE_IDENT, "Expected identifier").text
 
         # Parse dimensions
         dims = self.parse_comma_separated_list(self.Delimiter.PAREN, parse_id)

@@ -4,13 +4,9 @@
 from typing import cast
 
 from benchmarks.workloads import WorkloadBuilder
+
 from xdsl.context import Context
-from xdsl.dialects.arith import (
-    AddiOp,
-    Arith,
-    ConstantOp,
-    SubiOp,
-)
+from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, SubiOp
 from xdsl.dialects.builtin import Builtin, IntegerAttr, IntegerType, ModuleOp
 from xdsl.ir import Region
 from xdsl.ir.post_order import PostOrderIterator
@@ -18,18 +14,10 @@ from xdsl.irdl import VarIRConstruct, get_variadic_sizes
 from xdsl.parser import Parser as XdslParser
 from xdsl.pattern_rewriter import PatternRewriter, Worklist
 from xdsl.rewriter import InsertPoint
-from xdsl.traits import (
-    HasCanonicalizationPatternsTrait,
-    MemoryEffect,
-)
+from xdsl.traits import HasCanonicalizationPatternsTrait, MemoryEffect
 from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
 from xdsl.transforms.canonicalize import CanonicalizePass
-from xdsl.transforms.dead_code_elimination import (
-    LiveSet,
-    is_trivially_dead,
-    result_only_effects,
-    would_be_trivially_dead,
-)
+from xdsl.transforms.dead_code_elimination import LiveSet, is_trivially_dead, result_only_effects, would_be_trivially_dead
 
 CTX = Context(allow_unregistered=True)
 CTX.load_dialect(Arith)
@@ -403,9 +391,7 @@ if __name__ == "__main__":
                 GENERAL.ignore_time_pattern_rewriter_insert_op,
                 GENERAL.setup,
             ),
-            "General.get_variadic_sizes": Benchmark(
-                GENERAL.time_get_variadic_sizes, GENERAL.setup
-            ),
+            "General.get_variadic_sizes": Benchmark(GENERAL.time_get_variadic_sizes, GENERAL.setup),
             "Canonicalization.operation_drop_all_references": Benchmark(
                 CANONICALIZATION.ignore_time_operation_drop_all_references,
                 CANONICALIZATION.setup,

@@ -13,22 +13,11 @@ logging.basicConfig(format="%(levelname)s: %(message)s", stream=sys.stderr)
 def main():
     parser = ArgumentParser(prog=Path(sys.argv[0]).name, description="Compile an Exo library to MLIR.")
     parser.add_argument("source", type=str, nargs="+", help="Source file(s) to compile")
-    parser.add_argument(
-        "-o",
-        "--output",
-        help="The output target. For single source files, this is the output file. For multiple source files, this is the output directory.",
-    )
+    parser.add_argument("-o", "--output", help="The output target. For single source files, this is the output file. For multiple source files, this is the output directory.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Print verbose output")
     parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
-    parser.add_argument(
-        "--target",
-        default="llvm",
-        choices=["llvm", "exo", "builtin", "lowered", "scf"],
-    )
-    parser.add_argument(
-        "--prefix",
-        help="Prefix to prepend to all procedure names.",
-    )
+    parser.add_argument("--target", default="llvm", choices=["llvm", "exo", "builtin", "lowered", "scf"])
+    parser.add_argument("--prefix", help="Prefix to prepend to all procedure names.")
 
     args = parser.parse_args()
     srcs = [Path(src) for src in args.source]

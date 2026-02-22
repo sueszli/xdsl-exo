@@ -6,13 +6,7 @@ from xdsl.dialects import affine, scf
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import IsTerminator, is_side_effect_free, is_speculatable
 from xdsl.transforms.common_subexpression_elimination import cse
@@ -30,9 +24,7 @@ def hoist_all(
         if o.get_trait(IsTerminator):
             continue
         new_op = o.clone(value_mapper=value_mapper)
-        value_mapper |= {
-            old: new for old, new in zip(o.results, new_op.results, strict=True)
-        }
+        value_mapper |= {old: new for old, new in zip(o.results, new_op.results, strict=True)}
         rewriter.insert_op(new_op, at)
         rewriter.replace_op(o, [], new_op.results)
 

@@ -12,12 +12,8 @@ from xdsl.parser import Parser
 
 def main():
     # Parse CLI arguments
-    arg_parser = argparse.ArgumentParser(
-        description="Convert an IRDL program to a Python definition of a xDSL dialect."
-    )
-    arg_parser.add_argument(
-        "-o", "--output-file", type=str, required=False, help="path to output file"
-    )
+    arg_parser = argparse.ArgumentParser(description="Convert an IRDL program to a Python definition of a xDSL dialect.")
+    arg_parser.add_argument("-o", "--output-file", type=str, required=False, help="path to output file")
     arg_parser.add_argument("input_file", type=str, help="path to input file")
     args = arg_parser.parse_args()
 

@@ -6,13 +6,7 @@ from xdsl.context import Context
 from xdsl.dialects import arith, builtin, varith
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 
 # map the arith operation to the right varith op:
@@ -65,13 +59,9 @@ class VarithToArithPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: varith.VarithOp, rewriter: PatternRewriter, /):
         # get the type kind of the target arith ops (float|int)
-        type_name: Literal["float", "int"] = (
-            "int" if is_integer_like_type(op.res.type) else "float"
-        )
+        type_name: Literal["float", "int"] = "int" if is_integer_like_type(op.res.type) else "float"
         # get the opeation kind of the target arith ops (add|mul)
-        kind: Literal["add", "mul"] = (
-            "add" if isinstance(op, varith.VarithAddOp) else "mul"
-        )
+        kind: Literal["add", "mul"] = "add" if isinstance(op, varith.VarithAddOp) else "mul"
 
         # get the corresponding arith type (e.g. addi/mulf)
         target_arith_type = ARITH_TYPES[(type_name, kind)]
@@ -118,13 +108,9 @@ class MergeVarithOpsPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: varith.VarithOp, rewriter: PatternRewriter, /):
         # get the type kind (float|int)
-        type_name: Literal["float", "int"] = (
-            "int" if is_integer_like_type(op.res.type) else "float"
-        )
+        type_name: Literal["float", "int"] = "int" if is_integer_like_type(op.res.type) else "float"
         # get the opeation kind (add|mul)
-        kind: Literal["add", "mul"] = (
-            "add" if isinstance(op, varith.VarithAddOp) else "mul"
-        )
+        kind: Literal["add", "mul"] = "add" if isinstance(op, varith.VarithAddOp) else "mul"
 
         # grab the corresponding arith type (e.g. addi/mulf)
         target_arith_type = ARITH_TYPES[(type_name, kind)]
@@ -198,9 +184,7 @@ class FuseRepeatedAddArgsPattern(RewritePattern):
         if isinstance(elem_t, builtin.ContainerType):
             elem_t = cast(builtin.ContainerType[Attribute], elem_t).get_element_type()
 
-        assert isinstance(
-            elem_t, builtin.IntegerType | builtin.IndexType | builtin.AnyFloat
-        )
+        assert isinstance(elem_t, builtin.IntegerType | builtin.IndexType | builtin.AnyFloat)
 
         consts: list[arith.ConstantOp] = []
         fusions: list[Operation] = []

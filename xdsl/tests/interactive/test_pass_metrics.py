@@ -1,15 +1,8 @@
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import arith, func, get_all_dialects
-from xdsl.dialects.builtin import (
-    IndexType,
-    IntegerAttr,
-    ModuleOp,
-)
-from xdsl.interactive.pass_metrics import (
-    count_number_of_operations,
-    get_diff_operation_count,
-)
+from xdsl.dialects.builtin import IndexType, IntegerAttr, ModuleOp
+from xdsl.interactive.pass_metrics import count_number_of_operations, get_diff_operation_count
 from xdsl.ir import Block, Region
 from xdsl.parser import Parser
 

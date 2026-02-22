@@ -28,9 +28,7 @@ class OpInserter:
         Pops the last value from the operand stack and returns it.
         """
         if len(self.stack) == 0:
-            raise FrontendProgramException(
-                "Trying to get an operand from an empty stack."
-            )
+            raise FrontendProgramException("Trying to get an operand from an empty stack.")
         return self.stack.pop()
 
     def insert_op(self, op: Operation) -> None:
@@ -45,21 +43,15 @@ class OpInserter:
         operation.
         """
         if not op.regions:
-            raise FrontendProgramException(
-                f"Trying to set the insertion point for operation '{op.name}' with no regions."
-            )
+            raise FrontendProgramException(f"Trying to set the insertion point for operation '{op.name}' with no regions.")
         if (last_block := op.regions[-1].blocks.last) is None:
-            raise FrontendProgramException(
-                f"Trying to set the insertion point for operation '{op.name}' with no blocks in its last region."
-            )
+            raise FrontendProgramException(f"Trying to set the insertion point for operation '{op.name}' with no blocks in its last region.")
         self.insertion_point = last_block
 
     def set_insertion_point_from_region(self, region: Region) -> None:
         """Sets the insertion point to the last block in this region."""
         if (last_block := region.blocks.last) is None:
-            raise FrontendProgramException(
-                "Trying to set the insertion point from the region without blocks."
-            )
+            raise FrontendProgramException("Trying to set the insertion point from the region without blocks.")
         self.insertion_point = last_block
 
     def set_insertion_point_from_block(self, block: Block) -> None:

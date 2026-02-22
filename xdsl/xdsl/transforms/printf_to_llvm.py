@@ -6,12 +6,7 @@ from xdsl.context import Context
 from xdsl.dialects import arith, builtin, llvm, printf
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 i8 = builtin.IntegerType(8)
 
@@ -157,9 +152,7 @@ class PrintfToLLVM(ModulePass):
             [
                 llvm.FuncOp(
                     "printf",
-                    llvm.LLVMFunctionType(
-                        [llvm.LLVMPointerType.opaque()], is_variadic=True
-                    ),
+                    llvm.LLVMFunctionType([llvm.LLVMPointerType.opaque()], is_variadic=True),
                     linkage=llvm.LinkageAttr("external"),
                 ),
                 *add_printf_call.collected_global_symbs.values(),

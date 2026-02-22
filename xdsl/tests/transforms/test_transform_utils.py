@@ -4,10 +4,7 @@ from xdsl.dialects.builtin import MemRefType, i32
 from xdsl.dialects.memref import LoadOp, StoreOp
 from xdsl.dialects.scf import ForOp
 from xdsl.ir import Block
-from xdsl.transforms.loop_hoist_memref import (
-    find_same_target_store,
-    is_loop_dependent,
-)
+from xdsl.transforms.loop_hoist_memref import find_same_target_store, is_loop_dependent
 from xdsl.utils.test_value import create_ssa_value
 
 

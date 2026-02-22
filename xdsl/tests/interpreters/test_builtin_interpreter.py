@@ -1,14 +1,4 @@
-from xdsl.dialects.builtin import (
-    DenseIntOrFPElementsAttr,
-    FloatAttr,
-    IntegerAttr,
-    MemRefType,
-    ModuleOp,
-    TensorType,
-    f32,
-    i32,
-    i64,
-)
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, FloatAttr, IntegerAttr, MemRefType, ModuleOp, TensorType, f32, i32, i64
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.builtin import BuiltinFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
@@ -25,8 +15,6 @@ def test_values():
     assert interpreter.value_for_attribute(FloatAttr(3.0, f32), f32) == 3.0
 
     assert interpreter.value_for_attribute(
-        DenseIntOrFPElementsAttr.create_dense_int(
-            TensorType(i32, [2, 3]), list(range(6))
-        ),
+        DenseIntOrFPElementsAttr.create_dense_int(TensorType(i32, [2, 3]), list(range(6))),
         MemRefType(i32, (2, 3)),
     ) == ShapedArray(ptr.TypedPtr.new_int32(list(range(6))), [2, 3])

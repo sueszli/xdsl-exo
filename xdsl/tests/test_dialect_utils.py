@@ -4,15 +4,7 @@ import pytest
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import IndexType, IntegerType, i32
-from xdsl.dialects.utils import (
-    get_dynamic_index_list,
-    parse_dynamic_index_list_with_types,
-    parse_dynamic_index_list_without_types,
-    parse_dynamic_index_with_type,
-    parse_dynamic_index_without_type,
-    print_dynamic_index_list,
-    split_dynamic_index_list,
-)
+from xdsl.dialects.utils import get_dynamic_index_list, parse_dynamic_index_list_with_types, parse_dynamic_index_list_without_types, parse_dynamic_index_with_type, parse_dynamic_index_without_type, print_dynamic_index_list, split_dynamic_index_list
 from xdsl.dialects.utils.dynamic_index_list import verify_dynamic_index_list
 from xdsl.ir import Dialect, SSAValue
 from xdsl.parser import Parser, UnresolvedOperand
@@ -84,10 +76,7 @@ def test_verify_dynamic_index_list():
     static_values = [1, 2, DYNAMIC_INDEX]
     with pytest.raises(VerifyException) as excinfo:
         verify_dynamic_index_list(static_values, [], DYNAMIC_INDEX)
-    assert str(excinfo.value) == (
-        "The number of dynamic positions passed as values (0) does not match "
-        "the number of dynamic position markers (1)."
-    )
+    assert str(excinfo.value) == ("The number of dynamic positions passed as values (0) does not match " "the number of dynamic position markers (1).")
 
 
 def test_print_dynamic_index_list():
@@ -151,9 +140,7 @@ def test_print_dynamic_index_list():
         (Parser.Delimiter.BRACES, "{1, 2, 3}"),
     ],
 )
-def test_print_dynamic_index_list_delimiters(
-    delimiter: Parser.Delimiter, expected: str
-):
+def test_print_dynamic_index_list_delimiters(delimiter: Parser.Delimiter, expected: str):
     stream = StringIO()
     printer = Printer(stream)
     print_dynamic_index_list(printer, DYNAMIC_INDEX, [], [1, 2, 3], delimiter=delimiter)
@@ -188,9 +175,7 @@ def test_parse_dynamic_index_list_with_types():
     parser = Parser(ctx, "[%0 : i32, 42, %1 : index]")
     parser.ssa_values["0"] = (test_values[0],)
     parser.ssa_values["1"] = (test_values[1],)
-    values, indices = parse_dynamic_index_list_with_types(
-        parser, dynamic_index=dynamic_index
-    )
+    values, indices = parse_dynamic_index_list_with_types(parser, dynamic_index=dynamic_index)
     assert len(values) == 2
     assert values[0] is test_values[0]
     assert values[1] is test_values[1]
@@ -200,9 +185,7 @@ def test_parse_dynamic_index_list_with_types():
 def test_parse_dynamic_index_list_without_types():
     dynamic_index = -42
     parser = Parser(ctx, "[%0, 42, %1]")
-    values, indices = parse_dynamic_index_list_without_types(
-        parser, dynamic_index=dynamic_index
-    )
+    values, indices = parse_dynamic_index_list_without_types(parser, dynamic_index=dynamic_index)
 
     assert len(values) == 2
     assert isinstance(values[0], UnresolvedOperand)
@@ -217,9 +200,7 @@ def test_parse_dynamic_index_list_with_custom_delimiter():
     parser = Parser(ctx, "(%0 : i32, 42, %1 : index)")
     parser.ssa_values["0"] = (test_values[0],)
     parser.ssa_values["1"] = (test_values[1],)
-    values, indices = parse_dynamic_index_list_with_types(
-        parser, dynamic_index=dynamic_index, delimiter=Parser.Delimiter.PAREN
-    )
+    values, indices = parse_dynamic_index_list_with_types(parser, dynamic_index=dynamic_index, delimiter=Parser.Delimiter.PAREN)
     assert len(values) == 2
     assert values[0] is test_values[0]
     assert values[1] is test_values[1]

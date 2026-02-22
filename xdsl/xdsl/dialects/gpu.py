@@ -5,59 +5,12 @@ from enum import auto
 from typing import TypeVar
 
 from xdsl.dialects import memref
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    DenseArrayBase,
-    FunctionType,
-    IndexType,
-    StringAttr,
-    SymbolRefAttr,
-    UnitAttr,
-    i32,
-    i64,
-)
-from xdsl.ir import (
-    Attribute,
-    Block,
-    Dialect,
-    EnumAttribute,
-    Operation,
-    ParametrizedAttribute,
-    Region,
-    SpacedOpaqueSyntaxAttribute,
-    SSAValue,
-    StrEnum,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    AnyOf,
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    ParameterDef,
-    attr_def,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_attr_def,
-    opt_operand_def,
-    opt_prop_def,
-    opt_result_def,
-    prop_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.dialects.builtin import AffineMapAttr, DenseArrayBase, FunctionType, IndexType, StringAttr, SymbolRefAttr, UnitAttr, i32, i64
+from xdsl.ir import Attribute, Block, Dialect, EnumAttribute, Operation, ParametrizedAttribute, Region, SpacedOpaqueSyntaxAttribute, SSAValue, StrEnum, TypeAttribute
+from xdsl.irdl import AnyOf, AttrSizedOperandSegments, IRDLOperation, ParameterDef, attr_def, irdl_attr_definition, irdl_op_definition, operand_def, opt_attr_def, opt_operand_def, opt_prop_def, opt_result_def, prop_def, region_def, result_def, traits_def, var_operand_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import (
-    HasParent,
-    IsolatedFromAbove,
-    IsTerminator,
-    NoTerminator,
-    SymbolOpInterface,
-    SymbolTable,
-)
+from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator, NoTerminator, SymbolOpInterface, SymbolTable
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -163,10 +116,7 @@ class AllocOp(IRDLOperation):
         assert isinstance(res_type := self.result.type, memref.MemRefType)
         ndyn_type = len([i for i in res_type.get_shape() if i == -1])
         if ndyn != ndyn_type:
-            raise VerifyException(
-                f"Expected {ndyn_type} dynamic sizes, got {ndyn}. All "
-                "dynamic sizes need to be set in the alloc operation."
-            )
+            raise VerifyException(f"Expected {ndyn_type} dynamic sizes, got {ndyn}. All " "dynamic sizes need to be set in the alloc operation.")
 
     def __init__(
         self,
@@ -177,15 +127,9 @@ class AllocOp(IRDLOperation):
         is_async: bool = False,
     ):
         token_return = [AsyncTokenType()] if is_async else []
-        dynamic_sizes_vals: list[SSAValue] = (
-            [SSAValue.get(e) for e in dynamic_sizes] if dynamic_sizes else []
-        )
-        async_dependencies_vals: list[SSAValue] = (
-            [SSAValue.get(e) for e in async_dependencies] if async_dependencies else []
-        )
-        attributes: dict[str, Attribute] = (
-            {"hostShared": UnitAttr()} if host_shared else {}
-        )
+        dynamic_sizes_vals: list[SSAValue] = [SSAValue.get(e) for e in dynamic_sizes] if dynamic_sizes else []
+        async_dependencies_vals: list[SSAValue] = [SSAValue.get(e) for e in async_dependencies] if async_dependencies else []
+        attributes: dict[str, Attribute] = {"hostShared": UnitAttr()} if host_shared else {}
         super().__init__(
             operands=[async_dependencies_vals, dynamic_sizes_vals, []],
             result_types=[return_type, token_return],
@@ -221,9 +165,7 @@ class AllReduceOp(IRDLOperation):
         )
 
     @staticmethod
-    def from_body(
-        body: Region, operand: SSAValue | Operation, uniform: UnitAttr | None = None
-    ):
+    def from_body(body: Region, operand: SSAValue | Operation, uniform: UnitAttr | None = None):
         return AllReduceOp.build(
             operands=[operand],
             result_types=[SSAValue.get(operand).type],
@@ -233,31 +175,19 @@ class AllReduceOp(IRDLOperation):
 
     def verify_(self) -> None:
         if self.result.type != self.operand.type:
-            raise VerifyException(
-                f"Type mismatch: result type is {self.result.type}, operand type is "
-                f"{self.operand.type}. They must be the same type for gpu.all_reduce"
-            )
+            raise VerifyException(f"Type mismatch: result type is {self.result.type}, operand type is " f"{self.operand.type}. They must be the same type for gpu.all_reduce")
 
         non_empty_body = bool(self.body.blocks)
         op_attr = self.op is not None
         if non_empty_body == op_attr:
             if op_attr:
-                raise VerifyException(
-                    "gpu.all_reduce can't have both a non-empty region and an op "
-                    "attribute."
-                )
+                raise VerifyException("gpu.all_reduce can't have both a non-empty region and an op " "attribute.")
             else:
-                raise VerifyException(
-                    "gpu.all_reduce need either a non empty body or an op attribute."
-                )
+                raise VerifyException("gpu.all_reduce need either a non empty body or an op attribute.")
         if non_empty_body:
             args_types = self.body.blocks[0].arg_types
             if args_types != (self.result.type, self.operand.type):
-                raise VerifyException(
-                    f"Expected {[str(t) for t in [self.result.type, self.operand.type]]}, "
-                    f"got {[str(t) for t in args_types]}. A gpu.all_reduce's body must "
-                    "have two arguments matching the result type."
-                )
+                raise VerifyException(f"Expected {[str(t) for t in [self.result.type, self.operand.type]]}, " f"got {[str(t) for t in args_types]}. A gpu.all_reduce's body must " "have two arguments matching the result type.")
 
 
 @irdl_op_definition
@@ -337,10 +267,7 @@ class MemcpyOp(IRDLOperation):
 
     def verify_(self) -> None:
         if self.src.type != self.dst.type:
-            raise VerifyException(
-                f"Expected {self.dst.type}, got {self.src.type}. gpu.memcpy source and "
-                "destination types must match."
-            )
+            raise VerifyException(f"Expected {self.dst.type}, got {self.src.type}. gpu.memcpy source and " "destination types must match.")
 
 
 @irdl_op_definition
@@ -393,13 +320,9 @@ class FuncOp(IRDLOperation):
             "function_type": function_type,
         }
         if known_block_size is not None:
-            attributes["gpu.known_block_size"] = DenseArrayBase.create_dense_int(
-                i32, known_block_size
-            )
+            attributes["gpu.known_block_size"] = DenseArrayBase.create_dense_int(i32, known_block_size)
         if known_grid_size is not None:
-            attributes["gpu.known_grid_size"] = DenseArrayBase.create_dense_int(
-                i32, known_grid_size
-            )
+            attributes["gpu.known_grid_size"] = DenseArrayBase.create_dense_int(i32, known_grid_size)
         if kernel:
             properties["kernel"] = UnitAttr()
         super().__init__(properties=properties, attributes=attributes, regions=[region])
@@ -409,10 +332,7 @@ class FuncOp(IRDLOperation):
         function_inputs = self.function_type.inputs.data
         block_arg_types = entry_block.arg_types
         if function_inputs != block_arg_types:
-            raise VerifyException(
-                "Expected first entry block arguments to have the same types as the "
-                "function input types"
-            )
+            raise VerifyException("Expected first entry block arguments to have the same types as the " "function input types")
         if (self.kernel is not None) and (len(self.function_type.outputs) != 0):
             raise VerifyException("Expected void return type for kernel function")
 
@@ -513,16 +433,8 @@ class LaunchOp(IRDLOperation):
         if len(blockSize) != 3:
             raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
         if len(clusterSize) != 3 and len(clusterSize) != 0:
-            raise ValueError(
-                f"LaunchOp must have 0 or 3 clusterSizes, got {len(clusterSize)}"
-            )
-        operands = [
-            (
-                []
-                if asyncDependencies is None
-                else [SSAValue.get(a) for a in asyncDependencies]
-            )
-        ]
+            raise ValueError(f"LaunchOp must have 0 or 3 clusterSizes, got {len(clusterSize)}")
+        operands = [[] if asyncDependencies is None else [SSAValue.get(a) for a in asyncDependencies]]
 
         operands += [SSAValue.get(gs) for gs in gridSize]
         operands += [SSAValue.get(bs) for bs in blockSize]
@@ -530,13 +442,7 @@ class LaunchOp(IRDLOperation):
             operands += [(SSAValue.get(cs),) for cs in clusterSize]
         else:
             operands += [(), (), ()]
-        operands += [
-            (
-                []
-                if dynamicSharedMemorySize is None
-                else [SSAValue.get(dynamicSharedMemorySize)]
-            )
-        ]
+        operands += [[] if dynamicSharedMemorySize is None else [SSAValue.get(dynamicSharedMemorySize)]]
         super().__init__(
             operands=operands,
             result_types=[[AsyncTokenType()] if async_launch else []],
@@ -548,11 +454,7 @@ class LaunchOp(IRDLOperation):
             raise VerifyException("gpu.launch requires a non-empty body.")
         args_type = self.body.blocks[0].arg_types
         if args_type != (IndexType(),) * 12:
-            raise VerifyException(
-                f"Expected [12 x {str(IndexType())}], got {[str(t) for t in args_type]}. "
-                "gpu.launch's body arguments are 12 index arguments, with 3 block "
-                "indices, 3 block sizes, 3 thread indices, and 3 thread counts"
-            )
+            raise VerifyException(f"Expected [12 x {str(IndexType())}], got {[str(t) for t in args_type]}. " "gpu.launch's body arguments are 12 index arguments, with 3 block " "indices, 3 block sizes, 3 thread indices, and 3 thread counts")
 
 
 @irdl_op_definition
@@ -622,17 +524,13 @@ class LaunchFuncOp(IRDLOperation):
             raise ValueError(f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
         if len(blockSize) != 3:
             raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
-        clusterSizeOperands: Sequence[
-            SSAValue | Operation | Sequence[SSAValue | Operation]
-        ]
+        clusterSizeOperands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation]]
         if clusterSize is None:
             clusterSizeOperands = [[], [], []]
         else:
             clusterSizeOperands = clusterSize
         if len(clusterSizeOperands) != 3:
-            raise ValueError(
-                f"LaunchFuncOp must have 3 cluterSizes if any, got {len(clusterSizeOperands)}"
-            )
+            raise ValueError(f"LaunchFuncOp must have 3 cluterSizes if any, got {len(clusterSizeOperands)}")
 
         super().__init__(
             operands=[
@@ -749,10 +647,7 @@ class YieldOp(IRDLOperation):
             yield_type = self.values.types
             result_type = op.result_types
             if yield_type != result_type:
-                raise VerifyException(
-                    f"Expected {[str(t) for t in result_type]}, got {[str(t) for t in yield_type]}. The gpu.yield values "
-                    "types must match its enclosing operation result types."
-                )
+                raise VerifyException(f"Expected {[str(t) for t in result_type]}, got {[str(t) for t in yield_type]}. The gpu.yield values " "types must match its enclosing operation result types.")
 
 
 GPU = Dialect(

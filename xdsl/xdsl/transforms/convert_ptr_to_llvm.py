@@ -1,17 +1,9 @@
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, llvm, ptr, arith
+from xdsl.dialects import arith, builtin, llvm, ptr
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    TypeConversionPattern,
-    attr_type_rewrite_pattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, TypeConversionPattern, attr_type_rewrite_pattern, op_type_rewrite_pattern
 
 
 @dataclass
@@ -20,9 +12,7 @@ class ConvertStoreOp(RewritePattern):
     def match_and_rewrite(self, op: ptr.StoreOp, rewriter: PatternRewriter, /):
         rewriter.replace_matched_op(
             (
-                cast_op := builtin.UnrealizedConversionCastOp.get(
-                    (op.addr,), (llvm.LLVMPointerType.opaque(),)
-                ),
+                cast_op := builtin.UnrealizedConversionCastOp.get((op.addr,), (llvm.LLVMPointerType.opaque(),)),
                 llvm.StoreOp(op.value, cast_op.results[0]),
             )
         )
@@ -34,9 +24,7 @@ class ConvertLoadOp(RewritePattern):
     def match_and_rewrite(self, op: ptr.LoadOp, rewriter: PatternRewriter, /):
         rewriter.replace_matched_op(
             (
-                cast_op := builtin.UnrealizedConversionCastOp.get(
-                    [op.addr], [llvm.LLVMPointerType.opaque()]
-                ),
+                cast_op := builtin.UnrealizedConversionCastOp.get([op.addr], [llvm.LLVMPointerType.opaque()]),
                 llvm.LoadOp(cast_op.results[0], op.res.type),
             )
         )

@@ -5,29 +5,15 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation, Region, SSAValue
 from xdsl.ir.post_order import PostOrderIterator
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriterListener,
-    PatternRewriteWalker,
-    RewritePattern,
-)
-from xdsl.traits import (
-    IsTerminator,
-    MemoryEffectKind,
-    SymbolOpInterface,
-    get_effects,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriterListener, PatternRewriteWalker, RewritePattern
+from xdsl.traits import IsTerminator, MemoryEffectKind, SymbolOpInterface, get_effects
 
 
 def would_be_trivially_dead(op: Operation):
     """
     Returns if the operation would be dead if all its results were dead.
     """
-    return (
-        not op.get_trait(IsTerminator)
-        and (not op.get_trait(SymbolOpInterface))
-        and result_only_effects(op)
-    )
+    return not op.get_trait(IsTerminator) and (not op.get_trait(SymbolOpInterface)) and result_only_effects(op)
 
 
 def is_trivially_dead(op: Operation):
@@ -57,11 +43,7 @@ def result_only_effects(rootOp: Operation) -> bool:
         e.kind == MemoryEffectKind.READ
         # Allocation of values defined by this operation or its children will not
         # affect other operations
-        or (
-            e.kind == MemoryEffectKind.ALLOC
-            and isinstance(v := e.value, SSAValue)
-            and rootOp.is_ancestor(v.owner)
-        )
+        or (e.kind == MemoryEffectKind.ALLOC and isinstance(v := e.value, SSAValue) and rootOp.is_ancestor(v.owner))
         for e in effects
     )
 
@@ -81,9 +63,7 @@ def dce(op: ModuleOp):
     Removes operations annotated with the `Pure` trait, where results have no uses.
     Modifies input module in-place.
     """
-    walker = PatternRewriteWalker(
-        RemoveUnusedOperations(), apply_recursively=True, walk_reverse=True
-    )
+    walker = PatternRewriteWalker(RemoveUnusedOperations(), apply_recursively=True, walk_reverse=True)
     walker.rewrite_module(op)
 
 
@@ -111,9 +91,7 @@ class LiveSet:
             self.set_live(op)
             return
 
-        if any(
-            self.is_live(use.operation) for result in op.results for use in result.uses
-        ):
+        if any(self.is_live(use.operation) for result in op.results for use in result.uses):
             self.set_live(op)
 
     def propagate_region_liveness(self, region: Region):

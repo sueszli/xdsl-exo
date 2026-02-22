@@ -2,38 +2,15 @@ from collections.abc import Iterable
 from math import prod
 from typing import Any, cast
 
-from xdsl.backend.riscv.lowering.utils import (
-    cast_operands_to_regs,
-    register_type_for_type,
-)
+from xdsl.backend.riscv.lowering.utils import cast_operands_to_regs, register_type_for_type
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import memref, riscv, riscv_func
-from xdsl.dialects.builtin import (
-    AnyFloat,
-    DenseIntOrFPElementsAttr,
-    FixedBitwidthType,
-    Float32Type,
-    Float64Type,
-    IntegerType,
-    MemRefType,
-    ModuleOp,
-    NoneAttr,
-    ShapedType,
-    StridedLayoutAttr,
-    SymbolRefAttr,
-    UnrealizedConversionCastOp,
-)
+from xdsl.dialects.builtin import AnyFloat, DenseIntOrFPElementsAttr, FixedBitwidthType, Float32Type, Float64Type, IntegerType, MemRefType, ModuleOp, NoneAttr, ShapedType, StridedLayoutAttr, SymbolRefAttr, UnrealizedConversionCastOp
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Attribute, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.traits import SymbolTable
 from xdsl.utils.exceptions import DiagnosticException
 
@@ -63,14 +40,10 @@ class ConvertMemRefAllocOp(RewritePattern):
 
 class ConvertMemRefDeallocOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: memref.DeallocOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: memref.DeallocOp, rewriter: PatternRewriter) -> None:
         rewriter.replace_matched_op(
             (
-                ptr := UnrealizedConversionCastOp.get(
-                    (op.memref,), (riscv.Registers.UNALLOCATED_INT,)
-                ),
+                ptr := UnrealizedConversionCastOp.get((op.memref,), (riscv.Registers.UNALLOCATED_INT,)),
                 move_op := riscv.MVOp(ptr.results[0], rd=riscv.Registers.A0),
                 riscv_func.CallOp(
                     SymbolRefAttr("free"),
@@ -112,9 +85,7 @@ def get_strided_pointer(
         increment = index
         match stride:
             case None:
-                raise DiagnosticException(
-                    f"MemRef {memref_type} with dynamic stride is not yet implemented"
-                )
+                raise DiagnosticException(f"MemRef {memref_type} with dynamic stride is not yet implemented")
             case 1:
                 # Stride 1 is a noop making the index equal to the offset.
                 pass
@@ -177,9 +148,7 @@ class ConvertMemRefStoreOp(RewritePattern):
         rewriter.insert_op_before_matched_op(ops)
         match value.type:
             case riscv.IntRegisterType():
-                new_op = riscv.SwOp(
-                    ptr, value, 0, comment=f"store int value to memref of shape {shape}"
-                )
+                new_op = riscv.SwOp(ptr, value, 0, comment=f"store int value to memref of shape {shape}")
             case riscv.FloatRegisterType():
                 float_type = cast(AnyFloat, memref_type.element_type)
                 match float_type:
@@ -209,9 +178,7 @@ class ConvertMemRefStoreOp(RewritePattern):
 class ConvertMemRefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter):
-        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType), (
-            f"{op.memref.type}"
-        )
+        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType), f"{op.memref.type}"
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
         mem, *indices = cast_operands_to_regs(rewriter)
@@ -224,20 +191,14 @@ class ConvertMemRefLoadOp(RewritePattern):
 
         match result_register_type:
             case riscv.IntRegisterType:
-                lw_op = riscv.LwOp(
-                    ptr, 0, comment=f"load word from memref of shape {shape}"
-                )
+                lw_op = riscv.LwOp(ptr, 0, comment=f"load word from memref of shape {shape}")
             case riscv.FloatRegisterType:
                 float_type = cast(AnyFloat, memref_type.element_type)
                 match float_type:
                     case Float32Type():
-                        lw_op = riscv.FLwOp(
-                            ptr, 0, comment=f"load float from memref of shape {shape}"
-                        )
+                        lw_op = riscv.FLwOp(ptr, 0, comment=f"load float from memref of shape {shape}")
                     case Float64Type():
-                        lw_op = riscv.FLdOp(
-                            ptr, 0, comment=f"load double from memref of shape {shape}"
-                        )
+                        lw_op = riscv.FLdOp(ptr, 0, comment=f"load double from memref of shape {shape}")
                     case _:
                         raise ValueError(f"Unexpected floating point type {float_type}")
 
@@ -258,9 +219,7 @@ class ConvertMemRefGlobalOp(RewritePattern):
         initial_value = op.initial_value
 
         if not isinstance(initial_value, DenseIntOrFPElementsAttr):
-            raise DiagnosticException(
-                f"Unsupported memref.global initial value: {initial_value}"
-            )
+            raise DiagnosticException(f"Unsupported memref.global initial value: {initial_value}")
 
         memref_type = cast(memref.MemRefType[Any], op.type)
         element_type = memref_type.element_type
@@ -271,9 +230,7 @@ class ConvertMemRefGlobalOp(RewritePattern):
             case IntegerType():
                 bitwidth = element_type.width.data
                 if bitwidth != 32:
-                    raise DiagnosticException(
-                        f"Unsupported memref element type for riscv lowering: {element_type}"
-                    )
+                    raise DiagnosticException(f"Unsupported memref element type for riscv lowering: {element_type}")
                 ints = initial_value.get_int_values()
                 ptr = TypedPtr.new_int32(ints).raw
             case Float32Type():
@@ -283,9 +240,7 @@ class ConvertMemRefGlobalOp(RewritePattern):
                 floats = initial_value.get_float_values()
                 ptr = TypedPtr.new_float64(floats).raw
             case _:
-                raise DiagnosticException(
-                    f"Unsupported memref element type for riscv lowering: {element_type}"
-                )
+                raise DiagnosticException(f"Unsupported memref element type for riscv lowering: {element_type}")
 
         text = ",".join(hex(i) for i in ptr.int32.get_list(42))
 
@@ -344,9 +299,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
         if isinstance(result_layout_attr, NoneAttr):
             # When a subview has no layout attr, the result is a perfect subview at offset
             # 0.
-            rewriter.replace_matched_op(
-                UnrealizedConversionCastOp.get((source,), (result_type,))
-            )
+            rewriter.replace_matched_op(UnrealizedConversionCastOp.get((source,), (result_type,)))
             return
 
         if not isinstance(result_layout_attr, StridedLayoutAttr):
@@ -358,14 +311,10 @@ class ConvertMemRefSubviewOp(RewritePattern):
         factor = result_type.element_type.size
 
         if offset == 0:
-            rewriter.replace_matched_op(
-                UnrealizedConversionCastOp.get((source,), (result_type,))
-            )
+            rewriter.replace_matched_op(UnrealizedConversionCastOp.get((source,), (result_type,)))
             return
 
-        src = UnrealizedConversionCastOp.get(
-            (source,), (riscv.Registers.UNALLOCATED_INT,)
-        )
+        src = UnrealizedConversionCastOp.get((source,), (riscv.Registers.UNALLOCATED_INT,))
         src_rd = src.results[0]
 
         if offset is None:
@@ -415,12 +364,8 @@ class ConvertMemRefToRiscvPass(ModulePass):
     name = "convert-memref-to-riscv"
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
-        contains_malloc = PatternRewriteWalker(ConvertMemRefAllocOp()).rewrite_module(
-            op
-        )
-        contains_dealloc = PatternRewriteWalker(
-            ConvertMemRefDeallocOp()
-        ).rewrite_module(op)
+        contains_malloc = PatternRewriteWalker(ConvertMemRefAllocOp()).rewrite_module(op)
+        contains_dealloc = PatternRewriteWalker(ConvertMemRefDeallocOp()).rewrite_module(op)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

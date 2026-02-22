@@ -9,12 +9,7 @@ from xdsl.frontend.pyast.code_generation import CodeGeneration
 from xdsl.frontend.pyast.exception import FrontendProgramException
 from xdsl.frontend.pyast.passes.desymref import Desymrefier
 from xdsl.frontend.pyast.python_code_check import FunctionMap
-from xdsl.frontend.pyast.type_conversion import (
-    FunctionRegistry,
-    TypeConverter,
-    TypeName,
-    TypeRegistry,
-)
+from xdsl.frontend.pyast.type_conversion import FunctionRegistry, TypeConverter, TypeName, TypeRegistry
 from xdsl.ir import Operation, TypeAttribute
 from xdsl.printer import Printer
 
@@ -53,26 +48,18 @@ class FrontendProgram:
     def register_type(self, source_type: type, ir_type: TypeAttribute) -> None:
         """Associate a type in the source code with its type in the IR."""
         if (type_name := source_type.__qualname__) in self.type_names:
-            raise FrontendProgramException(
-                f"Cannot re-register type name '{type_name}'"
-            )
+            raise FrontendProgramException(f"Cannot re-register type name '{type_name}'")
         # Qualified names not being registered implies matching objects aren't
         assert source_type not in self.type_registry
         if not self.type_registry.valid_insert(source_type, ir_type):
-            raise FrontendProgramException(
-                f"Cannot register multiple source types for IR type '{ir_type.__name__}'"
-            )
+            raise FrontendProgramException(f"Cannot register multiple source types for IR type '{ir_type.__name__}'")
         self.type_names[type_name] = source_type
         self.type_registry[source_type] = ir_type
 
-    def register_function(
-        self, function: Callable[..., Any], ir_op: type[Operation]
-    ) -> None:
+    def register_function(self, function: Callable[..., Any], ir_op: type[Operation]) -> None:
         """Associate a method on an object in the source code with its IR implementation."""
         if function in self.function_registry:
-            raise FrontendProgramException(
-                f"Cannot re-register function '{function.__qualname__}'"
-            )
+            raise FrontendProgramException(f"Cannot re-register function '{function.__qualname__}'")
         self.function_registry[function] = ir_op
 
     def _check_can_compile(self):

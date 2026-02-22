@@ -25,9 +25,7 @@ class WGSLPrinter(BasePrinter):
 
     @singledispatchmethod
     def print(self, op: Operation) -> None:
-        raise NotImplementedError(
-            f"Printing of '{op.name}' to WGSL is not implemented yet."
-        )
+        raise NotImplementedError(f"Printing of '{op.name}' to WGSL is not implemented yet.")
 
     @print.register
     def _(self, op: gpu.ModuleOp):
@@ -62,23 +60,19 @@ class WGSLPrinter(BasePrinter):
 """
             self.print_string(arguments)
 
-        self.print_string(
-            f"""
+        self.print_string(f"""
     @compute
     @workgroup_size({",".join(str(i) for i in workgroup_size)})
     fn {op.sym_name.data}(@builtin(global_invocation_id) global_invocation_id : vec3<u32>,
     @builtin(workgroup_id) workgroup_id : vec3<u32>,
     @builtin(local_invocation_id) local_invocation_id : vec3<u32>,
     @builtin(num_workgroups) num_workgroups : vec3<u32>) {{
-"""
-        )
+""")
         for operation in op.body.ops:
             self.print(operation)
-        self.print_string(
-            """
+        self.print_string("""
             }
-            """
-        )
+            """)
 
     @print.register
     def _(self, op: gpu.ReturnOp):
@@ -153,9 +147,7 @@ class WGSLPrinter(BasePrinter):
         memref_size = memref_type.get_shape()
         for size in memref_size:
             if size == -1:
-                raise NotImplementedError(
-                    "The WGSL translation only works with known sizes at the moment."
-                )
+                raise NotImplementedError("The WGSL translation only works with known sizes at the moment.")
         index_values: list[str] = []
         for i in range(memref_dimension):
             product_of_dims = 1

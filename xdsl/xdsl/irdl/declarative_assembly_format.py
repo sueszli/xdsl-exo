@@ -12,24 +12,8 @@ from dataclasses import dataclass, field
 from typing import Literal, TypeVar
 
 from xdsl.dialects.builtin import UnitAttr
-from xdsl.ir import (
-    Attribute,
-    Data,
-    ParametrizedAttribute,
-    Region,
-    SSAValue,
-    TypedAttribute,
-)
-from xdsl.irdl import (
-    ConstraintContext,
-    IRDLOperation,
-    IRDLOperationInvT,
-    OpDef,
-    OptionalDef,
-    Successor,
-    VarExtractor,
-    VariadicDef,
-)
+from xdsl.ir import Attribute, Data, ParametrizedAttribute, Region, SSAValue, TypedAttribute
+from xdsl.irdl import ConstraintContext, IRDLOperation, IRDLOperationInvT, OpDef, OptionalDef, Successor, VarExtractor, VariadicDef
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.mlir_lexer import PunctuationSpelling
@@ -104,9 +88,7 @@ class FormatProgram:
 
         return FormatParser(input, op_def).parse_format()
 
-    def parse(
-        self, parser: Parser, op_type: type[IRDLOperationInvT]
-    ) -> IRDLOperationInvT:
+    def parse(self, parser: Parser, op_type: type[IRDLOperationInvT]) -> IRDLOperationInvT:
         """
         Parse the operation with this format.
         The given operation type is expected to be the operation type represented by
@@ -138,15 +120,11 @@ class FormatProgram:
         for uo, ot in zip(unresolved_operands, operand_types, strict=True):
             assert uo is not None
             if isinstance(uo, UnresolvedOperand):
-                assert isinstance(ot, Attribute), (
-                    "Something went wrong with the declarative assembly format parser."
-                )
+                assert isinstance(ot, Attribute), "Something went wrong with the declarative assembly format parser."
                 "Single operand has no type or variadic/optional type"
                 operands.append(parser.resolve_operand(uo, ot))
             else:
-                assert isinstance(ot, Sequence), (
-                    f"Something went wrong with the declarative assembly format parser. {type(ot)} {ot}"
-                )
+                assert isinstance(ot, Sequence), f"Something went wrong with the declarative assembly format parser. {type(ot)} {ot}"
                 "Variadic or optional operand has no type or a single type "
                 operands.append(parser.resolve_operands(uo, ot, parser.pos))
 
@@ -178,9 +156,7 @@ class FormatProgram:
         Use the inferred type resolutions to fill missing operand types from other parsed
         types.
         """
-        for i, (operand_type, (_, operand_def)) in enumerate(
-            zip(state.operand_types, op_def.operands, strict=True)
-        ):
+        for i, (operand_type, (_, operand_def)) in enumerate(zip(state.operand_types, op_def.operands, strict=True)):
             if operand_type is None:
                 operand = state.operands[i]
                 range_length = len(operand) if isinstance(operand, Sequence) else 1
@@ -202,18 +178,12 @@ class FormatProgram:
         Use the inferred type resolutions to fill missing result types from other parsed
         types.
         """
-        for i, (result_type, (_, result_def)) in enumerate(
-            zip(state.result_types, op_def.results, strict=True)
-        ):
+        for i, (result_type, (_, result_def)) in enumerate(zip(state.result_types, op_def.results, strict=True)):
             if result_type is None:
-                inferred_result_types = result_def.constr.infer(
-                    state.context, length=None
-                )
+                inferred_result_types = result_def.constr.infer(state.context, length=None)
                 resolved_result_type: Attribute | Sequence[Attribute]
                 if isinstance(result_def, OptionalDef):
-                    resolved_result_type = (
-                        inferred_result_types[0] if inferred_result_types else ()
-                    )
+                    resolved_result_type = inferred_result_types[0] if inferred_result_types else ()
                 elif isinstance(result_def, VariadicDef):
                     resolved_result_type = inferred_result_types
                 else:
@@ -272,9 +242,7 @@ class FormatDirective(Directive, ABC):
         ...
 
     @abstractmethod
-    def print(
-        self, printer: Printer, state: PrintingState, op: IRDLOperation
-    ) -> None: ...
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None: ...
 
     def set_empty(self, state: ParsingState):
         """
@@ -420,11 +388,7 @@ class AttrDictDirective(FormatDirective):
             res = parser.parse_optional_attr_dict()
         defined_reserved_keys = self.reserved_attr_names & res.keys()
         if defined_reserved_keys:
-            parser.raise_error(
-                f"attributes {', '.join(defined_reserved_keys)} are defined in other parts of the "
-                "assembly format, and thus should not be defined in the attribute "
-                "dictionary."
-            )
+            parser.raise_error(f"attributes {', '.join(defined_reserved_keys)} are defined in other parts of the " "assembly format, and thus should not be defined in the attribute " "dictionary.")
 
         props = tuple(k for k in res.keys() if k in self.expected_properties)
         for name in props:
@@ -434,23 +398,12 @@ class AttrDictDirective(FormatDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if not op.attributes.keys().isdisjoint(self.expected_properties):
-            raise ValueError(
-                "Cannot print attributes and properties with the same name "
-                "in a single dictionary"
-            )
+            raise ValueError("Cannot print attributes and properties with the same name " "in a single dictionary")
         op_def = op.get_irdl_definition()
-        dictionary = op.attributes | {
-            k: v for k, v in op.properties.items() if k in self.expected_properties
-        }
-        defs = {
-            x: op_def.properties[x] for x in self.expected_properties
-        } | op_def.attributes
+        dictionary = op.attributes | {k: v for k, v in op.properties.items() if k in self.expected_properties}
+        defs = {x: op_def.properties[x] for x in self.expected_properties} | op_def.attributes
 
-        reserved_or_default = self.reserved_attr_names.union(
-            name
-            for name, d in defs.items()
-            if d.default_value is not None and dictionary.get(name) == d.default_value
-        )
+        reserved_or_default = self.reserved_attr_names.union(name for name, d in defs.items() if d.default_value is not None and dictionary.get(name) == d.default_value)
 
         printed = printer.print_op_attributes(
             dictionary,
@@ -470,8 +423,6 @@ class OperandDirective(FormatDirective, TypeableDirective, ABC):
     """
     Base class for operand directives to aid typechecking.
     """
-
-    pass
 
 
 @dataclass(frozen=True)
@@ -514,18 +465,14 @@ class VariadicOperandVariable(VariadicVariable, OperandDirective):
     """
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
-        operands = parser.parse_optional_undelimited_comma_separated_list(
-            parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
-        )
+        operands = parser.parse_optional_undelimited_comma_separated_list(parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand)
         if operands is None:
             operands = []
         state.operands[self.index] = operands
         return bool(operands)
 
     def parse_types(self, parser: Parser, state: ParsingState) -> bool:
-        types = parser.parse_optional_undelimited_comma_separated_list(
-            parser.parse_optional_type, parser.parse_type
-        )
+        types = parser.parse_optional_undelimited_comma_separated_list(parser.parse_optional_type, parser.parse_type)
         ret = types is None
         if ret:
             types = ()
@@ -670,24 +617,15 @@ class OperandsDirective(OperandsOrResultDirective, FormatDirective):
 
     def parse_types(self, parser: Parser, state: ParsingState) -> bool:
         pos_start = parser.pos
-        types = (
-            parser.parse_optional_undelimited_comma_separated_list(
-                parser.parse_optional_type, parser.parse_type
-            )
-            or []
-        )
+        types = parser.parse_optional_undelimited_comma_separated_list(parser.parse_optional_type, parser.parse_type) or []
 
-        if s := self._set_using_variadic_index(
-            state.operand_types, "operand types", types
-        ):
+        if s := self._set_using_variadic_index(state.operand_types, "operand types", types):
             parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
         return bool(types)
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
         pos_start = parser.pos
-        if s := self._set_using_variadic_index(
-            state.operand_types, "operand types", (parser.parse_type(),)
-        ):
+        if s := self._set_using_variadic_index(state.operand_types, "operand types", (parser.parse_type(),)):
             parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
@@ -741,9 +679,7 @@ class VariadicResultVariable(VariadicVariable, TypeableDirective):
     """
 
     def parse_types(self, parser: Parser, state: ParsingState) -> bool:
-        types = parser.parse_optional_undelimited_comma_separated_list(
-            parser.parse_optional_type, parser.parse_type
-        )
+        types = parser.parse_optional_undelimited_comma_separated_list(parser.parse_optional_type, parser.parse_type)
         ret = types is None
         if ret:
             types = ()
@@ -798,24 +734,15 @@ class ResultsDirective(OperandsOrResultDirective):
 
     def parse_types(self, parser: Parser, state: ParsingState) -> bool:
         pos_start = parser.pos
-        types = (
-            parser.parse_optional_undelimited_comma_separated_list(
-                parser.parse_optional_type, parser.parse_type
-            )
-            or []
-        )
+        types = parser.parse_optional_undelimited_comma_separated_list(parser.parse_optional_type, parser.parse_type) or []
 
-        if s := self._set_using_variadic_index(
-            state.result_types, "result types", types
-        ):
+        if s := self._set_using_variadic_index(state.result_types, "result types", types):
             parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
         return bool(types)
 
     def parse_single_type(self, parser: Parser, state: ParsingState) -> None:
         pos_start = parser.pos
-        if s := self._set_using_variadic_index(
-            state.result_types, "result types", (parser.parse_type(),)
-        ):
+        if s := self._set_using_variadic_index(state.result_types, "result types", (parser.parse_type(),)):
             parser.raise_error(s, at_position=pos_start, end_position=parser.pos)
 
     def set_types_empty(self, state: ParsingState) -> None:
@@ -862,9 +789,7 @@ class FunctionalTypeDirective(FormatDirective):
             printer.print_string(" ")
         state.should_emit_space = True
         printer.print_string("(")
-        printer.print_list(
-            self.operand_typeable_directive.get_types(op), printer.print_attribute
-        )
+        printer.print_list(self.operand_typeable_directive.get_types(op), printer.print_attribute)
         printer.print_string(") -> ")
         result_types = self.result_typeable_directive.get_types(op)
         if len(result_types) == 1:
@@ -1002,9 +927,7 @@ class VariadicSuccessorVariable(VariadicVariable, SuccessorDirective):
     """
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
-        successors = parser.parse_optional_undelimited_comma_separated_list(
-            parser.parse_optional_successor, parser.parse_successor
-        )
+        successors = parser.parse_optional_undelimited_comma_separated_list(parser.parse_optional_successor, parser.parse_successor)
         if successors is None:
             successors = []
         state.successors[self.index] = successors
@@ -1083,9 +1006,7 @@ class AttributeVariable(FormatDirective):
         ):
             attr = unique_base.new(unique_base.parse_parameters(parser))
         elif issubclass(unique_base, Data):
-            attr = unique_base.new(  # pyright: ignore[reportUnknownVariableType]
-                unique_base.parse_parameter(parser)
-            )
+            attr = unique_base.new(unique_base.parse_parameter(parser))  # pyright: ignore[reportUnknownVariableType]
         else:
             raise ValueError("Attributes must be Data or ParameterizedAttribute.")
         if self.is_property:

@@ -17,9 +17,7 @@ with CodeContext(p):
     # CHECK-NEXT: }
 
     def test_for_I(end: index):
-        for _ in range(
-            end  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
-        ):
+        for _ in range(end):  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
             pass
         return
 
@@ -75,15 +73,9 @@ with CodeContext(p):
     # CHECK-NEXT:   func.return
     # CHECK-NEXT:   }
     def test_for_IV(a: index, b: index, c: index):
-        for _ in range(
-            a  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
-        ):
-            for _ in range(
-                b  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
-            ):
-                for _ in range(
-                    c  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
-                ):
+        for _ in range(a):  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+            for _ in range(b):  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+                for _ in range(c):  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
                     pass
         return
 

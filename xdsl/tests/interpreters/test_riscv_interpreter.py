@@ -4,15 +4,7 @@ import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import (
-    DenseIntOrFPElementsAttr,
-    IntegerAttr,
-    ModuleOp,
-    TensorType,
-    f64,
-    i1,
-    i32,
-)
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, ModuleOp, TensorType, f64, i1, i32
 from xdsl.interpreter import Interpreter, PythonValues
 from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.interpreters.utils.ptr import RawPtr, TypedPtr
@@ -34,15 +26,11 @@ def test_riscv_interpreter():
         [
             riscv.AssemblySectionOp(
                 ".data",
-                Region(
-                    Block([riscv.LabelOp("label0"), riscv.DirectiveOp(".word", "2A")])
-                ),
+                Region(Block([riscv.LabelOp("label0"), riscv.DirectiveOp(".word", "2A")])),
             ),
             riscv.AssemblySectionOp(
                 ".data",
-                Region(
-                    Block([riscv.LabelOp("label1"), riscv.DirectiveOp(".word", "3B")])
-                ),
+                Region(Block([riscv.LabelOp("label1"), riscv.DirectiveOp(".word", "3B")])),
             ),
         ]
     )
@@ -55,33 +43,17 @@ def test_riscv_interpreter():
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(riscv_functions)
 
-    assert interpreter.run_op(riscv.LiOp("label0"), ()) == (
-        TypedPtr.new_int32((42,)).raw,
-    )
-    assert interpreter.run_op(riscv.LiOp("label1"), ()) == (
-        TypedPtr.new_int32((59,)).raw,
-    )
+    assert interpreter.run_op(riscv.LiOp("label0"), ()) == (TypedPtr.new_int32((42,)).raw,)
+    assert interpreter.run_op(riscv.LiOp("label1"), ()) == (TypedPtr.new_int32((59,)).raw,)
     assert interpreter.run_op(riscv.MVOp(create_ssa_value(register)), (42,)) == (42,)
 
-    assert interpreter.run_op(riscv.SltiuOp(create_ssa_value(register), 5), (0,)) == (
-        1,
-    )
-    assert interpreter.run_op(riscv.SltiuOp(create_ssa_value(register), 5), (10,)) == (
-        0,
-    )
-    assert interpreter.run_op(riscv.SltiuOp(create_ssa_value(register), 5), (-10,)) == (
-        0,
-    )
+    assert interpreter.run_op(riscv.SltiuOp(create_ssa_value(register), 5), (0,)) == (1,)
+    assert interpreter.run_op(riscv.SltiuOp(create_ssa_value(register), 5), (10,)) == (0,)
+    assert interpreter.run_op(riscv.SltiuOp(create_ssa_value(register), 5), (-10,)) == (0,)
 
-    assert interpreter.run_op(riscv.SltiuOp(create_ssa_value(register), 0), (5,)) == (
-        0,
-    )
-    assert interpreter.run_op(riscv.SltiuOp(create_ssa_value(register), 10), (5,)) == (
-        1,
-    )
-    assert interpreter.run_op(riscv.SltiuOp(create_ssa_value(register), -10), (5,)) == (
-        1,
-    )
+    assert interpreter.run_op(riscv.SltiuOp(create_ssa_value(register), 0), (5,)) == (0,)
+    assert interpreter.run_op(riscv.SltiuOp(create_ssa_value(register), 10), (5,)) == (1,)
+    assert interpreter.run_op(riscv.SltiuOp(create_ssa_value(register), -10), (5,)) == (1,)
 
     assert interpreter.run_op(
         riscv.AddOp(create_ssa_value(register), create_ssa_value(register)),
@@ -152,9 +124,7 @@ def test_riscv_interpreter():
     test_buffer.int32[1] = 2
     assert buffer == test_buffer
 
-    assert interpreter.run_op(riscv.LwOp(create_ssa_value(register), 0), (buffer,)) == (
-        1,
-    )
+    assert interpreter.run_op(riscv.LwOp(create_ssa_value(register), 0), (buffer,)) == (1,)
     assert interpreter.run_op(riscv.LabelOp("label"), ()) == ()
 
     custom_instruction_op = riscv.CustomAssemblyInstructionOp(
@@ -345,37 +315,27 @@ def test_register_contents():
         riscv.Registers.SP.register_name: RawPtr(bytearray(1 << 20), offset=1 << 20),
     }
 
-    with pytest.raises(
-        InterpretationError, match="Unexpected type i1, expected register type"
-    ):
+    with pytest.raises(InterpretationError, match="Unexpected type i1, expected register type"):
         RiscvFunctions.get_reg_value(interpreter, i1, 2)
 
-    with pytest.raises(
-        InterpretationError, match="Unexpected type i1, expected register type"
-    ):
+    with pytest.raises(InterpretationError, match="Unexpected type i1, expected register type"):
         RiscvFunctions.set_reg_value(interpreter, i1, 2)
 
     assert RiscvFunctions.get_reg_value(interpreter, riscv.Registers.ZERO, 0) == 0
     assert RiscvFunctions.set_reg_value(interpreter, riscv.Registers.ZERO, 1) == 0
     assert RiscvFunctions.get_reg_value(interpreter, riscv.Registers.ZERO, 0) == 0
 
-    with pytest.raises(
-        InterpretationError, match="Runtime and stored value mismatch: 1 != 0"
-    ):
+    with pytest.raises(InterpretationError, match="Runtime and stored value mismatch: 1 != 0"):
         RiscvFunctions.get_reg_value(interpreter, riscv.Registers.ZERO, 1)
 
-    with pytest.raises(
-        InterpretationError, match="Value not found for register name t0"
-    ):
+    with pytest.raises(InterpretationError, match="Value not found for register name t0"):
         RiscvFunctions.get_reg_value(interpreter, riscv.Registers.T0, 2)
 
     assert RiscvFunctions.set_reg_value(interpreter, riscv.Registers.T0, 1) == 1
 
     assert RiscvFunctions.get_reg_value(interpreter, riscv.Registers.T0, 1) == 1
 
-    with pytest.raises(
-        InterpretationError, match="Runtime and stored value mismatch: 2 != 1"
-    ):
+    with pytest.raises(InterpretationError, match="Runtime and stored value mismatch: 2 != 1"):
         RiscvFunctions.get_reg_value(interpreter, riscv.Registers.T0, 2)
 
     assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
@@ -392,9 +352,7 @@ def test_values():
 
     assert (
         interpreter.value_for_attribute(
-            DenseIntOrFPElementsAttr.create_dense_int(
-                TensorType(i32, [2, 3]), tuple(range(6))
-            ),
+            DenseIntOrFPElementsAttr.create_dense_int(TensorType(i32, [2, 3]), tuple(range(6))),
             riscv.Registers.A0,
         )
         == TypedPtr.new_int32(tuple(range(6))).raw

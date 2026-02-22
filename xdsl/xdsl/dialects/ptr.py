@@ -12,25 +12,9 @@ Current deviations:
  conflict.
 """
 
-from xdsl.dialects.builtin import (
-    AnyAttr,
-    IndexType,
-    IntegerAttrTypeConstr,
-    IntegerType,
-    MemRefType,
-    UnitAttr,
-)
+from xdsl.dialects.builtin import AnyAttr, IndexType, IntegerAttrTypeConstr, IntegerType, MemRefType, UnitAttr
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
-from xdsl.irdl import (
-    IRDLOperation,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_prop_def,
-    prop_def,
-    result_def,
-    traits_def,
-)
+from xdsl.irdl import IRDLOperation, irdl_attr_definition, irdl_op_definition, operand_def, opt_prop_def, prop_def, result_def, traits_def
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
 

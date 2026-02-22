@@ -49,7 +49,6 @@ def warmed_timeit(
 
         def empty(self) -> None:
             """An empty method call."""
-            pass
 
     benchmark_class_empty = EmptyBenchmarkClass().empty
 
@@ -121,9 +120,7 @@ def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
         default=DEFAULT_OUTPUT_DIRECTORY,
         help="the directory into which to write out the profile files",
     )
-    parser.add_argument(
-        "-q", "--quiet", action="store_true", help="don't show the profiler's UI"
-    )
+    parser.add_argument("-q", "--quiet", action="store_true", help="don't show the profiler's UI")
 
     return parser
 

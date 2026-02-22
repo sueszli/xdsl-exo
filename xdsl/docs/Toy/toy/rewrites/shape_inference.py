@@ -2,12 +2,7 @@ from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.transforms.dead_code_elimination import dce
 
 from ..dialects import toy

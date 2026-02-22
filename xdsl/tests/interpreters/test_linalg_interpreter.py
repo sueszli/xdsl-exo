@@ -2,19 +2,7 @@ import pytest
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, linalg
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    DenseArrayBase,
-    DenseIntOrFPElementsAttr,
-    FloatAttr,
-    MemRefType,
-    ModuleOp,
-    StringAttr,
-    TensorType,
-    f32,
-    i32,
-    i64,
-)
+from xdsl.dialects.builtin import AffineMapAttr, DenseArrayBase, DenseIntOrFPElementsAttr, FloatAttr, MemRefType, ModuleOp, StringAttr, TensorType, f32, i32, i64
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.linalg import LinalgFunctions
@@ -205,9 +193,7 @@ def test_fill_op():
     a = ShapedArray(TypedPtr.new_float32([1.0]), [1])
     b = ShapedArray(TypedPtr.new_float32([0.0] * 6), [2, 3])
     (b,) = interpreter.run_op(op, (a, b))
-    assert b == ShapedArray(
-        TypedPtr.new_float32([1.0, 1.0, 1.0, 1.0, 1.0, 1.0]), [2, 3]
-    )
+    assert b == ShapedArray(TypedPtr.new_float32([1.0, 1.0, 1.0, 1.0, 1.0, 1.0]), [2, 3])
 
 
 def test_linalg_mul():
@@ -243,9 +229,7 @@ def test_linalg_transpose():
     a = ShapedArray(TypedPtr.new_float32([3.0, 5.0, 6.0, 7.0, 8.0, 9.0]), [3, 2])
     b = ShapedArray(TypedPtr.new_float32([0.0] * 6), [2, 3])
     (b,) = interpreter.run_op(op, (a, b))
-    assert b == ShapedArray(
-        TypedPtr.new_float32([3.0, 6.0, 8.0, 5.0, 7.0, 9.0]), [2, 3]
-    )
+    assert b == ShapedArray(TypedPtr.new_float32([3.0, 6.0, 8.0, 5.0, 7.0, 9.0]), [2, 3])
 
 
 def test_linalg_matmul():
@@ -282,12 +266,8 @@ def test_linalg_pooling_nchw_max():
         (create_ssa_value(TensorType(f32, [1, 1, 3, 3])),),
         (TensorType(f32, [1, 1, 3, 3]),),
         {
-            "dilations": DenseIntOrFPElementsAttr.create_dense_int(
-                TensorType(i64, [2]), 1
-            ),
-            "strides": DenseIntOrFPElementsAttr.create_dense_int(
-                TensorType(i64, [2]), 1
-            ),
+            "dilations": DenseIntOrFPElementsAttr.create_dense_int(TensorType(i64, [2]), 1),
+            "strides": DenseIntOrFPElementsAttr.create_dense_int(TensorType(i64, [2]), 1),
         },
     )
     a = ShapedArray(TypedPtr.new_float32(list(range(1, 17))), [1, 1, 4, 4])
@@ -319,12 +299,8 @@ def test_linalg_pooling_nchw_max_strides_two():
         (create_ssa_value(TensorType(f32, [1, 1, 2, 2])),),
         (TensorType(f32, [1, 1, 2, 2]),),
         {
-            "dilations": DenseIntOrFPElementsAttr.create_dense_int(
-                TensorType(i64, [2]), 1
-            ),
-            "strides": DenseIntOrFPElementsAttr.create_dense_int(
-                TensorType(i64, [2]), 2
-            ),
+            "dilations": DenseIntOrFPElementsAttr.create_dense_int(TensorType(i64, [2]), 1),
+            "strides": DenseIntOrFPElementsAttr.create_dense_int(TensorType(i64, [2]), 2),
         },
     )
     a = ShapedArray(
@@ -356,12 +332,8 @@ def test_linalg_conv_2d_nchw_fchw():
         (create_ssa_value(TensorType(f32, [1, 1, 3, 3])),),
         (TensorType(f32, [1, 1, 3, 3]),),
         {
-            "dilations": DenseIntOrFPElementsAttr.create_dense_int(
-                TensorType(i64, [2]), 1
-            ),
-            "strides": DenseIntOrFPElementsAttr.create_dense_int(
-                TensorType(i64, [2]), 1
-            ),
+            "dilations": DenseIntOrFPElementsAttr.create_dense_int(TensorType(i64, [2]), 1),
+            "strides": DenseIntOrFPElementsAttr.create_dense_int(TensorType(i64, [2]), 1),
         },
     )
     a = ShapedArray(TypedPtr.new_float32(list(range(25))), [1, 1, 5, 5])

@@ -3,29 +3,9 @@ from typing import cast
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.irdl import irdl
 from xdsl.dialects.irdl.irdl_to_pyrdl import python_name
-from xdsl.interpreter import (
-    Interpreter,
-    InterpreterFunctions,
-    PythonValues,
-    impl,
-    register_impls,
-)
+from xdsl.interpreter import Interpreter, InterpreterFunctions, PythonValues, impl, register_impls
 from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, TypeAttribute
-from xdsl.irdl import (
-    AnyAttr,
-    AnyOf,
-    AttrConstraint,
-    EqAttrConstraint,
-    IRDLOperation,
-    OpDef,
-    OperandDef,
-    ParamAttrConstraint,
-    ParamAttrDef,
-    ResultDef,
-    VarConstraint,
-    get_accessors_from_op_def,
-    get_accessors_from_param_attr_def,
-)
+from xdsl.irdl import AnyAttr, AnyOf, AttrConstraint, EqAttrConstraint, IRDLOperation, OpDef, OperandDef, ParamAttrConstraint, ParamAttrDef, ResultDef, VarConstraint, get_accessors_from_op_def, get_accessors_from_param_attr_def
 from xdsl.traits import SymbolTable
 
 
@@ -50,9 +30,7 @@ class IRDLFunctions(InterpreterFunctions):
         """
         Get an operation type by name from the interpreter's state
         """
-        ops = IRDLFunctions.get_dialect(
-            interpreter, Dialect.split_name(name)[0]
-        ).operations
+        ops = IRDLFunctions.get_dialect(interpreter, Dialect.split_name(name)[0]).operations
         for op in ops:
             if op.name == name:
                 return op
@@ -63,9 +41,7 @@ class IRDLFunctions(InterpreterFunctions):
         """
         Get an attribute type by name from the interpreter's state
         """
-        attrs = IRDLFunctions.get_dialect(
-            interpreter, Dialect.split_name(name)[0]
-        ).attributes
+        attrs = IRDLFunctions.get_dialect(interpreter, Dialect.split_name(name)[0]).attributes
         for attr in attrs:
             if attr.name == name:
                 if not issubclass(attr, ParametrizedAttribute):
@@ -95,9 +71,7 @@ class IRDLFunctions(InterpreterFunctions):
         return interpreter.get_data(IRDLFunctions, "irdl.attr_defs", dict)[name]
 
     @staticmethod
-    def _set_attr_def(
-        interpreter: Interpreter, name: str, attr_def: ParamAttrDef
-    ) -> None:
+    def _set_attr_def(interpreter: Interpreter, name: str, attr_def: ParamAttrDef) -> None:
         """
         Set or create an attribute definition by name in the interpreter's state
         """
@@ -105,9 +79,7 @@ class IRDLFunctions(InterpreterFunctions):
 
     @staticmethod
     def next_variable_counter(interpreter: Interpreter) -> int:
-        counter = interpreter.get_data(
-            IRDLFunctions, "irdl.variable_counters", lambda: 0
-        )
+        counter = interpreter.get_data(IRDLFunctions, "irdl.variable_counters", lambda: 0)
         interpreter.set_data(IRDLFunctions, "irdl.variable_counters", counter + 1)
         return counter
 
@@ -124,9 +96,7 @@ class IRDLFunctions(InterpreterFunctions):
         return (constr,)
 
     @impl(irdl.AnyOfOp)
-    def run_any_of(
-        self, interpreter: Interpreter, op: irdl.AnyOfOp, args: PythonValues
-    ):
+    def run_any_of(self, interpreter: Interpreter, op: irdl.AnyOfOp, args: PythonValues):
         constr = AnyOf[Attribute](args)
         if len(op.output.uses) > 1:
             constr = self.variable_wrap(interpreter, constr)
@@ -140,14 +110,10 @@ class IRDLFunctions(InterpreterFunctions):
         return (constr,)
 
     @impl(irdl.ParametricOp)
-    def run_parametric(
-        self, interpreter: Interpreter, op: irdl.ParametricOp, args: PythonValues
-    ):
+    def run_parametric(self, interpreter: Interpreter, op: irdl.ParametricOp, args: PythonValues):
         base_attr_op = SymbolTable.lookup_symbol(op, op.base_type)
         if not isinstance(base_attr_op, irdl.AttributeOp | irdl.TypeOp):
-            raise ValueError(
-                f"Expected AttributeOp or TypeOp, got {type(base_attr_op)}"
-            )
+            raise ValueError(f"Expected AttributeOp or TypeOp, got {type(base_attr_op)}")
         base_type = self.get_attr(interpreter, base_attr_op.qualified_name)
         constr = ParamAttrConstraint(base_type, args)
         if len(op.output.uses) > 1:
@@ -168,31 +134,21 @@ class IRDLFunctions(InterpreterFunctions):
         return ()
 
     @impl(irdl.OperandsOp)
-    def run_operands(
-        self, interpreter: Interpreter, op: irdl.OperandsOp, args: PythonValues
-    ):
+    def run_operands(self, interpreter: Interpreter, op: irdl.OperandsOp, args: PythonValues):
         op_op = cast(irdl.OperationOp, op.parent_op())
         op_name = op_op.qualified_name
-        self._get_op_def(interpreter, op_name).operands = list(
-            (python_name(name.data), OperandDef(a)) for name, a in zip(op.names, args)
-        )
+        self._get_op_def(interpreter, op_name).operands = list((python_name(name.data), OperandDef(a)) for name, a in zip(op.names, args))
         return ()
 
     @impl(irdl.ResultsOp)
-    def run_results(
-        self, interpreter: Interpreter, op: irdl.ResultsOp, args: PythonValues
-    ):
+    def run_results(self, interpreter: Interpreter, op: irdl.ResultsOp, args: PythonValues):
         op_op = cast(irdl.OperationOp, op.parent_op())
         op_name = op_op.qualified_name
-        self._get_op_def(interpreter, op_name).results = list(
-            (python_name(name.data), ResultDef(a)) for name, a in zip(op.names, args)
-        )
+        self._get_op_def(interpreter, op_name).results = list((python_name(name.data), ResultDef(a)) for name, a in zip(op.names, args))
         return ()
 
     @impl(irdl.OperationOp)
-    def run_operation(
-        self, interpreter: Interpreter, op: irdl.OperationOp, args: PythonValues
-    ):
+    def run_operation(self, interpreter: Interpreter, op: irdl.OperationOp, args: PythonValues):
         name = op.qualified_name
         self._set_op_def(interpreter, name, OpDef(name))
         interpreter.run_ssacfg_region(op.body, ())
@@ -205,20 +161,14 @@ class IRDLFunctions(InterpreterFunctions):
         return ()
 
     @impl(irdl.ParametersOp)
-    def run_parameters(
-        self, interpreter: Interpreter, op: irdl.ParametersOp, args: PythonValues
-    ):
+    def run_parameters(self, interpreter: Interpreter, op: irdl.ParametersOp, args: PythonValues):
         attr_op = cast(irdl.AttributeOp | irdl.TypeOp, op.parent_op())
         attr_name = attr_op.qualified_name
-        self._get_attr_def(interpreter, attr_name).parameters = list(
-            (python_name(name.data), a) for name, a in zip(op.names, args)
-        )
+        self._get_attr_def(interpreter, attr_name).parameters = list((python_name(name.data), a) for name, a in zip(op.names, args))
         return ()
 
     @impl(irdl.DialectOp)
-    def run_dialect(
-        self, interpreter: Interpreter, op: irdl.DialectOp, args: PythonValues
-    ):
+    def run_dialect(self, interpreter: Interpreter, op: irdl.DialectOp, args: PythonValues):
         operations: list[type[Operation]] = []
         attributes: list[type[Attribute]] = []
         for entry in op.body.block.ops:
@@ -228,8 +178,7 @@ class IRDLFunctions(InterpreterFunctions):
                         type(
                             entry.get_py_class_name(),
                             (IRDLOperation,),
-                            dict(IRDLOperation.__dict__)
-                            | {"name": entry.qualified_name},
+                            dict(IRDLOperation.__dict__) | {"name": entry.qualified_name},
                         )
                     )
 
@@ -238,8 +187,7 @@ class IRDLFunctions(InterpreterFunctions):
                         type(
                             entry.sym_name.data,
                             (TypeAttribute, ParametrizedAttribute),
-                            dict(ParametrizedAttribute.__dict__)
-                            | {"name": entry.qualified_name},
+                            dict(ParametrizedAttribute.__dict__) | {"name": entry.qualified_name},
                         )
                     )
 

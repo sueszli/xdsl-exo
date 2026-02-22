@@ -2,28 +2,13 @@ from io import StringIO
 from pathlib import Path
 
 from xdsl.backend.riscv.lowering.convert_arith_to_riscv import ConvertArithToRiscvPass
-from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
-    ConvertFuncToRiscvFuncPass,
-)
+from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import ConvertFuncToRiscvFuncPass
 from xdsl.backend.riscv.lowering.convert_memref_to_riscv import ConvertMemRefToRiscvPass
-from xdsl.backend.riscv.lowering.convert_print_format_to_riscv_debug import (
-    ConvertPrintFormatToRiscvDebugPass,
-)
-from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
-    ConvertRiscvScfToRiscvCfPass,
-)
+from xdsl.backend.riscv.lowering.convert_print_format_to_riscv_debug import ConvertPrintFormatToRiscvDebugPass
+from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import ConvertRiscvScfToRiscvCfPass
 from xdsl.backend.riscv.lowering.convert_scf_to_riscv_scf import ConvertScfToRiscvPass
 from xdsl.context import Context
-from xdsl.dialects import (
-    affine,
-    arith,
-    func,
-    memref,
-    printf,
-    riscv,
-    riscv_func,
-    scf,
-)
+from xdsl.dialects import affine, arith, func, memref, printf, riscv, riscv_func, scf
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination

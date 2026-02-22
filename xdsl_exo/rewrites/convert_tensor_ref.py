@@ -7,7 +7,6 @@ from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
-
 from xdsl_exo.dialects import exo
 
 

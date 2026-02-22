@@ -24,14 +24,8 @@ def test_shaped_array_printing():
     assert f"{ShapedArray(TypedPtr.new_int32([1]), [1])}" == "[1]"
     assert f"{ShapedArray(TypedPtr.new_int32([1]), [1, 1])}" == "[[1]]"
     assert f"{ShapedArray(TypedPtr.new_int32([1]), [1, 1, 1])}" == "[[[1]]]"
-    assert (
-        f"{ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])}"
-        == "[[1, 2, 3], [4, 5, 6]]"
-    )
-    assert (
-        f"{ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [3, 2])}"
-        == "[[1, 2], [3, 4], [5, 6]]"
-    )
+    assert f"{ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])}" == "[[1, 2, 3], [4, 5, 6]]"
+    assert f"{ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [3, 2])}" == "[[1, 2], [3, 4], [5, 6]]"
 
 
 def test_shaped_array_indices():

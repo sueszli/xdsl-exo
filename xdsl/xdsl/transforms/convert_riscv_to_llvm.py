@@ -7,12 +7,7 @@ from xdsl.dialects.llvm import InlineAsmOp
 from xdsl.dialects.riscv import IntRegisterType, RISCVInstruction
 from xdsl.ir import Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.traits import HasInsnRepresentation
 from xdsl.utils.exceptions import DiagnosticException
 
@@ -41,9 +36,7 @@ class RiscvToLLVMPattern(RewritePattern):
         for arg in op.assembly_line_args():
             # ssa value used as an output operand
             match arg:
-                case OpResult() if arg.owner is op and isinstance(
-                    arg.type, IntRegisterType
-                ):
+                case OpResult() if arg.owner is op and isinstance(arg.type, IntRegisterType):
                     # if we are storing to zero, we can't produce a result, so replace result by
                     # a get_register for the zero registers.
                     if arg.type.is_allocated and arg.type.index == IntAttr(0):
@@ -67,9 +60,7 @@ class RiscvToLLVMPattern(RewritePattern):
                         assembly_args_str.append("x0")
                     # otherwise we need to get the value from the SSA value
                     else:
-                        conversion_op = UnrealizedConversionCastOp.get(
-                            [arg], [builtin.i32]
-                        )
+                        conversion_op = UnrealizedConversionCastOp.get([arg], [builtin.i32])
                         ops_to_insert.append(conversion_op)
                         inputs.append(conversion_op.outputs[0])
                         constraints.append("rI")
@@ -80,9 +71,7 @@ class RiscvToLLVMPattern(RewritePattern):
                     assembly_args_str.append(str(arg.value.data))
 
                 case _:
-                    raise DiagnosticException(
-                        "unsupported argument for conversion to an llvm inline assembly instruction"
-                    )
+                    raise DiagnosticException("unsupported argument for conversion to an llvm inline assembly instruction")
 
         # construct asm_string
         instruction_name = op.assembly_instruction_name()
@@ -114,11 +103,7 @@ class RiscvToLLVMPattern(RewritePattern):
 
         # cast output back to original type if necessary
         if num_results:
-            ops_to_insert.append(
-                output_op := UnrealizedConversionCastOp.get(
-                    new_op.results, [r.type for r in op.results]
-                )
-            )
+            ops_to_insert.append(output_op := UnrealizedConversionCastOp.get(new_op.results, [r.type for r in op.results]))
             op_results = output_op.results
 
         # map results back using result_map

@@ -5,47 +5,14 @@ from typing import ClassVar
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import (
-    DenseArrayBase,
-    IndexType,
-    IntegerType,
-    SignlessIntegerConstraint,
-    i64,
-)
-from xdsl.dialects.utils import (
-    AbstractYieldOperation,
-    parse_for_op_like,
-    print_for_op_like,
-)
+from xdsl.dialects.builtin import DenseArrayBase, IndexType, IntegerType, SignlessIntegerConstraint, i64
+from xdsl.dialects.utils import AbstractYieldOperation, parse_for_op_like, print_for_op_like
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    VarConstraint,
-    base,
-    irdl_op_definition,
-    lazy_traits_def,
-    operand_def,
-    prop_def,
-    region_def,
-    traits_def,
-    var_operand_def,
-    var_region_def,
-    var_result_def,
-)
+from xdsl.irdl import AttrSizedOperandSegments, IRDLOperation, VarConstraint, base, irdl_op_definition, lazy_traits_def, operand_def, prop_def, region_def, traits_def, var_operand_def, var_region_def, var_result_def
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import (
-    HasCanonicalizationPatternsTrait,
-    HasParent,
-    IsTerminator,
-    Pure,
-    RecursivelySpeculatable,
-    RecursiveMemoryEffect,
-    SingleBlockImplicitTerminator,
-    ensure_terminator,
-)
+from xdsl.traits import HasCanonicalizationPatternsTrait, HasParent, IsTerminator, Pure, RecursivelySpeculatable, RecursiveMemoryEffect, SingleBlockImplicitTerminator, ensure_terminator
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -77,17 +44,11 @@ class WhileOp(IRDLOperation):
     def verify_(self):
         for idx, arg in enumerate(self.arguments):
             if self.before_region.block.args[idx].type != arg.type:
-                raise Exception(
-                    f"Block arguments with wrong type, expected {arg.type}, "
-                    f"got {self.before_region.block.args[idx].type}"
-                )
+                raise Exception(f"Block arguments with wrong type, expected {arg.type}, " f"got {self.before_region.block.args[idx].type}")
 
         for idx, res in enumerate(self.res):
             if self.after_region.block.args[idx].type != res.type:
-                raise Exception(
-                    f"Block arguments with wrong type, expected {res.type}, "
-                    f"got {self.after_region.block.args[idx].type}"
-                )
+                raise Exception(f"Block arguments with wrong type, expected {res.type}, " f"got {self.after_region.block.args[idx].type}")
 
     def print(self, printer: Printer):
         printer.print_string(" (")
@@ -129,17 +90,9 @@ class WhileOp(IRDLOperation):
                 parser.pos,
             )
 
-        block_args = tuple(
-            block_arg.resolve(t)
-            for ((block_arg, _), t) in zip(
-                tuples, function_type.inputs.data, strict=True
-            )
-        )
+        block_args = tuple(block_arg.resolve(t) for ((block_arg, _), t) in zip(tuples, function_type.inputs.data, strict=True))
 
-        arguments = tuple(
-            parser.resolve_operand(operand, t)
-            for ((_, operand), t) in zip(tuples, function_type.inputs.data, strict=True)
-        )
+        arguments = tuple(parser.resolve_operand(operand, t) for ((_, operand), t) in zip(tuples, function_type.inputs.data, strict=True))
 
         before_region = parser.parse_region(block_args)
         parser.parse_characters("do")
@@ -222,19 +175,13 @@ class IfOp(IRDLOperation):
         cond = parser.parse_operand()
         return_types = []
         if parser.parse_optional_punctuation("->"):
-            return_types = parser.parse_comma_separated_list(
-                parser.Delimiter.PAREN, parser.parse_type
-            )
+            return_types = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parser.parse_type)
         else:
             return_types = []
 
         then_region = cls.parse_region_with_yield(parser)
 
-        else_region = (
-            cls.parse_region_with_yield(parser)
-            if parser.parse_optional_keyword("else")
-            else Region()
-        )
+        else_region = cls.parse_region_with_yield(parser) if parser.parse_optional_keyword("else") else Region()
 
         attr_dict = parser.parse_optional_attr_dict()
 
@@ -273,10 +220,7 @@ class IfOp(IRDLOperation):
 class ForOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.scf import (
-            RehoistConstInLoops,
-            SimplifyTrivialLoops,
-        )
+        from xdsl.transforms.canonicalization_patterns.scf import RehoistConstInLoops, SimplifyTrivialLoops
 
         return (SimplifyTrivialLoops(), RehoistConstInLoops())
 
@@ -323,9 +267,7 @@ class ForOp(IRDLOperation):
     def verify_(self):
         # body block verification
         if not self.body.block.args:
-            raise VerifyException(
-                "Body block must have induction var as first block arg"
-            )
+            raise VerifyException("Body block must have induction var as first block arg")
 
         indvar, *block_iter_args = self.body.block.args
         block_iter_args_num = len(block_iter_args)
@@ -334,35 +276,19 @@ class ForOp(IRDLOperation):
 
         for opnd in (self.lb, self.ub, self.step):
             if opnd.type != indvar.type:
-                raise VerifyException(
-                    "Expected induction var to be same type as bounds and step"
-                )
+                raise VerifyException("Expected induction var to be same type as bounds and step")
         if iter_args_num + 1 != block_iter_args_num + 1:
-            raise VerifyException(
-                f"Expected {iter_args_num + 1} args, but got {block_iter_args_num + 1}. "
-                "Body block must have induction and loop-carried variables as args."
-            )
+            raise VerifyException(f"Expected {iter_args_num + 1} args, but got {block_iter_args_num + 1}. " "Body block must have induction and loop-carried variables as args.")
         for i, arg in enumerate(iter_args):
             if block_iter_args[i].type != arg.type:
-                raise VerifyException(
-                    f"Block arg #{i + 1} expected to be {arg.type}, but got {block_iter_args[i].type}. "
-                    "Block args after the induction variable must match the loop-carried variables."
-                )
-        if (last_op := self.body.block.last_op) is not None and isinstance(
-            last_op, YieldOp
-        ):
+                raise VerifyException(f"Block arg #{i + 1} expected to be {arg.type}, but got {block_iter_args[i].type}. " "Block args after the induction variable must match the loop-carried variables.")
+        if (last_op := self.body.block.last_op) is not None and isinstance(last_op, YieldOp):
             yieldop = last_op
             if len(yieldop.arguments) != iter_args_num:
-                raise VerifyException(
-                    f"{yieldop.name} expected {iter_args_num} args, but got {len(yieldop.arguments)}. "
-                    f"The {self.name} must yield its loop-carried variables."
-                )
+                raise VerifyException(f"{yieldop.name} expected {iter_args_num} args, but got {len(yieldop.arguments)}. " f"The {self.name} must yield its loop-carried variables.")
             for i, arg in enumerate(yieldop.arguments):
                 if iter_args[i].type != arg.type:
-                    raise VerifyException(
-                        f"Expected yield arg #{i} to be {iter_args[i].type}, but got {arg.type}. "
-                        f"{yieldop.name} of {self.name} must match loop-carried variable types."
-                    )
+                    raise VerifyException(f"Expected yield arg #{i} to be {iter_args[i].type}, but got {arg.type}. " f"{yieldop.name} of {self.name} must match loop-carried variable types.")
 
     def print(self, printer: Printer):
         print_for_op_like(
@@ -426,23 +352,14 @@ class ParallelOp(IRDLOperation):
     def verify_(self) -> None:
         # First check that the number of lower and upper bounds, along with the number of
         # steps is all equal
-        if len(self.lowerBound) != len(self.upperBound) or len(self.lowerBound) != len(
-            self.step
-        ):
-            raise VerifyException(
-                "Expected the same number of lower bounds, upper "
-                "bounds, and steps for scf.parallel. Got "
-                f"{len(self.lowerBound)}, {len(self.upperBound)} and "
-                f"{len(self.step)}."
-            )
+        if len(self.lowerBound) != len(self.upperBound) or len(self.lowerBound) != len(self.step):
+            raise VerifyException("Expected the same number of lower bounds, upper " "bounds, and steps for scf.parallel. Got " f"{len(self.lowerBound)}, {len(self.upperBound)} and " f"{len(self.step)}.")
 
         body_args = self.body.block.args
         # Check the number of block arguments equals the number of induction variables as all
         # initVals must be encapsulated in a reduce operation
         if len(self.lowerBound) != len(body_args):
-            raise VerifyException(
-                "Number of block arguments must exactly equal the number of induction variables"
-            )
+            raise VerifyException("Number of block arguments must exactly equal the number of induction variables")
 
         reduce_op = self.body.block.last_op
         # Ensured by trait
@@ -453,18 +370,12 @@ class ParallelOp(IRDLOperation):
         # Check that the number of initial values (initVals)
         # equals the number of reductions
         if len(self.initVals) != num_reductions:
-            raise VerifyException(
-                f"Expected {len(self.initVals)} "
-                f"reductions but {num_reductions} provided"
-            )
+            raise VerifyException(f"Expected {len(self.initVals)} " f"reductions but {num_reductions} provided")
 
         # Check each induction variable argument is present in the block arguments
         # and the block argument is of type index
         if not all([isinstance(a.type, IndexType) for a in body_args]):
-            raise VerifyException(
-                "scf.parallel's block must have an index argument"
-                " for each induction variable"
-            )
+            raise VerifyException("scf.parallel's block must have an index argument" " for each induction variable")
 
         # Now go through each reduction operation and check that the type
         # matches the corresponding initVals type
@@ -472,17 +383,12 @@ class ParallelOp(IRDLOperation):
             arg_type = reduce_op.args[reduction].type
             initValsType = self.initVals[reduction].type
             if initValsType != arg_type:
-                raise VerifyException(
-                    f"Miss match on scf.parallel argument and reduction op type number {reduction} "
-                    f", parallel argment is of type {initValsType} whereas reduction operation is of type {arg_type}"
-                )
+                raise VerifyException(f"Miss match on scf.parallel argument and reduction op type number {reduction} " f", parallel argment is of type {initValsType} whereas reduction operation is of type {arg_type}")
 
         # Ensure that the number of reductions matches the
         # number of result types from scf.parallel
         if num_reductions != len(self.res):
-            raise VerifyException(
-                f"There are {num_reductions} reductions, but {len(self.res)} results expected"
-            )
+            raise VerifyException(f"There are {num_reductions} reductions, but {len(self.res)} results expected")
 
         # Now go through each reduction and ensure that its operand type matches the corresponding
         # scf.parallel result type (there is no result type on scf.reduce, hence we check the
@@ -491,10 +397,7 @@ class ParallelOp(IRDLOperation):
             arg_type = reduce_op.args[reduction].type
             res_type = self.res[reduction].type
             if res_type != arg_type:
-                raise VerifyException(
-                    f"Miss match on scf.parallel result type and reduction op type number {reduction} "
-                    f", parallel argment is of type {res_type} whereas reduction operation is of type {arg_type}"
-                )
+                raise VerifyException(f"Miss match on scf.parallel result type and reduction op type number {reduction} " f", parallel argment is of type {res_type} whereas reduction operation is of type {arg_type}")
 
 
 @irdl_op_definition
@@ -524,28 +427,16 @@ class ReduceOp(IRDLOperation):
 
     def verify_(self) -> None:
         if len(self.args) != len(self.reductions):
-            raise VerifyException(
-                "scf.reduce must have the same number of arguments and regions"
-                f"but got {len(self.args)} arguments and {len(self.reductions)} regions"
-            )
+            raise VerifyException("scf.reduce must have the same number of arguments and regions" f"but got {len(self.args)} arguments and {len(self.reductions)} regions")
         for region, argument in zip(self.reductions, self.args):
             if len(region.block.args) != 2:
-                raise VerifyException(
-                    "scf.reduce block must have exactly two arguments, but "
-                    f"{len(region.block.args)} were provided"
-                )
+                raise VerifyException("scf.reduce block must have exactly two arguments, but " f"{len(region.block.args)} were provided")
 
             if region.block.args[0].type != region.block.args[1].type:
-                raise VerifyException(
-                    "scf.reduce block argument types must be the same but have "
-                    f"{region.block.args[0].type} and {region.block.args[1].type}"
-                )
+                raise VerifyException("scf.reduce block argument types must be the same but have " f"{region.block.args[0].type} and {region.block.args[1].type}")
 
             if region.block.args[0].type != argument.type:
-                raise VerifyException(
-                    "scf.reduce block argument types must match the operand type "
-                    f" but have {region.block.args[0].type} and {argument.type}"
-                )
+                raise VerifyException("scf.reduce block argument types must match the operand type " f" but have {region.block.args[0].type} and {argument.type}")
 
             last_op = region.block.last_op
 
@@ -553,11 +444,7 @@ class ReduceOp(IRDLOperation):
             assert isinstance(last_op, ReduceReturnOp)
 
             if last_op.result.type != argument.type:
-                raise VerifyException(
-                    "scf.reduce.return result type at end of scf.reduce block must"
-                    f" match the reduction operand type but have {last_op.result.type} "
-                    f"and {argument.type}"
-                )
+                raise VerifyException("scf.reduce.return result type at end of scf.reduce block must" f" match the reduction operand type but have {last_op.result.type} " f"and {argument.type}")
 
 
 @irdl_op_definition
@@ -631,19 +518,14 @@ class IndexSwitchOp(IRDLOperation):
         assert isinstance(yield_op, YieldOp)
 
         if yield_op.operand_types != self.result_types:
-            raise VerifyException(
-                f"region {name} returns values of types ({', '.join(str(x) for x in yield_op.operand_types)})"
-                f" but expected ({', '.join(str(x) for x in self.result_types)})"
-            )
+            raise VerifyException(f"region {name} returns values of types ({', '.join(str(x) for x in yield_op.operand_types)})" f" but expected ({', '.join(str(x) for x in self.result_types)})")
 
     def verify_(self) -> None:
         if self.cases.elt_type != i64:
             raise VerifyException("case values should have type i64")
 
         if len(self.cases) != len(self.case_regions):
-            raise VerifyException(
-                f"has {len(self.case_regions)} case regions but {len(self.cases)} case values"
-            )
+            raise VerifyException(f"has {len(self.case_regions)} case regions but {len(self.cases)} case values")
 
         cases = self.cases
         if len(set(cases.iter_values())) != len(cases):
@@ -664,9 +546,7 @@ class IndexSwitchOp(IRDLOperation):
             printer.print_string(" -> ")
             printer.print_list(self.result_types, printer.print_attribute)
         printer.print_string("\n")
-        for case_value, case_region in zip(
-            self.cases.iter_values(), self.case_regions, strict=True
-        ):
+        for case_value, case_region in zip(self.cases.iter_values(), self.case_regions, strict=True):
             printer.print_string(f"case {case_value} ")
             printer.print_region(case_region)
             printer.print_string("\n")
@@ -680,9 +560,7 @@ class IndexSwitchOp(IRDLOperation):
         attr_dict = parser.parse_optional_attr_dict()
         result_types: list[Attribute] = []
         if parser.parse_optional_punctuation("->"):
-            types = parser.parse_optional_undelimited_comma_separated_list(
-                parser.parse_optional_type, parser.parse_type
-            )
+            types = parser.parse_optional_undelimited_comma_separated_list(parser.parse_optional_type, parser.parse_type)
             if types is None:
                 parser.raise_error("result types not found")
             result_types = types

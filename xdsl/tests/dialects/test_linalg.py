@@ -71,9 +71,7 @@ def test_loop_range_methods():
         linalg.IteratorTypeAttr(linalg.IteratorType.PARALLEL),
     ]
 
-    op = linalg.GenericOp(
-        [A.results[0], B.results[0]], [C.results[0]], body, indexing_maps, iterators
-    )
+    op = linalg.GenericOp([A.results[0], B.results[0]], [C.results[0]], body, indexing_maps, iterators)
 
     loops = op.get_static_loop_ranges()
     assert loops == (100, 100, 50)

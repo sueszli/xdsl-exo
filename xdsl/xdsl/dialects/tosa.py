@@ -1,24 +1,6 @@
-from xdsl.dialects.builtin import (
-    I32,
-    I64,
-    AnyFloat,
-    BoolAttr,
-    DenseArrayBase,
-    FloatAttr,
-    IntegerAttr,
-    StringAttr,
-    TensorType,
-)
+from xdsl.dialects.builtin import I32, I64, AnyFloat, BoolAttr, DenseArrayBase, FloatAttr, IntegerAttr, StringAttr, TensorType
 from xdsl.ir import Dialect
-from xdsl.irdl import (
-    IRDLOperation,
-    ParsePropInAttrDict,
-    irdl_op_definition,
-    operand_def,
-    opt_prop_def,
-    prop_def,
-    result_def,
-)
+from xdsl.irdl import IRDLOperation, ParsePropInAttrDict, irdl_op_definition, operand_def, opt_prop_def, prop_def, result_def
 
 
 @irdl_op_definition

@@ -6,36 +6,10 @@ from typing import Any, TypeVar, cast
 from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.experimental.dmp import SwapOp
-from xdsl.dialects.stencil import (
-    AccessOp,
-    AllocOp,
-    ApplyOp,
-    BufferOp,
-    CombineOp,
-    DynAccessOp,
-    FieldType,
-    IndexAttr,
-    LoadOp,
-    ReturnOp,
-    StencilBoundsAttr,
-    StoreOp,
-    TempType,
-)
-from xdsl.ir import (
-    Attribute,
-    Block,
-    Operation,
-    Region,
-    SSAValue,
-)
+from xdsl.dialects.stencil import AccessOp, AllocOp, ApplyOp, BufferOp, CombineOp, DynAccessOp, FieldType, IndexAttr, LoadOp, ReturnOp, StencilBoundsAttr, StoreOp, TempType
+from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import MemoryEffectKind, get_effects
 from xdsl.transforms.canonicalization_patterns.stencil import ApplyUnusedResults
@@ -49,16 +23,12 @@ def field_from_temp(temp: TempType[_TypeElement]) -> FieldType[_TypeElement]:
     return FieldType[_TypeElement].new(temp.parameters)
 
 
-def might_effect(
-    operation: Operation, effects: set[MemoryEffectKind], value: SSAValue
-) -> bool:
+def might_effect(operation: Operation, effects: set[MemoryEffectKind], value: SSAValue) -> bool:
     """
     Return True if the operation might have any of the given effects on the given value.
     """
     op_effects = get_effects(operation)
-    return op_effects is None or any(
-        e.kind in effects and e.value in (None, value) for e in op_effects
-    )
+    return op_effects is None or any(e.kind in effects and e.value in (None, value) for e in op_effects)
 
 
 class ApplyBufferizePattern(RewritePattern):
@@ -109,9 +79,7 @@ class ApplyBufferizePattern(RewritePattern):
             properties={"bounds": bounds},
         )
 
-        rewriter.replace_matched_op(
-            [*(o for o in args if isinstance(o, Operation)), new]
-        )
+        rewriter.replace_matched_op([*(o for o in args if isinstance(o, Operation)), new])
 
 
 def walk_from(a: Operation) -> Generator[Operation, Any, None]:
@@ -144,20 +112,9 @@ def is_inplace(apply: ApplyOp, field: SSAValue):
     `stencil.field`.
     """
     # Get all block arguments matching this field
-    field_args = set(
-        apply.region.block.args[i] for (i, a) in enumerate(apply.args) if a is field
-    )
+    field_args = set(apply.region.block.args[i] for (i, a) in enumerate(apply.args) if a is field)
     # Is there any non-zero access on those arguments?
-    return not any(
-        access
-        for access in apply.walk()
-        if isinstance(access, AccessOp)
-        and access.temp in field_args
-        and any(o != 0 for o in access.offset)
-        or isinstance(access, DynAccessOp)
-        and access.temp in field_args
-        and any(o != 0 for o in chain(access.lb, access.ub))
-    )
+    return not any(access for access in apply.walk() if isinstance(access, AccessOp) and access.temp in field_args and any(o != 0 for o in access.offset) or isinstance(access, DynAccessOp) and access.temp in field_args and any(o != 0 for o in chain(access.lb, access.ub)))
 
 
 class LoadBufferFoldPattern(RewritePattern):
@@ -200,22 +157,12 @@ class LoadBufferFoldPattern(RewritePattern):
         block = op.parent
         if not block or any(use.operation.parent is not block for use in uses):
             return
-        last_user = max(
-            uses, key=lambda u: block.get_operation_index(u.operation)
-        ).operation
+        last_user = max(uses, key=lambda u: block.get_operation_index(u.operation)).operation
 
-        effecting = [
-            o
-            for o in walk_from_to(load, last_user, inclusive=True)
-            if might_effect(o, {MemoryEffectKind.WRITE}, underlying)
-        ]
+        effecting = [o for o in walk_from_to(load, last_user, inclusive=True) if might_effect(o, {MemoryEffectKind.WRITE}, underlying)]
 
         # If the last effecting op is a stencil, handle the safe inplace case
-        if (
-            effecting
-            and isinstance(effecting[-1], ApplyOp)
-            and is_inplace(effecting[-1], op.res)
-        ):
+        if effecting and isinstance(effecting[-1], ApplyOp) and is_inplace(effecting[-1], op.res):
             effecting.pop()
         if effecting:
             return
@@ -248,11 +195,7 @@ class ApplyStoreFoldPattern(RewritePattern):
     def is_dest_safe(apply: ApplyOp, store: StoreOp) -> bool:
         # Check that the destination is not used between the apply and store.
         dest = store.field
-        effecting = [
-            o
-            for o in walk_from_to(apply, store)
-            if might_effect(o, {MemoryEffectKind.READ, MemoryEffectKind.WRITE}, dest)
-        ]
+        effecting = [o for o in walk_from_to(apply, store) if might_effect(o, {MemoryEffectKind.READ, MemoryEffectKind.WRITE}, dest)]
         return not effecting
 
     @op_type_rewrite_pattern
@@ -260,20 +203,13 @@ class ApplyStoreFoldPattern(RewritePattern):
         apply = op
         for temp_index, stored in enumerate(op.res):
             # We are looking for a result that is stored and foldable
-            stores = [
-                use.operation
-                for use in stored.uses
-                if isinstance(use.operation, StoreOp)
-                and self.is_dest_safe(apply, use.operation)
-            ]
+            stores = [use.operation for use in stored.uses if isinstance(use.operation, StoreOp) and self.is_dest_safe(apply, use.operation)]
             if not stores:
                 continue
 
             bounds = apply.get_bounds()
             if not isinstance(bounds, StencilBoundsAttr):
-                raise ValueError(
-                    "Stencil shape inference must be ran before bufferization."
-                )
+                raise ValueError("Stencil shape inference must be ran before bufferization.")
 
             new_apply = ApplyOp.build(
                 # We add new destinations for each store of the removed result
@@ -282,13 +218,7 @@ class ApplyStoreFoldPattern(RewritePattern):
                     (*apply.dest, *(store.field for store in stores)),
                 ],
                 # We only remove the considered result
-                result_types=[
-                    [
-                        r.type
-                        for r in apply.results[:temp_index]
-                        + apply.results[temp_index + 1 :]
-                    ]
-                ],
+                result_types=[[r.type for r in apply.results[:temp_index] + apply.results[temp_index + 1 :]]],
                 properties=apply.properties.copy() | {"bounds": bounds},
                 attributes=apply.attributes.copy(),
                 # The block signature is the same
@@ -309,11 +239,7 @@ class ApplyStoreFoldPattern(RewritePattern):
             old_return = new_apply.region.block.last_op
             assert isinstance(old_return, ReturnOp)
             uf = old_return.unroll_factor
-            new_return_args = list(
-                old_return.arg[: uf * temp_index]
-                + old_return.arg[uf * (temp_index + 1) :]
-                + old_return.arg[uf * temp_index : uf * (temp_index + 1)] * len(stores)
-            )
+            new_return_args = list(old_return.arg[: uf * temp_index] + old_return.arg[uf * (temp_index + 1) :] + old_return.arg[uf * temp_index : uf * (temp_index + 1)] * len(stores))
             new_return = ReturnOp.create(
                 operands=new_return_args,
                 properties=old_return.properties.copy(),
@@ -326,9 +252,7 @@ class ApplyStoreFoldPattern(RewritePattern):
 
             rewriter.replace_matched_op(
                 [new_apply, load],
-                new_apply.results[:temp_index]
-                + (load.res,)
-                + new_apply.results[temp_index:],
+                new_apply.results[:temp_index] + (load.res,) + new_apply.results[temp_index:],
             )
             for store in stores:
                 rewriter.erase_op(store)
@@ -358,9 +282,7 @@ class UpdateApplyArgs(RewritePattern):
             regions=[Region(new_block)],
         )
 
-        rewriter.inline_block(
-            op.region.block, InsertPoint.at_start(new_block), new_block.args
-        )
+        rewriter.inline_block(op.region.block, InsertPoint.at_start(new_block), new_block.args)
 
         rewriter.replace_matched_op(new_apply)
 
@@ -399,9 +321,7 @@ class BufferAlloc(RewritePattern):
 
         temp_t = cast(TempType[Attribute], op.temp.type)
         if not isinstance(temp_t.bounds, StencilBoundsAttr):
-            raise ValueError(
-                "Stencil shape inference must be ran before bufferization."
-            )
+            raise ValueError("Stencil shape inference must be ran before bufferization.")
         alloc = AllocOp(result_types=[field_from_temp(temp_t)])
         rewriter.insert_op(alloc, InsertPoint.at_start(cast(Block, op.parent)))
 
@@ -480,10 +400,7 @@ class CombineStoreFold(RewritePattern):
                 )
             # If it corresponds to a lowerext result
             elif i < len(op.lower) + len(op.lowerext):
-                new_lowerext = (
-                    op.lowerext[: i - len(op.lower)]
-                    + op.lowerext[i - len(op.lower) + 1 :]
-                )
+                new_lowerext = op.lowerext[: i - len(op.lower)] + op.lowerext[i - len(op.lower) + 1 :]
                 rewriter.insert_op(
                     (
                         StoreOp.get(
@@ -500,10 +417,7 @@ class CombineStoreFold(RewritePattern):
                     InsertPoint.before(op),
                 )
             else:
-                new_upperext = (
-                    op.upperext[: i - len(op.lower) - len(op.lowerext)]
-                    + op.upperext[i - len(op.lower) - len(op.lowerext) + 1 :]
-                )
+                new_upperext = op.upperext[: i - len(op.lower) - len(op.lowerext)] + op.upperext[i - len(op.lower) - len(op.lowerext) + 1 :]
                 rewriter.insert_op(
                     (
                         StoreOp.get(
@@ -552,9 +466,7 @@ class SwapBufferize(RewritePattern):
         if not isinstance(load, LoadOp):
             return
 
-        buffer = BufferOp.create(
-            operands=[temp], result_types=[field_from_temp(temp_t)]
-        )
+        buffer = BufferOp.create(operands=[temp], result_types=[field_from_temp(temp_t)])
         new_swap = SwapOp.get(buffer.res, op.strategy)
         new_swap.swaps = op.swaps
         load = LoadOp(operands=[buffer.res], result_types=[temp_t])

@@ -32,7 +32,7 @@ def sum_to_for_op():
 
         @Builder.implicit_region((index, index))
         def for_loop_region(args: tuple[BlockArgument, ...]):
-            (i, acc) = args
+            i, acc = args
             res = arith.AddiOp(i, acc)
             scf.YieldOp(res)
 

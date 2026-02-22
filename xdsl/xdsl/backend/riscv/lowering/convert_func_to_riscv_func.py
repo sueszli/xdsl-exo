@@ -1,22 +1,9 @@
-from xdsl.backend.riscv.lowering.utils import (
-    a_regs,
-    a_regs_for_types,
-    cast_block_args_from_a_regs,
-    cast_to_regs,
-    move_to_a_regs,
-    move_to_unallocated_regs,
-)
+from xdsl.backend.riscv.lowering.utils import a_regs, a_regs_for_types, cast_block_args_from_a_regs, cast_to_regs, move_to_a_regs, move_to_unallocated_regs
 from xdsl.context import Context
 from xdsl.dialects import func, riscv_func
 from xdsl.dialects.builtin import ModuleOp, StringAttr, UnrealizedConversionCastOp
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
 class LowerFuncOp(RewritePattern):
@@ -39,9 +26,7 @@ class LowerFuncOp(RewritePattern):
         p2align = 2
 
         # C-like: default is public
-        sym_visibility = (
-            StringAttr("public") if op.sym_visibility is None else op.sym_visibility
-        )
+        sym_visibility = StringAttr("public") if op.sym_visibility is None else op.sym_visibility
 
         new_func = riscv_func.FuncOp(
             op.sym_name.data,
@@ -64,20 +49,13 @@ class LowerFuncCallOp(RewritePattern):
 
         cast_operand_ops, register_operands = cast_to_regs(op.arguments)
         operand_types = op.arguments.types
-        move_operand_ops, moved_operands = move_to_a_regs(
-            register_operands, operand_types
-        )
+        move_operand_ops, moved_operands = move_to_a_regs(register_operands, operand_types)
 
         new_result_types = list(a_regs(op.results))
         new_op = riscv_func.CallOp(op.callee, moved_operands, new_result_types)
 
-        move_result_ops, moved_results = move_to_unallocated_regs(
-            new_op.results, op.result_types
-        )
-        cast_result_ops = [
-            UnrealizedConversionCastOp.get((moved_result,), (old_result.type,))
-            for moved_result, old_result in zip(moved_results, op.results)
-        ]
+        move_result_ops, moved_results = move_to_unallocated_regs(new_op.results, op.result_types)
+        cast_result_ops = [UnrealizedConversionCastOp.get((moved_result,), (old_result.type,)) for moved_result, old_result in zip(moved_results, op.results)]
         rewriter.replace_matched_op(
             [
                 op

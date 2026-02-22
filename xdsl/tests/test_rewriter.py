@@ -13,9 +13,7 @@ from xdsl.printer import Printer
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 
 
-def rewrite_and_compare(
-    prog: str, expected_prog: str, transformation: Callable[[ModuleOp, Rewriter], None]
-):
+def rewrite_and_compare(prog: str, expected_prog: str, transformation: Callable[[ModuleOp, Rewriter], None]):
     ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
@@ -294,9 +292,7 @@ def test_insert_block_before():
 """
 
     def insert_empty_block_before(module: ModuleOp, rewriter: Rewriter) -> None:
-        rewriter.insert_block(
-            Block(), BlockInsertPoint.before(module.regions[0].blocks[0])
-        )
+        rewriter.insert_block(Block(), BlockInsertPoint.before(module.regions[0].blocks[0]))
 
     rewrite_and_compare(prog, expected, insert_empty_block_before)
 
@@ -319,9 +315,7 @@ def test_insert_block_after():
 """
 
     def insert_empty_block_after(module: ModuleOp, rewriter: Rewriter) -> None:
-        rewriter.insert_block(
-            Block(), BlockInsertPoint.after(module.regions[0].blocks[0])
-        )
+        rewriter.insert_block(Block(), BlockInsertPoint.after(module.regions[0].blocks[0]))
 
     rewrite_and_compare(prog, expected, insert_empty_block_after)
 

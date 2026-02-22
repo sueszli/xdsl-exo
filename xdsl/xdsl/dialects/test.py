@@ -2,27 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
-from xdsl.ir import (
-    Attribute,
-    Block,
-    Data,
-    Dialect,
-    Operation,
-    Region,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    IRDLOperation,
-    irdl_attr_definition,
-    irdl_op_definition,
-    opt_prop_def,
-    traits_def,
-    var_operand_def,
-    var_region_def,
-    var_result_def,
-    var_successor_def,
-)
+from xdsl.ir import Attribute, Block, Data, Dialect, Operation, Region, SSAValue, TypeAttribute
+from xdsl.irdl import IRDLOperation, irdl_attr_definition, irdl_op_definition, opt_prop_def, traits_def, var_operand_def, var_region_def, var_result_def, var_successor_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, MemoryReadEffect, MemoryWriteEffect, Pure

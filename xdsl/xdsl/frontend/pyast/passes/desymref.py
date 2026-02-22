@@ -125,9 +125,7 @@ def get_symbols(block: Block) -> set[str]:
     return symbols
 
 
-def lower_positional_bound(
-    writes: list[symref.UpdateOp], read: symref.FetchOp
-) -> Operation | None:
+def lower_positional_bound(writes: list[symref.UpdateOp], read: symref.FetchOp) -> Operation | None:
     """
     Returns a nearest write preceeding the `read`. If there is no such write,
     `None` is returned.
@@ -177,7 +175,6 @@ class Desymrefier:
         not have any symbols.
         """
         # TODO: Add promoters in the next patch.
-        pass
 
     def prepare_op(self, op: Operation):
         """
@@ -210,10 +207,7 @@ class Desymrefier:
             # 1. SSA-construction algorithm to prune symbol declarations. This
             #    also requires analyses passes (dominators).
             # 2. Insertion of entry/exit blocks to ensure dominance.
-            raise FrontendProgramException(
-                f"Running desymrefier on region with {num_blocks} > 1 blocks is "
-                "not supported."
-            )
+            raise FrontendProgramException(f"Running desymrefier on region with {num_blocks} > 1 blocks is " "not supported.")
 
     def prepare_block(self, block: Block):
         """Prepares a block for promotion."""
@@ -228,50 +222,24 @@ class Desymrefier:
         # Ensure that each symbol is read/written at most once.
         symbols = get_symbols(block)
         for symbol in symbols:
-            num_reads = sum(
-                isinstance(op, symref.FetchOp)
-                for op in block.ops
-                if get_symbol(op) == symbol
-            )
-            num_writes = sum(
-                isinstance(op, symref.UpdateOp)
-                for op in block.ops
-                if get_symbol(op) == symbol
-            )
+            num_reads = sum(isinstance(op, symref.FetchOp) for op in block.ops if get_symbol(op) == symbol)
+            num_writes = sum(isinstance(op, symref.UpdateOp) for op in block.ops if get_symbol(op) == symbol)
             if num_reads > 1 or num_writes > 1:
-                raise FrontendProgramException(
-                    f"Block {block} not ready for promotion: found {num_reads}"
-                    f" reads and {num_writes} writes."
-                )
+                raise FrontendProgramException(f"Block {block} not ready for promotion: found {num_reads}" f" reads and {num_writes} writes.")
 
     def prune_definitions(self, block: Block):
         """Removes all symbol definitions and their uses from the block."""
 
         # Find all symbol definitions in this block. If no definitions
         # found, terminate.
-        while (
-            len(
-                definitions := [
-                    op for op in block.ops if isinstance(op, symref.DeclareOp)
-                ]
-            )
-            > 0
-        ):
+        while len(definitions := [op for op in block.ops if isinstance(op, symref.DeclareOp)]) > 0:
             # Otherwise, some definitions are still alive.
             for definition in definitions:
                 symbol = get_symbol(definition)
 
                 # Find all reads and writes for this symbol.
-                reads = [
-                    op
-                    for op in block.ops
-                    if isinstance(op, symref.FetchOp) and get_symbol(op) == symbol
-                ]
-                writes = [
-                    op
-                    for op in block.ops
-                    if isinstance(op, symref.UpdateOp) and get_symbol(op) == symbol
-                ]
+                reads = [op for op in block.ops if isinstance(op, symref.FetchOp) and get_symbol(op) == symbol]
+                writes = [op for op in block.ops if isinstance(op, symref.UpdateOp) and get_symbol(op) == symbol]
 
                 # Symbol is never read, so remove its definition and any writes.
                 if len(reads) == 0:
@@ -313,25 +281,13 @@ class Desymrefier:
             self._prune_unused_reads(block)
 
             # Find all symbols that are still in use in this block.
-            symbol_worklist: set[str] = {
-                symbol
-                for symbol in get_symbols(block)
-                if symbol not in prepared_symbols
-            }
+            symbol_worklist: set[str] = {symbol for symbol in get_symbols(block) if symbol not in prepared_symbols}
             if len(symbol_worklist) == 0:
                 return
 
             for symbol in symbol_worklist:
-                reads = [
-                    op
-                    for op in block.ops
-                    if isinstance(op, symref.FetchOp) and get_symbol(op) == symbol
-                ]
-                writes = [
-                    op
-                    for op in block.ops
-                    if isinstance(op, symref.UpdateOp) and get_symbol(op) == symbol
-                ]
+                reads = [op for op in block.ops if isinstance(op, symref.FetchOp) and get_symbol(op) == symbol]
+                writes = [op for op in block.ops if isinstance(op, symref.UpdateOp) and get_symbol(op) == symbol]
                 assert len(reads) > 0 or len(writes) > 0
 
                 # There are no reads, so we can only keep the last write to the

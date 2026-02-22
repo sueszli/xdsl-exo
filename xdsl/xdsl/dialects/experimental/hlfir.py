@@ -13,40 +13,10 @@ See external [documentation](https://flang.llvm.org/docs/HighLevelFIR.html).
 from __future__ import annotations
 
 from xdsl.dialects.arith import FastMathFlagsAttr
-from xdsl.dialects.builtin import (
-    AnyFloat,
-    ArrayAttr,
-    Attribute,
-    BoolAttr,
-    DenseArrayBase,
-    IntAttr,
-    IntegerAttr,
-    IntegerType,
-    ParametrizedAttribute,
-    StringAttr,
-    UnitAttr,
-)
-from xdsl.dialects.experimental.fir import (
-    DeferredAttr,
-    FortranVariableFlagsAttr,
-    NoneType,
-    ReferenceType,
-)
+from xdsl.dialects.builtin import AnyFloat, ArrayAttr, Attribute, BoolAttr, DenseArrayBase, IntAttr, IntegerAttr, IntegerType, ParametrizedAttribute, StringAttr, UnitAttr
+from xdsl.dialects.experimental.fir import DeferredAttr, FortranVariableFlagsAttr, NoneType, ReferenceType
 from xdsl.ir import Dialect, TypeAttribute
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    ParameterDef,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_operand_def,
-    opt_prop_def,
-    prop_def,
-    region_def,
-    result_def,
-    var_operand_def,
-)
+from xdsl.irdl import AttrSizedOperandSegments, IRDLOperation, ParameterDef, irdl_attr_definition, irdl_op_definition, operand_def, opt_operand_def, opt_prop_def, prop_def, region_def, result_def, var_operand_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 
@@ -70,9 +40,7 @@ class ExprType(ParametrizedAttribute, TypeAttribute):
             if isinstance(s, DeferredAttr):
                 printer.print_string("?")
             elif isinstance(s, NoneType):
-                raise Exception(
-                    "Can not have none type as part of sequence shape with only one type"
-                )
+                raise Exception("Can not have none type as part of sequence shape with only one type")
             else:
                 printer.print_string(f"{s.value.data}")
             printer.print_string("x")

@@ -3,21 +3,9 @@ from collections.abc import Sequence
 from xdsl.context import Context
 from xdsl.dialects import affine, arith, builtin, memref, scf
 from xdsl.ir import Operation, SSAValue
-from xdsl.ir.affine import (
-    AffineBinaryOpExpr,
-    AffineBinaryOpKind,
-    AffineConstantExpr,
-    AffineDimExpr,
-    AffineSymExpr,
-)
+from xdsl.ir.affine import AffineBinaryOpExpr, AffineBinaryOpKind, AffineConstantExpr, AffineDimExpr, AffineSymExpr
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
 def affine_expr_ops(
@@ -31,9 +19,7 @@ def affine_expr_ops(
     """
     match expr:
         case AffineConstantExpr():
-            constant = arith.ConstantOp(
-                builtin.IntegerAttr.from_index_int_value(expr.value)
-            )
+            constant = arith.ConstantOp(builtin.IntegerAttr.from_index_int_value(expr.value))
             return [constant], constant.result
         case AffineDimExpr():
             return [], dims[expr.position]

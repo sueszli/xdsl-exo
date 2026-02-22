@@ -5,25 +5,8 @@ from typing import Any
 import pytest
 
 from xdsl.dialects import builtin, func, test
-from xdsl.dialects.builtin import (
-    IndexType,
-    IntegerAttr,
-    IntegerType,
-    ModuleOp,
-    TensorType,
-    f32,
-    i32,
-)
-from xdsl.interpreter import (
-    Interpreter,
-    InterpreterFunctions,
-    PythonValues,
-    impl,
-    impl_attr,
-    impl_cast,
-    impl_external,
-    register_impls,
-)
+from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, ModuleOp, TensorType, f32, i32
+from xdsl.interpreter import Interpreter, InterpreterFunctions, PythonValues, impl, impl_attr, impl_cast, impl_external, register_impls
 from xdsl.interpreters.builtin import BuiltinFunctions
 from xdsl.ir import Attribute, Operation
 from xdsl.utils.exceptions import InterpretationError
@@ -91,9 +74,7 @@ def test_cast():
 
     # Test builtin cast
     integer_value = create_ssa_value(i32)
-    cast_op = builtin.UnrealizedConversionCastOp.get(
-        (integer_value,), result_type=(IndexType(),)
-    )
+    cast_op = builtin.UnrealizedConversionCastOp.get((integer_value,), result_type=(IndexType(),))
     interpreter.register_implementations(BuiltinFunctions())
 
     results = interpreter.run_op(cast_op, (integer,))
@@ -109,9 +90,7 @@ def test_external_func():
         a: int
 
         @impl_external("testfunc")
-        def testfunc(
-            self, interp: Interpreter, op: Operation, args: PythonValues
-        ) -> PythonValues:
+        def testfunc(self, interp: Interpreter, op: Operation, args: PythonValues) -> PythonValues:
             assert isinstance(args[0], int)
             self.a = args[0]
             return tuple()
@@ -162,9 +141,7 @@ def test_run_op_interpreter_args():
     @register_impls
     class TestFunctions(InterpreterFunctions):
         @impl(test.TestOp)
-        def run_test(
-            self, interpreter: Interpreter, op: test.TestOp, args: PythonValues
-        ) -> PythonValues:
+        def run_test(self, interpreter: Interpreter, op: test.TestOp, args: PythonValues) -> PythonValues:
             return (1,)
 
     interpreter = Interpreter(ModuleOp([]))
@@ -178,9 +155,7 @@ def test_run_op_interpreter_args():
     )
     with pytest.raises(
         InterpretationError,
-        match=re.escape(
-            "Number of operation results (2) doesn't match the number of implementation results (1)"
-        ),
+        match=re.escape("Number of operation results (2) doesn't match the number of implementation results (1)"),
     ):
         interpreter.run_op(test_op, ())
 
@@ -193,9 +168,7 @@ def test_run_op_interpreter_args():
     )
     with pytest.raises(
         InterpretationError,
-        match=re.escape(
-            "Number of operands (1) doesn't match the number of inputs (0)."
-        ),
+        match=re.escape("Number of operands (1) doesn't match the number of inputs (0)."),
     ):
         interpreter.run_op(op, ())
 
@@ -217,18 +190,14 @@ def test_mixed_values():
     @register_impls
     class TestFuncA(InterpreterFunctions):
         @impl_attr(IndexType)
-        def index_value(
-            self, interpreter: Interpreter, attr: Attribute, attr_type: IndexType
-        ) -> int:
+        def index_value(self, interpreter: Interpreter, attr: Attribute, attr_type: IndexType) -> int:
             return 1
 
     @dataclass
     @register_impls
     class TestFuncB(InterpreterFunctions):
         @impl_attr(IntegerType)
-        def index_value(
-            self, interpreter: Interpreter, attr: Attribute, attr_type: IntegerType
-        ) -> int:
+        def index_value(self, interpreter: Interpreter, attr: Attribute, attr_type: IntegerType) -> int:
             return 1
 
     i = Interpreter(
@@ -261,9 +230,7 @@ def test_combined_listener():
     @register_impls
     class TestFunctions(InterpreterFunctions):
         @impl(test.TestOp)
-        def run_test(
-            self, interpreter: Interpreter, op: test.TestOp, args: PythonValues
-        ) -> PythonValues:
+        def run_test(self, interpreter: Interpreter, op: test.TestOp, args: PythonValues) -> PythonValues:
             return ()
 
     strings: list[str] = []

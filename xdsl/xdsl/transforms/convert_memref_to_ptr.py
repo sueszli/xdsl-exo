@@ -7,21 +7,13 @@ from xdsl.dialects import arith, builtin, func, memref, ptr
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.irdl import Any
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
 
 
-def offset_calculations(
-    memref_type: memref.MemRefType[Any], indices: Iterable[SSAValue]
-) -> tuple[list[Operation], SSAValue]:
+def offset_calculations(memref_type: memref.MemRefType[Any], indices: Iterable[SSAValue]) -> tuple[list[Operation], SSAValue]:
     """
     Get operations calculating an offset which needs to be added to memref's base
     pointer to access an element referenced by indices.
@@ -47,9 +39,7 @@ def offset_calculations(
         increment = index
         match stride:
             case None:
-                raise DiagnosticException(
-                    f"MemRef {memref_type} with dynamic stride is not yet implemented"
-                )
+                raise DiagnosticException(f"MemRef {memref_type} with dynamic stride is not yet implemented")
             case 1:
                 # Stride 1 is a noop making the index equal to the offset.
                 pass
@@ -58,9 +48,7 @@ def offset_calculations(
                 # elements required to be skipped when incrementing that dimension).
                 ops.extend(
                     (
-                        stride_op := arith.ConstantOp.from_int_and_width(
-                            stride, builtin.IndexType()
-                        ),
+                        stride_op := arith.ConstantOp.from_int_and_width(stride, builtin.IndexType()),
                         offset_op := arith.MuliOp(increment, stride_op),
                     )
                 )
@@ -85,9 +73,7 @@ def offset_calculations(
 
     ops.extend(
         [
-            bytes_per_element_op := ptr.TypeOffsetOp(
-                memref_type.element_type, builtin.IndexType()
-            ),
+            bytes_per_element_op := ptr.TypeOffsetOp(memref_type.element_type, builtin.IndexType()),
             final_offset := arith.MuliOp(head, bytes_per_element_op),
         ]
     )
@@ -153,11 +139,7 @@ class ConvertSubviewOp(RewritePattern):
             if offset == memref.SubviewOp.DYNAMIC_INDEX:
                 offsets.append(op.offsets[idx])
             else:
-                rewriter.insert_op_before_matched_op(
-                    const_op := arith.ConstantOp(
-                        builtin.IntegerAttr(offset, builtin.IndexType())
-                    )
-                )
+                rewriter.insert_op_before_matched_op(const_op := arith.ConstantOp(builtin.IntegerAttr(offset, builtin.IndexType())))
                 const_op.result.name_hint = f"c{offset}"
                 offsets.append(const_op.result)
 
@@ -192,14 +174,8 @@ class LowerMemRefFuncOpPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
         # rewrite function declaration
-        new_input_types = [
-            ptr.PtrType() if isinstance(arg, builtin.MemRefType) else arg
-            for arg in op.function_type.inputs
-        ]
-        new_output_types = [
-            ptr.PtrType() if isinstance(arg, builtin.MemRefType) else arg
-            for arg in op.function_type.outputs
-        ]
+        new_input_types = [ptr.PtrType() if isinstance(arg, builtin.MemRefType) else arg for arg in op.function_type.inputs]
+        new_output_types = [ptr.PtrType() if isinstance(arg, builtin.MemRefType) else arg for arg in op.function_type.outputs]
         op.function_type = func.FunctionType.from_lists(
             new_input_types,
             new_output_types,
@@ -257,9 +233,7 @@ class LowerMemRefFuncReturnPattern(RewritePattern):
 class LowerMemRefFuncCallPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter, /):
-        if not any(
-            isinstance(arg.type, memref.MemRefType) for arg in op.arguments
-        ) and not any(isinstance(type, memref.MemRefType) for type in op.result_types):
+        if not any(isinstance(arg.type, memref.MemRefType) for arg in op.arguments) and not any(isinstance(type, memref.MemRefType) for type in op.result_types):
             return
 
         # rewrite arguments
@@ -274,14 +248,9 @@ class LowerMemRefFuncCallPattern(RewritePattern):
             else:
                 new_arguments.append(argument)
 
-        new_return_types = [
-            ptr.PtrType() if isinstance(type, memref.MemRefType) else type
-            for type in op.result_types
-        ]
+        new_return_types = [ptr.PtrType() if isinstance(type, memref.MemRefType) else type for type in op.result_types]
 
-        new_ops: list[Operation] = [
-            call_op := func.CallOp(op.callee, new_arguments, new_return_types)
-        ]
+        new_ops: list[Operation] = [call_op := func.CallOp(op.callee, new_arguments, new_return_types)]
         new_results = list(call_op.results)
 
         #  insert `ptr -> memref` casts for return values, if necessary
@@ -297,15 +266,11 @@ class LowerMemRefFuncCallPattern(RewritePattern):
 @dataclass
 class ConvertReinterpretCastOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: memref.ReinterpretCastOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: memref.ReinterpretCastOp, rewriter: PatternRewriter, /):
         rewriter.replace_matched_op(
             (
                 ptr_cast := ptr.ToPtrOp(op.source),
-                builtin.UnrealizedConversionCastOp.get(
-                    [ptr_cast.res], [op.result.type]
-                ),
+                builtin.UnrealizedConversionCastOp.get([ptr_cast.res], [op.result.type]),
             )
         )
 

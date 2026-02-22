@@ -5,40 +5,13 @@ from collections.abc import Generator, Sequence
 from xdsl.backend.assembly_printer import AssemblyPrintable, AssemblyPrinter
 from xdsl.backend.register_type import RegisterType
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import (
-    I8,
-    FunctionType,
-    IntegerAttr,
-    IntegerType,
-    StringAttr,
-    SymbolRefAttr,
-    i8,
-)
-from xdsl.dialects.utils import (
-    parse_func_op_like,
-    print_func_op_like,
-)
+from xdsl.dialects.builtin import I8, FunctionType, IntegerAttr, IntegerType, StringAttr, SymbolRefAttr, i8
+from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
 from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
-from xdsl.irdl import (
-    IRDLOperation,
-    attr_def,
-    irdl_op_definition,
-    opt_attr_def,
-    opt_result_def,
-    region_def,
-    traits_def,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.irdl import IRDLOperation, attr_def, irdl_op_definition, opt_attr_def, opt_result_def, region_def, traits_def, var_operand_def, var_result_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import (
-    CallableOpInterface,
-    HasParent,
-    IsolatedFromAbove,
-    IsTerminator,
-    SymbolOpInterface,
-)
+from xdsl.traits import CallableOpInterface, HasParent, IsolatedFromAbove, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 
@@ -65,13 +38,9 @@ class SyscallOp(IRDLOperation):
 
     def verify_(self):
         if len(self.args) >= 7:
-            raise VerifyException(
-                f"Syscall op has too many operands ({len(self.args)}), expected fewer than 7"
-            )
+            raise VerifyException(f"Syscall op has too many operands ({len(self.args)}), expected fewer than 7")
         if len(self.results) >= 3:
-            raise VerifyException(
-                f"Syscall op has too many results ({len(self.results)}), expected fewer than 3"
-            )
+            raise VerifyException(f"Syscall op has too many results ({len(self.results)}), expected fewer than 3")
 
 
 @irdl_op_definition
@@ -83,9 +52,7 @@ class CallOp(riscv.RISCVInstruction):
     callee = attr_def(SymbolRefAttr)
     ress = var_result_def(riscv.RISCVRegisterType)
 
-    assembly_format = (
-        "$callee `(` $args `)` attr-dict `:` functional-type($args, $ress)"
-    )
+    assembly_format = "$callee `(` $args `)` attr-dict `:` functional-type($args, $ress)"
 
     def __init__(
         self,
@@ -105,14 +72,10 @@ class CallOp(riscv.RISCVInstruction):
 
     def verify_(self):
         if len(self.args) >= 9:
-            raise VerifyException(
-                f"Function op has too many operands ({len(self.args)}), expected fewer than 9"
-            )
+            raise VerifyException(f"Function op has too many operands ({len(self.args)}), expected fewer than 9")
 
         if len(self.results) >= 3:
-            raise VerifyException(
-                f"Function op has too many results ({len(self.results)}), expected fewer than 3"
-            )
+            raise VerifyException(f"Function op has too many results ({len(self.results)}), expected fewer than 3")
 
     def assembly_instruction_name(self) -> str:
         return "jal"
@@ -191,11 +154,9 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
         visibility = parser.parse_optional_visibility_keyword()
-        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
-            parse_func_op_like(
-                parser,
-                reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
-            )
+        name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs = parse_func_op_like(
+            parser,
+            reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
         if arg_attrs:
             raise NotImplementedError("arg_attrs not implemented in riscv_func")
@@ -234,9 +195,7 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
                 case "private":
                     printer.print_string(f".local {self.sym_name.data}\n", indent=0)
                 case _:
-                    raise DiagnosticException(
-                        f"Unexpected visibility {self.sym_visibility.data} for function {self.sym_name}"
-                    )
+                    raise DiagnosticException(f"Unexpected visibility {self.sym_visibility.data} for function {self.sym_name}")
 
         if self.p2align is not None:
             printer.print_string(f".p2align {self.p2align.value.data}\n", indent=0)
@@ -271,9 +230,7 @@ class ReturnOp(riscv.RISCVInstruction):
 
     def verify_(self):
         if len(self.results) >= 3:
-            raise VerifyException(
-                f"Function op has too many results ({len(self.results)}), expected fewer than 3"
-            )
+            raise VerifyException(f"Function op has too many results ({len(self.results)}), expected fewer than 3")
 
     def assembly_instruction_name(self) -> str:
         return "ret"

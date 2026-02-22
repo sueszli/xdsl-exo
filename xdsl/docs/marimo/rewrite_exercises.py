@@ -14,67 +14,21 @@ app = marimo.App(width="medium")
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
-    from sympy import (
-        S,
-        symbols,
-        Expr,
-        Add,
-        Mul,
-        Sum,
-        Integer,
-        Float,
-        E,
-        I,
-        re,
-        im,
-        Abs,
-        Pow,
-        Rational,
-        Function,
-        UnevaluatedExpr,
-    )
+    from sympy import Abs, Add, E, Expr, Float, Function, I, Integer, Mul, Pow, Rational, S, Sum, UnevaluatedExpr, im, re, symbols
     from sympy.core.symbol import Symbol
 
-    from xdsl.ir import Attribute, Operation, SSAValue, Region, Block, ParametrizedAttribute
-    from xdsl.pattern_rewriter import (
-        PatternRewriter,
-        RewritePattern,
-        op_type_rewrite_pattern,
-        PatternRewriteWalker,
-        GreedyRewritePatternApplier,
-    )
-    from xdsl.transforms.dead_code_elimination import region_dce
-    from xdsl.traits import Pure
-    from xdsl.irdl import (
-        irdl_op_definition,
-        traits_def,
-        IRDLOperation,
-        irdl_attr_definition,
-        operand_def,
-        result_def,
-    )
-    from xdsl.dialects.builtin import (
-        ModuleOp,
-        Float64Type,
-        FloatAttr,
-        IntegerType,
-        IntegerAttr,
-    )
-    from xdsl.dialects.func import FuncOp, ReturnOp
-    from xdsl.dialects.arith import (
-        AddfOp,
-        SubfOp,
-        MulfOp,
-        ConstantOp,
-        AddiOp,
-        MuliOp,
-        SIToFPOp,
-        FloatingPointLikeBinaryOperation,
-        DivfOp,
-    )
-    from xdsl.dialects.scf import ForOp, YieldOp
-    from xdsl.dialects.math import PowFOp, SqrtOp
     from xdsl.builder import Builder, InsertPoint
+    from xdsl.dialects.arith import AddfOp, AddiOp, ConstantOp, DivfOp, FloatingPointLikeBinaryOperation, MulfOp, MuliOp, SIToFPOp, SubfOp
+    from xdsl.dialects.builtin import Float64Type, FloatAttr, IntegerAttr, IntegerType, ModuleOp
+    from xdsl.dialects.func import FuncOp, ReturnOp
+    from xdsl.dialects.math import PowFOp, SqrtOp
+    from xdsl.dialects.scf import ForOp, YieldOp
+    from xdsl.ir import Attribute, Block, Operation, ParametrizedAttribute, Region, SSAValue
+    from xdsl.irdl import IRDLOperation, irdl_attr_definition, irdl_op_definition, operand_def, result_def, traits_def
+    from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
+    from xdsl.traits import Pure
+    from xdsl.transforms.dead_code_elimination import region_dce
+
     return (
         Abs,
         Add,
@@ -154,6 +108,7 @@ def _(Expr, emit_ir):
 
         # Print a separator
         print("\n\n")
+
     return (print_ir,)
 
 
@@ -166,9 +121,8 @@ def _(Attribute, Expr, Float64Type, IntegerType):
         elif expr.is_extended_real:
             return Float64Type()
         else:
-            raise Exception(
-                f"Unknown MLIR type for expression {expr}. Please make sure there cannot be a division by zero, or a power of a negative value."
-            )
+            raise Exception(f"Unknown MLIR type for expression {expr}. Please make sure there cannot be a division by zero, or a power of a negative value.")
+
     return (get_mlir_type,)
 
 
@@ -212,6 +166,7 @@ def _(
         # Insert a return statement at the end of the function.
         builder.insert(ReturnOp(result))
         return module
+
     return (emit_ir,)
 
 
@@ -239,6 +194,7 @@ def _(
             return emit_real_op(expr, builder, args)
         else:
             raise Exception("Unknown function to emit IR for MLIR type ", type)
+
     return (emit_op,)
 
 
@@ -287,9 +243,7 @@ def _(
 
         # Handle constants
         if isinstance(expr, Integer):
-            constant_op = builder.insert(
-                ConstantOp(IntegerAttr(int(expr), IntegerType(64)))
-            )
+            constant_op = builder.insert(ConstantOp(IntegerAttr(int(expr), IntegerType(64))))
             return constant_op.result
 
         if isinstance(expr, Add):
@@ -322,9 +276,7 @@ def _(
 
         # Handle constants
         if isinstance(expr, Float):
-            constant_op = builder.insert(
-                ConstantOp(FloatAttr(float(expr), Float64Type()))
-            )
+            constant_op = builder.insert(ConstantOp(FloatAttr(float(expr), Float64Type())))
             return constant_op
 
         # Handle symbolic values
@@ -373,9 +325,7 @@ def _(
             builder3 = Builder(InsertPoint.at_end(rhs_region.block))
             builder3.insert(YieldOp(neg))
 
-            if_res = builder.insert(
-                IfOp(is_neg, Float64Type(), lhs_region, rhs_region)
-            ).results[0]
+            if_res = builder.insert(IfOp(is_neg, Float64Type(), lhs_region, rhs_region)).results[0]
 
             return if_res
 
@@ -388,9 +338,7 @@ def _(
             accumulator = region.block.args[1]
 
             b2 = Builder(InsertPoint.at_end(region.block))
-            arg = emit_real_op(
-                expr.args[0], b2, args | {expr.args[1][0]: region.block.args[0]}
-            )
+            arg = emit_real_op(expr.args[0], b2, args | {expr.args[1][0]: region.block.args[0]})
             add = b2.insert(AddfOp(arg, accumulator)).result
             b2.insert(YieldOp(add))
 
@@ -399,21 +347,20 @@ def _(
         # Hint: Implement here support for Add, Mul, and Pow (and later Abs and Sum)
 
         raise NotImplementedError(f"No IR emitter for float function {expr.func}")
+
     return emit_integer_op, emit_real_op
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
         # Pattern Rewrite Exercises
 
         In the previous exercise, the code we emitted had a few optimization opportunities.
         We task you here to write two of them here, to get a feeling how rewrites work in xDSL.
 
         The objective is to improve the code generated by `x - y`:
-        """
-    )
+        """)
     return
 
 
@@ -428,8 +375,7 @@ def _(print_ir, symbols):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
         As you can see, SymPy "simplifies" the expression to be `x + -1 * y`, which in turns gets transformed to `x + (float)(-1) * y`.
         While we could match for this exact pattern, defining two smaller rewrite patterns would be both simpler and allow more reuse.
 
@@ -439,8 +385,7 @@ def _(mo):
         * `x + -1.0 * y -> x - y`, which will be applied after application of the first rewrite
 
         Here is the following boilerplate that you should complete:
-        """
-    )
+        """)
     return
 
 
@@ -455,6 +400,7 @@ def _(Operation, PatternRewriter, RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             # Implement `x + -1.0 * y -> x - y` here
             return
+
     return AddTimesMinusOnePattern, SIToFPConstantPattern
 
 
@@ -479,14 +425,11 @@ def _(
         op = emit_ir(expr)
         op.verify()
         print("Before optimizations:", op)
-        PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [SIToFPConstantPattern(), AddTimesMinusOnePattern()]
-            )
-        ).rewrite_module(op)
+        PatternRewriteWalker(GreedyRewritePatternApplier([SIToFPConstantPattern(), AddTimesMinusOnePattern()])).rewrite_module(op)
         region_dce(op.body)
         print("After optimizations:", op)
         print("\n" * 3)
+
     return (test_with_opts,)
 
 
@@ -498,8 +441,7 @@ def _(test_with_opts, x, y):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
         You should get the resulting IR:
 
         ```
@@ -510,20 +452,17 @@ def _(mo):
           }
         }
         ```
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         # Solutions
 
         Here is a solution for both rewrites:
-        """
-    )
+        """)
     return
 
 
@@ -546,9 +485,7 @@ def _(
                 return
             if not isinstance(op.input.owner, ConstantOp):
                 return
-            new_op = ConstantOp(
-                FloatAttr(op.input.owner.value.value.data, Float64Type())
-            )
+            new_op = ConstantOp(FloatAttr(op.input.owner.value.value.data, Float64Type()))
             rewriter.replace_op(op, new_op)
 
     class AddTimesMinusOnePatternSolution(RewritePattern):
@@ -562,6 +499,7 @@ def _(
             if constant.value.value.data != -1.0:
                 return
             rewriter.replace_op(op, SubfOp(op.lhs, mul.rhs))
+
     return AddTimesMinusOnePatternSolution, SIToFPConstantPatternSolution
 
 

@@ -141,10 +141,7 @@ class LiteralExprAST(ExprAST):
 
     def __dump(self) -> str:
         dims_str = ", ".join(f"{int(dim)}" for dim in self.dims)
-        vals_str = ",".join(
-            val.__dump() if isinstance(val, LiteralExprAST) else val.dump()
-            for val in self.values
-        )
+        vals_str = ",".join(val.__dump() if isinstance(val, LiteralExprAST) else val.dump() for val in self.values)
         return f" <{dims_str}>[{vals_str}]"
 
     def inner_dump(self, prefix: str, dumper: Dumper):
@@ -291,6 +288,4 @@ class ModuleAST:
         return dumper.message
 
     def inner_dump(self, prefix: str, dumper: Dumper):
-        dumper.append_list(
-            prefix, "Module:", self.funcs, "", lambda dd, func: func.inner_dump("", dd)
-        )
+        dumper.append_list(prefix, "Module:", self.funcs, "", lambda dd, func: func.inner_dump("", dd))

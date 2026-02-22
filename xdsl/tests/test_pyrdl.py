@@ -5,19 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
-from xdsl.irdl import (
-    AllOf,
-    AnyAttr,
-    AttrConstraint,
-    BaseAttr,
-    ConstraintContext,
-    EqAttrConstraint,
-    ParamAttrConstraint,
-    ParameterDef,
-    VarConstraint,
-    eq,
-    irdl_attr_definition,
-)
+from xdsl.irdl import AllOf, AnyAttr, AttrConstraint, BaseAttr, ConstraintContext, EqAttrConstraint, ParamAttrConstraint, ParameterDef, VarConstraint, eq, irdl_attr_definition
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -115,9 +103,7 @@ def test_base_attr_verify_wrong_base_fail():
     int_zero = IntData(0)
     with pytest.raises(VerifyException) as e:
         eq_true_constraint.verify(int_zero, ConstraintContext())
-    assert e.value.args[0] == (
-        f"{int_zero} should be of base attribute {BoolData.name}"
-    )
+    assert e.value.args[0] == (f"{int_zero} should be of base attribute {BoolData.name}")
 
 
 def test_any_attr_verify():
@@ -155,9 +141,7 @@ class GreaterThan(AttrConstraint):
         if not isinstance(attr, IntData):
             raise VerifyException(f"{attr} should be of base attribute {IntData.name}")
         if attr.data <= self.bound:
-            raise VerifyException(
-                f"{attr} should hold a value greater than {self.bound}"
-            )
+            raise VerifyException(f"{attr} should hold a value greater than {self.bound}")
 
 
 def test_anyof_verify():
@@ -227,31 +211,24 @@ def test_allof_verify_multiple_failures():
 
     with pytest.raises(
         VerifyException,
-        match=f"The following constraints were not satisfied:\n{IntData(7)} should "
-        f"hold a value less than 5\n{IntData(7)} should hold a value greater than 8",
+        match=f"The following constraints were not satisfied:\n{IntData(7)} should " f"hold a value less than 5\n{IntData(7)} should hold a value greater than 8",
     ):
         constraint.verify(IntData(7), ConstraintContext())
 
 
 def test_param_attr_verify():
     bool_true = BoolData(True)
-    constraint = ParamAttrConstraint(
-        DoubleParamAttr, [EqAttrConstraint(bool_true), BaseAttr(IntData)]
-    )
+    constraint = ParamAttrConstraint(DoubleParamAttr, [EqAttrConstraint(bool_true), BaseAttr(IntData)])
     constraint.verify(DoubleParamAttr([bool_true, IntData(0)]), ConstraintContext())
     constraint.verify(DoubleParamAttr([bool_true, IntData(42)]), ConstraintContext())
 
 
 def test_param_attr_verify_base_fail():
     bool_true = BoolData(True)
-    constraint = ParamAttrConstraint(
-        DoubleParamAttr, [EqAttrConstraint(bool_true), BaseAttr(IntData)]
-    )
+    constraint = ParamAttrConstraint(DoubleParamAttr, [EqAttrConstraint(bool_true), BaseAttr(IntData)])
     with pytest.raises(VerifyException) as e:
         constraint.verify(bool_true, ConstraintContext())
-    assert e.value.args[0] == (
-        f"{bool_true} should be of base attribute {DoubleParamAttr.name}"
-    )
+    assert e.value.args[0] == (f"{bool_true} should be of base attribute {DoubleParamAttr.name}")
 
 
 def test_param_attr_verify_params_num_params_fail():
@@ -266,20 +243,14 @@ def test_param_attr_verify_params_num_params_fail():
 def test_param_attr_verify_params_fail():
     bool_true = BoolData(True)
     bool_false = BoolData(False)
-    constraint = ParamAttrConstraint(
-        DoubleParamAttr, [EqAttrConstraint(bool_true), BaseAttr(IntData)]
-    )
+    constraint = ParamAttrConstraint(DoubleParamAttr, [EqAttrConstraint(bool_true), BaseAttr(IntData)])
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(DoubleParamAttr([bool_true, bool_false]), ConstraintContext())
-    assert e.value.args[0] == (
-        f"{bool_false} should be of base attribute {IntData.name}"
-    )
+    assert e.value.args[0] == (f"{bool_false} should be of base attribute {IntData.name}")
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(
-            DoubleParamAttr([bool_false, IntData(0)]), ConstraintContext()
-        )
+        constraint.verify(DoubleParamAttr([bool_false, IntData(0)]), ConstraintContext())
     assert e.value.args[0] == (f"Expected attribute {bool_true} but got {bool_false}")
 
 

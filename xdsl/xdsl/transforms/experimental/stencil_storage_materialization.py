@@ -3,13 +3,7 @@ from xdsl.dialects import builtin
 from xdsl.dialects.stencil import ApplyOp, BufferOp, CombineOp, StoreOp
 from xdsl.ir import OpResult, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
 def should_materialize(temp: SSAValue):
@@ -17,9 +11,7 @@ def should_materialize(temp: SSAValue):
     Predicates if a specific stencil.apply output should be buffered.
     It should if it is used by another stencil.apply and not already buffered or stored.
     """
-    return any(isinstance(u.operation, ApplyOp) for u in temp.uses) and not any(
-        isinstance(u.operation, StoreOp | BufferOp) for u in temp.uses
-    )
+    return any(isinstance(u.operation, ApplyOp) for u in temp.uses) and not any(isinstance(u.operation, StoreOp | BufferOp) for u in temp.uses)
 
 
 class ApplyOpMaterialization(RewritePattern):

@@ -3,9 +3,7 @@ from collections.abc import Callable, Sequence
 from typing import TypeVar
 
 from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
-from xdsl.dialects.stim import (
-    QubitCoordsOp,
-)
+from xdsl.dialects.stim import QubitCoordsOp
 from xdsl.dialects.stim.ops import QubitAttr, QubitMappingAttr, StimCircuitOp
 from xdsl.ir import Block, Operation, Region
 from xdsl.utils.lexer import Input, Position
@@ -81,9 +79,7 @@ class StimParser:
             raise StimParseError(self.pos, message)
         return parsed
 
-    def parse_one_of(
-        self, StimParsers: Sequence[Callable[["StimParser"], T | None]]
-    ) -> T | None:
+    def parse_one_of(self, StimParsers: Sequence[Callable[["StimParser"], T | None]]) -> T | None:
         for StimParser in StimParsers:
             if (parsed := StimParser(self)) is not None:
                 return parsed
@@ -117,9 +113,7 @@ class StimParser:
         if self.parse_optional_chars("#") is None:
             return
 
-        self.expect(
-            "comment", lambda parser: parser.parse_optional_pattern(NOT_NEWLINE)
-        )
+        self.expect("comment", lambda parser: parser.parse_optional_pattern(NOT_NEWLINE))
 
     def _check_comment_and_newline(self) -> str | None:
         """
@@ -193,9 +187,7 @@ class StimParser:
         if self.parse_optional_chars(")") is not None:
             return []
         # Check if an argument exists.
-        args: list[float] = [
-            self.expect("arg", lambda parser: parser.parse_optional_paren())
-        ]
+        args: list[float] = [self.expect("arg", lambda parser: parser.parse_optional_paren())]
         # Until the closing bracket is found:
         while self.parse_optional_chars(")") is None:
             self.parse_optional_pattern(INDENT)
@@ -249,16 +241,11 @@ class StimParser:
         """
         Convert a list of parens into an ArrayAttr.
         """
-        args = [
-            (IntAttr(int(arg))) if (arg.is_integer()) else (FloatData(arg))
-            for arg in parens
-        ]
+        args = [(IntAttr(int(arg))) if (arg.is_integer()) else (FloatData(arg)) for arg in parens]
         coords = ArrayAttr(args)
         return coords
 
-    def build_operation(
-        self, op: Instruction, parens: list[float], targets: Sequence[QubitAttr]
-    ):
+    def build_operation(self, op: Instruction, parens: list[float], targets: Sequence[QubitAttr]):
         """
         Build the operation corresponding to the name, parens, and targets found by the parser.
         """

@@ -5,12 +5,7 @@ from ordered_set import OrderedSet
 from xdsl.builder import Builder, InsertPoint
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_func
-from xdsl.dialects.riscv import (
-    FloatRegisterType,
-    IntRegisterType,
-    Registers,
-    RISCVRegisterType,
-)
+from xdsl.dialects.riscv import FloatRegisterType, IntRegisterType, Registers, RISCVRegisterType
 from xdsl.passes import ModulePass
 
 
@@ -35,14 +30,7 @@ class PrologueEpilogueInsertion(ModulePass):
     def _process_function(self, func: riscv_func.FuncOp) -> None:
         # Find all callee-preserved registers that are clobbered. We define clobbered
         # as it being the result of some operation and therefore written to.
-        used_callee_preserved_registers = OrderedSet(
-            res.type
-            for op in func.walk()
-            if not isinstance(op, riscv.GetRegisterOp | riscv.GetFloatRegisterOp)
-            for res in op.results
-            if isinstance(res.type, IntRegisterType | FloatRegisterType)
-            if res.type in Registers.S or res.type in Registers.FS
-        )
+        used_callee_preserved_registers = OrderedSet(res.type for op in func.walk() if not isinstance(op, riscv.GetRegisterOp | riscv.GetFloatRegisterOp) for res in op.results if isinstance(res.type, IntRegisterType | FloatRegisterType) if res.type in Registers.S or res.type in Registers.FS)
 
         if not used_callee_preserved_registers:
             return

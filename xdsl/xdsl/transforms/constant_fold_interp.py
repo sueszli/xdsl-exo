@@ -13,11 +13,7 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters import register_implementations
 from xdsl.ir import Attribute, Operation, OpResult
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern
 from xdsl.traits import ConstantLike, Pure
 from xdsl.utils.exceptions import InterpretationError
 
@@ -35,26 +31,17 @@ class ConstantFoldInterpPattern(RewritePattern):
         if op.has_trait(ConstantLike):
             return
 
-        if not all(
-            isinstance(operand, OpResult) and operand.op.has_trait(ConstantLike)
-            for operand in op.operands
-        ):
+        if not all(isinstance(operand, OpResult) and operand.op.has_trait(ConstantLike) for operand in op.operands):
             # Only rewrite operations where all the operands are constants
             return
 
         try:
-            args = tuple(
-                self.interpreter.run_op(cast(OpResult, operand).op, ())[0]
-                for operand in op.operands
-            )
+            args = tuple(self.interpreter.run_op(cast(OpResult, operand).op, ())[0] for operand in op.operands)
             results = self.interpreter.run_op(op, args)
         except InterpretationError:
             return
 
-        new_ops = [
-            self.constant_op_for_value(interp_result, op_result.type)
-            for interp_result, op_result in zip(results, op.results)
-        ]
+        new_ops = [self.constant_op_for_value(interp_result, op_result.type) for interp_result, op_result in zip(results, op.results)]
 
         if any(new_op is None for new_op in new_ops):
             # If we don't know how to create a constant for one of the results, bail
@@ -64,9 +51,7 @@ class ConstantFoldInterpPattern(RewritePattern):
 
         rewriter.replace_matched_op(new_ops, [new_op.results[0] for new_op in new_ops])
 
-    def constant_op_for_value(
-        self, value: Any, value_type: Attribute
-    ) -> Operation | None:
+    def constant_op_for_value(self, value: Any, value_type: Attribute) -> Operation | None:
         match (value, value_type):
             case int(), IntegerType():
                 attr = IntegerAttr(value, value_type)

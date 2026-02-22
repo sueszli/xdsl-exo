@@ -7,13 +7,7 @@ from xdsl.dialects.builtin import f64
 from xdsl.dialects.func import CallOp, FuncOp
 from xdsl.dialects.math import AbsFOp, CopySignOp
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
 @dataclass
@@ -83,11 +77,7 @@ class ReplaceIncompatibleFPGA(ModulePass):
             walkers: list[PatternRewriteWalker] = []
 
             for i in range(len(passes)):
-                walkers.append(
-                    PatternRewriteWalker(
-                        GreedyRewritePatternApplier([passes[i]]), apply_recursively=True
-                    )
-                )
+                walkers.append(PatternRewriteWalker(GreedyRewritePatternApplier([passes[i]]), apply_recursively=True))
 
             return walkers
 

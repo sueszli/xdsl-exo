@@ -91,9 +91,7 @@ class AffineExpr:
         """
         return self.replace_dims_and_symbols(map.results, ())
 
-    def replace_dims_and_symbols(
-        self, new_dims: Sequence[AffineExpr], new_symbols: Sequence[AffineExpr]
-    ) -> AffineExpr:
+    def replace_dims_and_symbols(self, new_dims: Sequence[AffineExpr], new_symbols: Sequence[AffineExpr]) -> AffineExpr:
         """Replace the symbols and indices in this map with the ones provided."""
         if isinstance(self, AffineConstantExpr):
             return self
@@ -147,9 +145,7 @@ class AffineExpr:
 
         raise ValueError("Unreachable")
 
-    def _try_fold_constant(
-        self, other: AffineExpr, kind: AffineBinaryOpKind
-    ) -> AffineExpr | None:
+    def _try_fold_constant(self, other: AffineExpr, kind: AffineBinaryOpKind) -> AffineExpr | None:
         if not isinstance(self, AffineConstantExpr):
             return None
         if not isinstance(other, AffineConstantExpr):
@@ -218,11 +214,7 @@ class AffineExpr:
             if fold := self.rhs._try_fold_constant(other, AffineBinaryOpKind.Mul):
                 return self.lhs * fold
         # Fold (expr + expr) * constant.
-        if (
-            isinstance(self, AffineBinaryOpExpr)
-            and self.kind == AffineBinaryOpKind.Add
-            and isinstance(other, AffineConstantExpr)
-        ):
+        if isinstance(self, AffineBinaryOpExpr) and self.kind == AffineBinaryOpKind.Add and isinstance(other, AffineConstantExpr):
             return self.lhs * other + self.rhs * other
         return None
 
@@ -237,9 +229,7 @@ class AffineExpr:
         if not isinstance(other, AffineConstantExpr):
             # TODO (#1087): MLIR also supports multiplication by symbols also, making
             # maps semi-affine. Currently, we do not implement semi-affine maps.
-            raise NotImplementedError(
-                f"Multiplication with non-constant (semi-affine) is not supported yet self: {self} other: {other}"
-            )
+            raise NotImplementedError(f"Multiplication with non-constant (semi-affine) is not supported yet self: {self} other: {other}")
         return AffineBinaryOpExpr(AffineBinaryOpKind.Mul, self, other)
 
     def __rmul__(self, other: AffineExpr | int) -> AffineExpr:
@@ -256,9 +246,7 @@ class AffineExpr:
         if not isinstance(other, AffineConstantExpr):
             # TODO (#1087): MLIR also supports floor-division by symbols also, making
             # maps semi-affine. Currently, we do not implement semi-affine maps.
-            raise NotImplementedError(
-                "Floor division with non-constant (semi-affine) is not supported yet"
-            )
+            raise NotImplementedError("Floor division with non-constant (semi-affine) is not supported yet")
         # TODO (#1086): Simplify floor division here before returning.
         return AffineBinaryOpExpr(AffineBinaryOpKind.FloorDiv, self, other)
 
@@ -273,9 +261,7 @@ class AffineExpr:
         if not isinstance(other, AffineConstantExpr):
             # TODO (#1087): MLIR also supports ceil-division by symbols also, making
             # maps semi-affine. Currently, we do not implement semi-affine maps.
-            raise NotImplementedError(
-                "Ceil division with non-constant (semi-affine) is not supported yet"
-            )
+            raise NotImplementedError("Ceil division with non-constant (semi-affine) is not supported yet")
         # TODO (#1086): Simplify ceil division here before returning.
         return AffineBinaryOpExpr(AffineBinaryOpKind.CeilDiv, self, other)
 
@@ -290,9 +276,7 @@ class AffineExpr:
         if not isinstance(other, AffineConstantExpr):
             # TODO (#1087): MLIR also supports Mod by symbols also, making maps
             # semi-affine. Currently, we do not implement semi-affine maps.
-            raise NotImplementedError(
-                "Mod with non-constant (semi-affine) is not supported yet"
-            )
+            raise NotImplementedError("Mod with non-constant (semi-affine) is not supported yet")
         # TODO (#1086): Simplify modulo here before returning.
         return AffineBinaryOpExpr(AffineBinaryOpKind.Mod, self, other)
 

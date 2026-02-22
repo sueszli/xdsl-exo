@@ -74,9 +74,7 @@ try:
     with CodeContext(p):
         # CHECK: Expected integer constant for loop end, got 'float'.
         def test_not_supported_affine_loop_I():
-            for _ in range(
-                12.0  # pyright: ignore[reportArgumentType]
-            ):
+            for _ in range(12.0):  # pyright: ignore[reportArgumentType]
                 pass
             return
 

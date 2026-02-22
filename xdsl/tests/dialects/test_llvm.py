@@ -24,11 +24,7 @@ def test_llvm_arithmetic_ops(
     attributes: dict[str, Attribute],
 ):
     op1, op2 = test.TestOp(result_types=[i32, i32]).results
-    assert op_type(op1, op2, attributes).is_structurally_equivalent(
-        op_type.create(
-            operands=[op1, op2], result_types=[op1.type], attributes=attributes
-        )
-    )
+    assert op_type(op1, op2, attributes).is_structurally_equivalent(op_type.create(operands=[op1, op2], result_types=[op1.type], attributes=attributes))
 
 
 @pytest.mark.parametrize(
@@ -47,9 +43,7 @@ def test_llvm_overflow_arithmetic_ops(
     overflow: llvm.OverflowAttr,
 ):
     op1, op2 = test.TestOp(result_types=[i32, i32]).results
-    assert op_type(op1, op2, attributes).is_structurally_equivalent(
-        op_type(lhs=op1, rhs=op2, attributes=attributes, overflow=overflow)
-    )
+    assert op_type(op1, op2, attributes).is_structurally_equivalent(op_type(lhs=op1, rhs=op2, attributes=attributes, overflow=overflow))
 
 
 @pytest.mark.parametrize(
@@ -67,9 +61,7 @@ def test_llvm_exact_arithmetic_ops(
     exact: llvm.UnitAttr,
 ):
     op1, op2 = test.TestOp(result_types=[i32, i32]).results
-    assert op_type(op1, op2, attributes, exact).is_structurally_equivalent(
-        op_type(lhs=op1, rhs=op2, attributes=attributes, is_exact=exact)
-    )
+    assert op_type(op1, op2, attributes, exact).is_structurally_equivalent(op_type(lhs=op1, rhs=op2, attributes=attributes, is_exact=exact))
 
 
 @pytest.mark.parametrize(
@@ -85,9 +77,7 @@ def test_llvm_disjoint_arithmetic_ops(
     disjoint: llvm.UnitAttr | None,
 ):
     op1, op2 = test.TestOp(result_types=[i32, i32]).results
-    assert op_type(op1, op2, attributes, disjoint).is_structurally_equivalent(
-        op_type(lhs=op1, rhs=op2, attributes=attributes, is_disjoint=disjoint)
-    )
+    assert op_type(op1, op2, attributes, disjoint).is_structurally_equivalent(op_type(lhs=op1, rhs=op2, attributes=attributes, is_disjoint=disjoint))
 
 
 def test_llvm_pointer_ops():
@@ -97,13 +87,9 @@ def test_llvm_pointer_ops():
             ptr := llvm.AllocaOp(idx, builtin.i32, as_untyped_ptr=False),
             val := llvm.LoadOp(ptr),
             nullptr := llvm.NullOp(),
-            alloc_ptr := llvm.AllocaOp(
-                idx, elem_type=builtin.IndexType(), as_untyped_ptr=False
-            ),
+            alloc_ptr := llvm.AllocaOp(idx, elem_type=builtin.IndexType(), as_untyped_ptr=False),
             llvm.LoadOp(alloc_ptr),
-            store := llvm.StoreOp(
-                val, ptr, alignment=32, volatile=True, nontemporal=True
-            ),
+            store := llvm.StoreOp(val, ptr, alignment=32, volatile=True, nontemporal=True),
         ]
     )
 
@@ -141,9 +127,7 @@ def test_llvm_ptr_to_int_to_ptr():
 def test_llvm_pointer_type():
     assert llvm.LLVMPointerType.typed(builtin.i64).is_typed()
     assert llvm.LLVMPointerType.typed(builtin.i64).type is builtin.i64
-    assert isinstance(
-        llvm.LLVMPointerType.typed(builtin.i64).addr_space, builtin.NoneAttr
-    )
+    assert isinstance(llvm.LLVMPointerType.typed(builtin.i64).addr_space, builtin.NoneAttr)
 
     assert not llvm.LLVMPointerType.opaque().is_typed()
     assert isinstance(llvm.LLVMPointerType.opaque().type, builtin.NoneAttr)

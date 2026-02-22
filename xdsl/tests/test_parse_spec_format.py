@@ -1,19 +1,11 @@
 import pytest
 
 from xdsl.utils.exceptions import PassPipelineParseError
-from xdsl.utils.parse_pipeline import (
-    PipelinePassSpec,
-    parse_pipeline,
-)
+from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 
 def test_pass_parser():
-    passes = list(
-        parse_pipeline(
-            'mlir-opt[cse],pass-1,pass-2{arg1=1 arg2=test,test2,3 arg3="test-str,2,3" '
-            "arg-4=-34.4e-12 no-val-arg},mlir-opt[cse],pass-3{thing=2d-grid},mlir-opt[cse]"
-        )
-    )
+    passes = list(parse_pipeline('mlir-opt[cse],pass-1,pass-2{arg1=1 arg2=test,test2,3 arg3="test-str,2,3" ' "arg-4=-34.4e-12 no-val-arg},mlir-opt[cse],pass-3{thing=2d-grid},mlir-opt[cse]"))
 
     assert passes == [
         PipelinePassSpec(

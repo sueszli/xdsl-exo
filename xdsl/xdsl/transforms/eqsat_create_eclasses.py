@@ -2,13 +2,7 @@ from xdsl.context import Context
 from xdsl.dialects import builtin, eqsat, func
 from xdsl.ir import Block
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.utils.exceptions import DiagnosticException
 
@@ -28,18 +22,14 @@ def insert_eclass_ops(block: Block):
         eclass_op = eqsat.EClassOp(results[0])
         insertion_point = InsertPoint.after(op)
         Rewriter.insert_op(eclass_op, insertion_point)
-        results[0].replace_by_if(
-            eclass_op.results[0], lambda u: not isinstance(u.operation, eqsat.EClassOp)
-        )
+        results[0].replace_by_if(eclass_op.results[0], lambda u: not isinstance(u.operation, eqsat.EClassOp))
 
     # Insert eqsat.eclass for each arg
     for arg in block.args:
         eclass_op = eqsat.EClassOp(arg)
         insertion_point = InsertPoint.at_start(block)
         Rewriter.insert_op(eclass_op, insertion_point)
-        arg.replace_by_if(
-            eclass_op.results[0], lambda u: not isinstance(u.operation, eqsat.EClassOp)
-        )
+        arg.replace_by_if(eclass_op.results[0], lambda u: not isinstance(u.operation, eqsat.EClassOp))
 
 
 class InsertEclassOps(RewritePattern):

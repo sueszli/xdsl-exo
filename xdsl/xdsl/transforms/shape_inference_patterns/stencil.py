@@ -1,31 +1,13 @@
 from functools import reduce
 from typing import cast
 
-from xdsl.dialects.stencil import (
-    AccessOp,
-    ApplyOp,
-    BufferOp,
-    CombineOp,
-    DynAccessOp,
-    FieldType,
-    IndexAttr,
-    LoadOp,
-    StencilBoundsAttr,
-    StoreOp,
-    TempType,
-)
+from xdsl.dialects.stencil import AccessOp, ApplyOp, BufferOp, CombineOp, DynAccessOp, FieldType, IndexAttr, LoadOp, StencilBoundsAttr, StoreOp, TempType
 from xdsl.ir import Attribute, OpResult, SSAValue
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 from xdsl.utils.hints import isa
 
 
-def update_result_size(
-    value: SSAValue, size: StencilBoundsAttr, rewriter: PatternRewriter
-):
+def update_result_size(value: SSAValue, size: StencilBoundsAttr, rewriter: PatternRewriter):
     """
     Wrapper for corner-case result size updating.
     On the general case, just update the result's type.
@@ -41,11 +23,7 @@ def update_result_size(
             StencilBoundsAttr.union,
             (
                 size,
-                *(
-                    t.bounds
-                    for t in res_types
-                    if isinstance(t.bounds, StencilBoundsAttr)
-                ),
+                *(t.bounds for t in res_types if isinstance(t.bounds, StencilBoundsAttr)),
             ),
         )
         for res in apply.res:
@@ -163,15 +141,10 @@ class AccessOpShapeInference(RewritePattern):
         # if the access op has fewer dimensions specified than the parent apply op, state explicitly which dimensions should be
         # retained by looking at the offset_mapping
         if len(op.offset) < apply.res[0].type.get_num_dims() and op.offset_mapping:
-            mapped_offsets = [
-                (output_size.lb.array.data[i], output_size.ub.array.data[i])
-                for i in op.offset_mapping
-            ]
+            mapped_offsets = [(output_size.lb.array.data[i], output_size.ub.array.data[i]) for i in op.offset_mapping]
             output_size = StencilBoundsAttr(mapped_offsets)
 
-        update_result_size(
-            op.temp, temp_type.bounds | output_size + op.offset, rewriter
-        )
+        update_result_size(op.temp, temp_type.bounds | output_size + op.offset, rewriter)
 
 
 class DynAccessOpShapeInference(RewritePattern):
@@ -198,9 +171,7 @@ class ApplyOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         for i, arg in enumerate(op.region.block.args):
-            if isa(arg.type, TempType[Attribute]) and isinstance(
-                arg.type.bounds, StencilBoundsAttr
-            ):
+            if isa(arg.type, TempType[Attribute]) and isinstance(arg.type.bounds, StencilBoundsAttr):
                 assert isa(ot := op.operands[i].type, TempType[Attribute])
                 new_bounds = arg.type.bounds | ot.bounds
                 if new_bounds != ot.bounds:

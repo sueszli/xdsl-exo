@@ -26,16 +26,14 @@ def sum_to_for_fn(n: int) -> int:
 @ModuleOp
 @Builder.implicit_region
 def sum_to_for_op():
-    with ImplicitBuilder(func.FuncOp("sum_to", ((register,), (register,))).body) as (
-        ub,
-    ):
+    with ImplicitBuilder(func.FuncOp("sum_to", ((register,), (register,))).body) as (ub,):
         lb = riscv.LiOp(0)
         step = riscv.LiOp(1)
         initial = riscv.LiOp(0)
 
         @Builder.implicit_region((register, register))
         def for_loop_region(args: tuple[BlockArgument, ...]):
-            (i, acc) = args
+            i, acc = args
             res = riscv.AddOp(i, acc)
             riscv_scf.YieldOp(res)
 
@@ -56,22 +54,20 @@ def sum_to_for_op():
 @ModuleOp
 @Builder.implicit_region
 def sum_to_while_op():
-    with ImplicitBuilder(func.FuncOp("sum_to", ((register,), (register,))).body) as (
-        ub,
-    ):
+    with ImplicitBuilder(func.FuncOp("sum_to", ((register,), (register,))).body) as (ub,):
         lb = riscv.LiOp(0)
         step = riscv.LiOp(1)
         initial = riscv.LiOp(0)
 
         @Builder.implicit_region((register, register, register, register))
         def before_region(args: tuple[BlockArgument, ...]):
-            (acc0, i0, ub0, step0) = args
+            acc0, i0, ub0, step0 = args
             cond = riscv.SltOp(i0, ub0).rd
             riscv_scf.ConditionOp(cond, acc0, i0, ub0, step0)
 
         @Builder.implicit_region((register, register, register, register))
         def after_region(args: tuple[BlockArgument, ...]):
-            (acc1, i1, ub1, step1) = args
+            acc1, i1, ub1, step1 = args
             res = riscv.AddOp(i1, acc1).rd
             i2 = riscv.AddOp(i1, step1).rd
             riscv_scf.YieldOp(res, i2, ub1, step1)

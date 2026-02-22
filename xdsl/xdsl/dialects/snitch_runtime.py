@@ -2,28 +2,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import Annotated, Generic, TypeVar
 
-from xdsl.dialects.builtin import (
-    I32,
-    I64,
-    IndexType,
-    IntegerAttr,
-    IntegerType,
-    i1,
-    i32,
-    i64,
-)
+from xdsl.dialects.builtin import I32, I64, IndexType, IntegerAttr, IntegerType, i1, i32, i64
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    ConstraintVar,
-    IRDLOperation,
-    irdl_op_definition,
-    operand_def,
-    prop_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.irdl import AttrSizedOperandSegments, ConstraintVar, IRDLOperation, irdl_op_definition, operand_def, prop_def, result_def, traits_def, var_operand_def
 from xdsl.traits import NoMemoryEffect
 from xdsl.utils.exceptions import VerifyException
 
@@ -43,8 +24,6 @@ class SnitchRuntimeBaseOperation(IRDLOperation, ABC):
     This dialect is modeled after:
     https://github.com/pulp-platform/snitch_cluster/tree/main/sw/snRuntime
     """
-
-    pass
 
 
 class SnitchRuntimeGetInfo(SnitchRuntimeBaseOperation, ABC):
@@ -444,13 +423,9 @@ class SsrLoopBaseOp(SnitchRuntimeBaseOperation, ABC):
 
     def verify_(self) -> None:
         if len(self.bounds) != len(self.strides):
-            raise VerifyException(
-                f"the length of bounds ({len(self.bounds)}) and strides ({len(self.strides)}) must be equal."
-            )
+            raise VerifyException(f"the length of bounds ({len(self.bounds)}) and strides ({len(self.strides)}) must be equal.")
         if len(self.strides) != self.num:
-            raise VerifyException(
-                f"Epected {self.num} bounds and strides, got {len(self.strides)}"
-            )
+            raise VerifyException(f"Epected {self.num} bounds and strides, got {len(self.strides)}")
 
     def __init__(
         self,

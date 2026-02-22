@@ -4,14 +4,7 @@
 import random
 
 from xdsl.dialects.arith import AddiOp, ConstantOp
-from xdsl.dialects.builtin import (
-    DenseIntOrFPElementsAttr,
-    IntegerAttr,
-    ModuleOp,
-    TensorType,
-    i8,
-    i32,
-)
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, ModuleOp, TensorType, i8, i32
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Operation
 
@@ -95,15 +88,7 @@ class WorkloadBuilder:
         random.seed(RANDOM_SEED)
         dense_attr = [random.randint(-128, 128) for _ in range(x * y)]
         tensor_type = TensorType(element_type=i8, shape=[x, y])
-        return ModuleOp(
-            [
-                ConstantOp(
-                    DenseIntOrFPElementsAttr.from_list(
-                        type=tensor_type, data=dense_attr
-                    )
-                )
-            ]
-        )
+        return ModuleOp([ConstantOp(DenseIntOrFPElementsAttr.from_list(type=tensor_type, data=dense_attr))])
 
     @classmethod
     def large_dense_attr_hex(cls, x: int = 1024, y: int = 1024) -> str:
@@ -124,11 +109,5 @@ class WorkloadBuilder:
         random.seed(RANDOM_SEED)
         # Each dense attr item is a byte = 2 hex chars
         dense_attr_hex = "".join(random.choice(HEX_CHARS) for _ in range(x * y * 2))
-        ops = [
-            (
-                '%0 = "arith.constant"() '
-                f'<{{value = dense<"0x{dense_attr_hex}"> '
-                f": tensor<{x}x{y}xi8>}}> : () -> tensor<{x}x{y}xi8>"
-            )
-        ]
+        ops = ['%0 = "arith.constant"() ' f'<{{value = dense<"0x{dense_attr_hex}"> ' f": tensor<{x}x{y}xi8>}}> : () -> tensor<{x}x{y}xi8>"]
         return WorkloadBuilder.wrap_module(ops)

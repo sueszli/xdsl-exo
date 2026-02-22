@@ -5,45 +5,16 @@ from math import prod
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, memref, stencil, tensor, varith
-from xdsl.dialects.builtin import (
-    AnyTensorType,
-    DenseIntOrFPElementsAttr,
-    FloatAttr,
-    IndexType,
-    IntegerAttr,
-    IntegerType,
-    MemRefType,
-    ModuleOp,
-    TensorType,
-)
+from xdsl.dialects.builtin import AnyTensorType, DenseIntOrFPElementsAttr, FloatAttr, IndexType, IntegerAttr, IntegerType, MemRefType, ModuleOp, TensorType
 from xdsl.dialects.csl import csl_stencil
 from xdsl.dialects.experimental import dmp
-from xdsl.ir import (
-    Attribute,
-    Block,
-    BlockArgument,
-    Operation,
-    OpResult,
-    Region,
-    SSAValue,
-)
+from xdsl.ir import Attribute, Block, BlockArgument, Operation, OpResult, Region, SSAValue
 from xdsl.irdl import Operand
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
-from xdsl.transforms.experimental.stencil_tensorize_z_dimension import (
-    BackpropagateStencilShapes,
-)
-from xdsl.transforms.varith_transformations import (
-    ConvertArithToVarithPass,
-    ConvertVarithToArithPass,
-)
+from xdsl.transforms.experimental.stencil_tensorize_z_dimension import BackpropagateStencilShapes
+from xdsl.transforms.varith_transformations import ConvertArithToVarithPass, ConvertVarithToArithPass
 from xdsl.utils.hints import isa
 
 
@@ -73,11 +44,7 @@ def _get_prefetch_buf_idx(op: stencil.ApplyOp) -> int | None:
         assert isa(o.type, TensorType[Attribute])
         return prod(o.type.get_shape())
 
-    candidate_prefetches = [
-        (get_prefetch_overhead(o), o)
-        for o in op.operands
-        if isinstance(o, OpResult) and isinstance(o.op, csl_stencil.PrefetchOp)
-    ]
+    candidate_prefetches = [(get_prefetch_overhead(o), o) for o in op.operands if isinstance(o, OpResult) and isinstance(o.op, csl_stencil.PrefetchOp)]
     if len(candidate_prefetches) == 0:
         return
 
@@ -113,9 +80,7 @@ class ConvertAccessOpPattern(RewritePattern):
     def match_and_rewrite(self, op: stencil.AccessOp, rewriter: PatternRewriter, /):
         assert len(op.offset) == 2
         if isa(op.temp.type, AnyTensorType):
-            res_type = TensorType(
-                op.temp.type.get_element_type(), op.temp.type.get_shape()[1:]
-            )
+            res_type = TensorType(op.temp.type.get_element_type(), op.temp.type.get_shape()[1:])
         else:
             assert isa(op.res.type, AnyTensorType)
             res_type = op.res.type
@@ -160,39 +125,24 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             rewriter.erase_matched_op(False)
             return
 
-        assert all(len(swap.size) == 3 for swap in op.swaps), (
-            "currently only 3-dimensional stencils are supported"
-        )
+        assert all(len(swap.size) == 3 for swap in op.swaps), "currently only 3-dimensional stencils are supported"
 
-        assert all(swap.size[:2] == (1, 1) for swap in op.swaps), (
-            "invoke dmp to decompose from (x,y,z) to (1,1,z)"
-        )
+        assert all(swap.size[:2] == (1, 1) for swap in op.swaps), "invoke dmp to decompose from (x,y,z) to (1,1,z)"
 
         # check that size is uniform
         uniform_size = op.swaps.data[0].size[2]
-        assert all(swap.size[2] == uniform_size for swap in op.swaps), (
-            "all swaps need to be of uniform size"
-        )
+        assert all(swap.size[2] == uniform_size for swap in op.swaps), "all swaps need to be of uniform size"
 
-        assert (MemRefType.constr() | stencil.StencilTypeConstr).verifies(
-            op.input_stencil.type
-        )
-        assert isa(
-            t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
-        )
-        assert op.strategy.comm_layout() is not None, (
-            f"topology on {type(op)} is not given"
-        )
+        assert (MemRefType.constr() | stencil.StencilTypeConstr).verifies(op.input_stencil.type)
+        assert isa(t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute])
+        assert op.strategy.comm_layout() is not None, f"topology on {type(op)} is not given"
 
         # when translating swaps, remove third dimension
         prefetch_op = csl_stencil.PrefetchOp(
             input_stencil=op.input_stencil,
             topo=op.strategy.comm_layout(),
             num_chunks=IntegerAttr(self.num_chunks, 64),
-            swaps=[
-                csl_stencil.ExchangeDeclarationAttr(swap.neighbor[:2])
-                for swap in op.swaps
-            ],
+            swaps=[csl_stencil.ExchangeDeclarationAttr(swap.neighbor[:2]) for swap in op.swaps],
             result_type=TensorType(
                 t_type.get_element_type(),
                 (len(op.swaps), uniform_size),
@@ -202,9 +152,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
         # if the rewriter needs a result, use `input_stencil` as a drop-in replacement
         # prefetch_op produces a result that needs to be handled separately
         # note, that only un-bufferized dmp.swaps produce a result
-        rewriter.replace_matched_op(
-            prefetch_op, new_results=[op.input_stencil] if op.swapped_values else []
-        )
+        rewriter.replace_matched_op(prefetch_op, new_results=[op.input_stencil] if op.swapped_values else [])
 
         # uses have to be retrieved *before* the loop because of the rewriting happening inside the loop
         uses = list(op.input_stencil.uses)
@@ -222,13 +170,10 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             field_block_arg = apply_op.region.block.args[arg_idx]
 
             # add the prefetched buffer as the last arg to stencil.access
-            prefetch_block_arg = apply_op.region.block.insert_arg(
-                prefetch_op.result.type, len(apply_op.args)
-            )
+            prefetch_block_arg = apply_op.region.block.insert_arg(prefetch_op.result.type, len(apply_op.args))
             field_block_arg.replace_by_if(
                 prefetch_block_arg,
-                lambda use: isinstance(use.operation, stencil.AccessOp)
-                and tuple(use.operation.offset) != (0, 0),
+                lambda use: isinstance(use.operation, stencil.AccessOp) and tuple(use.operation.offset) != (0, 0),
             )
 
             # rebuild stencil.apply op
@@ -244,9 +189,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             rewriter.replace_op(apply_op, new_apply_op)
 
 
-def split_ops(
-    ops: Sequence[Operation], buf: BlockArgument
-) -> tuple[Sequence[Operation], Sequence[Operation]]:
+def split_ops(ops: Sequence[Operation], buf: BlockArgument) -> tuple[Sequence[Operation], Sequence[Operation]]:
     """
     Returns a split of `ops` into an `(a,b)` tuple, such that:
 
@@ -274,13 +217,7 @@ def split_ops(
     while (
         len(
             # ops in `a` whose results are used outside of `a`
-            a_exports := set(
-                op
-                for op in a
-                for result in op.results
-                for use in result.uses
-                if use.operation not in a
-            )
+            a_exports := set(op for op in a for result in op.results for use in result.uses if use.operation not in a)
         )
         > 1
         and has_changes
@@ -292,17 +229,13 @@ def split_ops(
             for result in exp.results:
                 for use in result.uses:
                     # op is only movable if *all* operands are already in `a` (and it hasn't been moved yet)
-                    if (op := use.operation) in rem and all(
-                        x.op in a for x in op.operands if isinstance(x, OpResult)
-                    ):
+                    if (op := use.operation) in rem and all(x.op in a for x in op.operands if isinstance(x, OpResult)):
                         has_changes = True
                         a.append(use.operation)
                         rem.remove(use.operation)
 
     # find constants in `a` needed outside of `a`
-    cnst_exports = tuple(
-        cnst for cnst in a_exports if isinstance(cnst, arith.ConstantOp)
-    )
+    cnst_exports = tuple(cnst for cnst in a_exports if isinstance(cnst, arith.ConstantOp))
 
     # `a` exports one value plus any number of constants - duplicate exported constants and return op split
     if len(a_exports) == 1 + len(cnst_exports):
@@ -342,9 +275,7 @@ class SplitVarithOpPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: varith.VarithOp, rewriter: PatternRewriter, /):
-        if not (apply := _get_apply_op(op)) or not (
-            buf_idx := _get_prefetch_buf_idx(apply)
-        ):
+        if not (apply := _get_apply_op(op)) or not (buf_idx := _get_prefetch_buf_idx(apply)):
             return
         buf = apply.region.block.args[buf_idx]
         buf_accesses, others = list[SSAValue](), list[SSAValue]()
@@ -413,9 +344,7 @@ class ConvertApplyOpPattern(RewritePattern):
         ).rewrite_region(op.region)
 
         # determine how ops should be split across the two regions
-        chunk_region_ops, done_exchange_ops = split_ops(
-            list(op.region.block.ops), op.region.block.args[prefetch_idx]
-        )
+        chunk_region_ops, done_exchange_ops = split_ops(list(op.region.block.ops), op.region.block.args[prefetch_idx])
 
         # fetch what receive_chunk is computing for
         if isinstance(chunk_region_ops[-1], stencil.ReturnOp):
@@ -426,21 +355,11 @@ class ConvertApplyOpPattern(RewritePattern):
         # after region split, check which block args (from the old ops block) are being accessed in each of the new regions
         # ignore accesses block args which already are part of the region's required signature
         chunk_region_used_block_args = sorted(
-            set(
-                x
-                for o in chunk_region_ops
-                for x in o.operands
-                if isinstance(x, BlockArgument) and x.index != prefetch_idx
-            ),
+            set(x for o in chunk_region_ops for x in o.operands if isinstance(x, BlockArgument) and x.index != prefetch_idx),
             key=lambda b: b.index,
         )
         done_exchange_used_block_args = sorted(
-            set(
-                x
-                for o in done_exchange_ops
-                for x in o.operands
-                if isinstance(x, BlockArgument) and x.index != field_idx
-            ),
+            set(x for o in done_exchange_ops for x in o.operands if isinstance(x, BlockArgument) and x.index != field_idx),
             key=lambda b: b.index,
         )
 
@@ -475,23 +394,13 @@ class ConvertApplyOpPattern(RewritePattern):
         done_exchange = Region(Block(arg_types=done_exchange_args))
 
         # translate old to new block arg index for optional args
-        chunk_region_oprnd_table = dict[Operand, Operand](
-            (old, receive_chunk.block.args[idx])
-            for idx, old in enumerate(chunk_region_used_block_args, start=3)
-        )
-        done_exchange_oprnd_table = dict[Operand, Operand](
-            (old, done_exchange.block.args[idx])
-            for idx, old in enumerate(done_exchange_used_block_args, start=2)
-        )
+        chunk_region_oprnd_table = dict[Operand, Operand]((old, receive_chunk.block.args[idx]) for idx, old in enumerate(chunk_region_used_block_args, start=3))
+        done_exchange_oprnd_table = dict[Operand, Operand]((old, done_exchange.block.args[idx]) for idx, old in enumerate(done_exchange_used_block_args, start=2))
 
         # add translation from old to new arg index for non-optional args - note, access
         # to accumulator must be handled separately below
-        chunk_region_oprnd_table[op.region.block.args[prefetch_idx]] = (
-            receive_chunk.block.args[0]
-        )
-        done_exchange_oprnd_table[op.region.block.args[field_idx]] = (
-            done_exchange.block.args[0]
-        )
+        chunk_region_oprnd_table[op.region.block.args[prefetch_idx]] = receive_chunk.block.args[0]
+        done_exchange_oprnd_table[op.region.block.args[field_idx]] = done_exchange.block.args[0]
         done_exchange_oprnd_table[chunk_res] = done_exchange.block.args[1]
 
         # detach ops from old region
@@ -562,21 +471,12 @@ class PromoteCoefficients(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.AccessOp, rewriter: PatternRewriter, /):
-        if (
-            not isinstance(apply := op.get_apply(), csl_stencil.ApplyOp)
-            or not op.op == apply.receive_chunk.block.args[0]
-            or len(op.result.uses) != 1
-            or not isinstance(mulf := list(op.result.uses)[0].operation, arith.MulfOp)
-        ):
+        if not isinstance(apply := op.get_apply(), csl_stencil.ApplyOp) or not op.op == apply.receive_chunk.block.args[0] or len(op.result.uses) != 1 or not isinstance(mulf := list(op.result.uses)[0].operation, arith.MulfOp):
             return
 
         coeff = mulf.lhs if op.result == mulf.rhs else mulf.rhs
 
-        if (
-            not isinstance(cnst := coeff.owner, arith.ConstantOp)
-            or not isinstance(dense := cnst.value, DenseIntOrFPElementsAttr)
-            or not dense.is_splat()
-        ):
+        if not isinstance(cnst := coeff.owner, arith.ConstantOp) or not isinstance(dense := cnst.value, DenseIntOrFPElementsAttr) or not dense.is_splat():
             return
 
         val = dense.get_attrs()[0]
@@ -591,9 +491,7 @@ class TransformPrefetch(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: csl_stencil.PrefetchOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: csl_stencil.PrefetchOp, rewriter: PatternRewriter, /):
         a_buf = tensor.EmptyOp((), op.result.type)
         # because we are building a set of offsets, we are not retaining offset mappings
         offsets = [swap.neighbor for swap in op.swaps]
@@ -615,9 +513,7 @@ class TransformPrefetch(RewritePattern):
         with ImplicitBuilder(block) as (buf, offset, acc):
             dest = acc
             for i, acc_offset in enumerate(offsets):
-                ac_op = csl_stencil.AccessOp(
-                    buf, stencil.IndexAttr.get(*acc_offset), chunk_t
-                )
+                ac_op = csl_stencil.AccessOp(buf, stencil.IndexAttr.get(*acc_offset), chunk_t)
                 assert isa(ac_op.result.type, AnyTensorType)
                 # inserts 1 (see static_sizes) 1d slice into a 2d tensor at offset (i, `offset`) (see static_offsets)
                 # where the latter offset is provided dynamically (see offsets)

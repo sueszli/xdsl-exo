@@ -4,23 +4,8 @@ from collections.abc import Callable, Iterator, Sequence
 from typing import Any, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, riscv
-from xdsl.dialects.builtin import (
-    DenseIntOrFPElementsAttr,
-    IndexType,
-    IntegerAttr,
-    IntegerType,
-    ModuleOp,
-    StringAttr,
-)
-from xdsl.interpreter import (
-    Interpreter,
-    InterpreterFunctions,
-    PythonValues,
-    impl,
-    impl_attr,
-    impl_cast,
-    register_impls,
-)
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IndexType, IntegerAttr, IntegerType, ModuleOp, StringAttr
+from xdsl.interpreter import Interpreter, InterpreterFunctions, PythonValues, impl, impl_attr, impl_cast, register_impls
 from xdsl.interpreters.builtin import xtype_for_el_type
 from xdsl.interpreters.utils import ptr
 from xdsl.ir import Attribute, SSAValue
@@ -39,9 +24,7 @@ def pairs(els: list[_T]) -> Iterator[tuple[_T, _T]]:
         yield els[i], els[i + 1]
 
 
-CustomInstructionFn: TypeAlias = Callable[
-    [Interpreter, riscv.CustomAssemblyInstructionOp, PythonValues], PythonValues
-]
+CustomInstructionFn: TypeAlias = Callable[[Interpreter, riscv.CustomAssemblyInstructionOp, PythonValues], PythonValues]
 
 
 _DATA_KEY = "data"
@@ -84,9 +67,7 @@ class RiscvFunctions(InterpreterFunctions):
         stored_value = registers[name]
 
         if stored_value != value:
-            raise InterpretationError(
-                f"Runtime and stored value mismatch: {value} != {stored_value} {attr}"
-            )
+            raise InterpretationError(f"Runtime and stored value mismatch: {value} != {stored_value} {attr}")
 
         return value
 
@@ -117,19 +98,11 @@ class RiscvFunctions(InterpreterFunctions):
         python_values: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert len(ssa_values) == len(python_values)
-        return tuple(
-            RiscvFunctions.get_reg_value(interpreter, ssa_value.type, python_value)
-            for ssa_value, python_value in zip(ssa_values, python_values)
-        )
+        return tuple(RiscvFunctions.get_reg_value(interpreter, ssa_value.type, python_value) for ssa_value, python_value in zip(ssa_values, python_values))
 
     @staticmethod
-    def set_reg_values(
-        interpreter: Interpreter, results: Sequence[SSAValue], values: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        return tuple(
-            RiscvFunctions.set_reg_value(interpreter, result.type, value)
-            for result, value in zip(results, values, strict=True)
-        )
+    def set_reg_values(interpreter: Interpreter, results: Sequence[SSAValue], values: tuple[Any, ...]) -> tuple[Any, ...]:
+        return tuple(RiscvFunctions.set_reg_value(interpreter, result.type, value) for result, value in zip(results, values, strict=True))
 
     @staticmethod
     def set_reg_values_for_types(
@@ -137,10 +110,7 @@ class RiscvFunctions(InterpreterFunctions):
         result_types: Sequence[Attribute],
         values: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        return tuple(
-            RiscvFunctions.set_reg_value(interpreter, result_type, value)
-            for result_type, value in zip(result_types, values, strict=True)
-        )
+        return tuple(RiscvFunctions.set_reg_value(interpreter, result_type, value) for result_type, value in zip(result_types, values, strict=True))
 
     @staticmethod
     def data(interpreter: Interpreter) -> dict[str, Any]:
@@ -182,31 +152,18 @@ class RiscvFunctions(InterpreterFunctions):
                     assert op.data is not None
                     ops = list(op.data.block.ops)
                     for label, data_op in pairs(ops):
-                        if not (
-                            isinstance(label, riscv.LabelOp)
-                            and isinstance(data_op, riscv.DirectiveOp)
-                        ):
-                            raise InterpretationError(
-                                "Interpreter assumes that data section is comprised of "
-                                "labels followed by directives"
-                            )
+                        if not (isinstance(label, riscv.LabelOp) and isinstance(data_op, riscv.DirectiveOp)):
+                            raise InterpretationError("Interpreter assumes that data section is comprised of " "labels followed by directives")
                         if data_op.value is None:
-                            raise InterpretationError(
-                                "Unexpected None value in data section directive"
-                            )
+                            raise InterpretationError("Unexpected None value in data section directive")
 
                         match data_op.directive.data:
                             case ".word":
                                 hexs = data_op.value.data.split(",")
                                 ints = [int(hex.strip(), 16) for hex in hexs]
-                                data[label.label.data] = ptr.TypedPtr.new_int32(
-                                    ints
-                                ).raw
+                                data[label.label.data] = ptr.TypedPtr.new_int32(ints).raw
                             case _:
-                                raise InterpretationError(
-                                    "Cannot interpret data directive "
-                                    f"{data_op.directive.data}"
-                                )
+                                raise InterpretationError("Cannot interpret data directive " f"{data_op.directive.data}")
         return data
 
     def get_data_value(self, interpreter: Interpreter, key: str) -> Any:
@@ -215,9 +172,7 @@ class RiscvFunctions(InterpreterFunctions):
             raise InterpretationError(f"No data found for key ({key})")
         return data[key]
 
-    def get_immediate_value(
-        self, interpreter: Interpreter, imm: IntegerAttr | riscv.LabelAttr
-    ) -> int | ptr.RawPtr:
+    def get_immediate_value(self, interpreter: Interpreter, imm: IntegerAttr | riscv.LabelAttr) -> int | ptr.RawPtr:
         match imm:
             case IntegerAttr():
                 return imm.value.data
@@ -582,15 +537,11 @@ class RiscvFunctions(InterpreterFunctions):
     # endregion
 
     @impl(riscv.GetRegisterOp)
-    def run_get_register(
-        self, interpreter: Interpreter, op: riscv.GetRegisterOp, args: PythonValues
-    ) -> PythonValues:
+    def run_get_register(self, interpreter: Interpreter, op: riscv.GetRegisterOp, args: PythonValues) -> PythonValues:
         attr = op.res.type
 
         if not attr.is_allocated:
-            raise InterpretationError(
-                f"Cannot get value for unallocated register {attr}"
-            )
+            raise InterpretationError(f"Cannot get value for unallocated register {attr}")
 
         name = attr.register_name
 
@@ -613,10 +564,7 @@ class RiscvFunctions(InterpreterFunctions):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         instr = op.instruction_name.data
         if instr not in self.custom_instructions:
-            raise InterpretationError(
-                "Could not find custom riscv assembly instruction implementation for"
-                f" {instr}"
-            )
+            raise InterpretationError("Could not find custom riscv assembly instruction implementation for" f" {instr}")
 
         results = self.custom_instructions[instr](interpreter, op, args)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
@@ -645,9 +593,7 @@ class RiscvFunctions(InterpreterFunctions):
                 data = attr.get_values()
                 data_ptr = ptr.TypedPtr[Any].new(
                     data,
-                    xtype=xtype_for_el_type(
-                        attr.get_element_type(), interpreter.index_bitwidth
-                    ),
+                    xtype=xtype_for_el_type(attr.get_element_type(), interpreter.index_bitwidth),
                 )
                 return data_ptr.raw
             case _:

@@ -3,12 +3,7 @@ from typing import Any, cast
 
 from xdsl.dialects import tensor
 from xdsl.dialects.builtin import TensorType
-from xdsl.interpreter import (
-    Interpreter,
-    InterpreterFunctions,
-    impl,
-    register_impls,
-)
+from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.interpreters.builtin import xtype_for_el_type
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
@@ -18,9 +13,7 @@ from xdsl.utils.exceptions import InterpretationError
 @register_impls
 class TensorFunctions(InterpreterFunctions):
     @impl(tensor.EmptyOp)
-    def run_empty(
-        self, interpreter: Interpreter, op: tensor.EmptyOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
+    def run_empty(self, interpreter: Interpreter, op: tensor.EmptyOp, args: tuple[Any, ...]) -> tuple[Any, ...]:
         result_type = op.tensor.type
         assert isinstance(result_type, TensorType)
         result_shape = list(result_type.get_shape())
@@ -33,9 +26,7 @@ class TensorFunctions(InterpreterFunctions):
         )
 
     @impl(tensor.ReshapeOp)
-    def run_reshape(
-        self, interpreter: Interpreter, op: tensor.ReshapeOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
+    def run_reshape(self, interpreter: Interpreter, op: tensor.ReshapeOp, args: tuple[Any, ...]) -> tuple[Any, ...]:
         input, new_shape = args
         assert isinstance(input, ShapedArray)
         input = cast(ShapedArray[float], input)

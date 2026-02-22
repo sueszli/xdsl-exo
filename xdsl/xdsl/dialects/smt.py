@@ -8,19 +8,7 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import BoolAttr
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
-from xdsl.irdl import (
-    AtLeast,
-    IRDLOperation,
-    RangeOf,
-    VarConstraint,
-    base,
-    irdl_attr_definition,
-    irdl_op_definition,
-    prop_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.irdl import AtLeast, IRDLOperation, RangeOf, VarConstraint, base, irdl_attr_definition, irdl_op_definition, prop_def, result_def, traits_def, var_operand_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import ConstantLike, Pure
@@ -124,21 +112,15 @@ def _parse_same_operand_type_variadic_to_bool_op(
     operands.
     """
     operand_pos = parser.pos
-    operands = parser.parse_comma_separated_list(
-        parser.Delimiter.NONE, parser.parse_unresolved_operand, "operand list"
-    )
+    operands = parser.parse_comma_separated_list(parser.Delimiter.NONE, parser.parse_unresolved_operand, "operand list")
     attr_dict = parser.parse_optional_attr_dict()
     parser.parse_punctuation(":")
     operand_types = parser.parse_type()
-    operands = parser.resolve_operands(
-        operands, (operand_types,) * len(operands), operand_pos
-    )
+    operands = parser.resolve_operands(operands, (operand_types,) * len(operands), operand_pos)
     return operands, attr_dict
 
 
-def _print_same_operand_type_variadic_to_bool_op(
-    printer: Printer, operands: Sequence[SSAValue], attr_dict: dict[str, Attribute]
-):
+def _print_same_operand_type_variadic_to_bool_op(printer: Printer, operands: Sequence[SSAValue], attr_dict: dict[str, Attribute]):
     """
     Print a variadic operation with boolean result, with format
     `%op1, %op2, ..., %opN attr-dict : T` where `T` is the type of all
@@ -172,9 +154,7 @@ class VariadicPredicateOp(IRDLOperation, ABC):
         return op
 
     def print(self, printer: Printer):
-        _print_same_operand_type_variadic_to_bool_op(
-            printer, self.inputs, self.attributes
-        )
+        _print_same_operand_type_variadic_to_bool_op(printer, self.inputs, self.attributes)
 
     def __init__(self, *operands: SSAValue):
         super().__init__(operands=[operands], result_types=[BoolType()])

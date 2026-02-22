@@ -4,19 +4,7 @@ from typing import ClassVar
 import pytest
 
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr, i32
-from xdsl.dialects.irdl import (
-    AllOfOp,
-    AnyOfOp,
-    AnyOp,
-    AttributeOp,
-    AttributeType,
-    BaseOp,
-    DialectOp,
-    IsOp,
-    OperationOp,
-    ParametricOp,
-    TypeOp,
-)
+from xdsl.dialects.irdl import AllOfOp, AnyOfOp, AnyOp, AttributeOp, AttributeType, BaseOp, DialectOp, IsOp, OperationOp, ParametricOp, TypeOp
 from xdsl.ir import Block, Region
 from xdsl.irdl import IRDLOperation, irdl_op_definition
 from xdsl.utils.exceptions import PyRDLOpDefinitionError
@@ -32,9 +20,7 @@ def test_named_region_op_init(
     """
     op = op_type("cmath", Region(Block()))
     op2 = op_type(StringAttr("cmath"), Region(Block()))
-    op3 = op_type.create(
-        attributes={"sym_name": StringAttr("cmath")}, regions=[Region(Block())]
-    )
+    op3 = op_type.create(attributes={"sym_name": StringAttr("cmath")}, regions=[Region(Block())])
 
     assert op.is_structurally_equivalent(op2)
     assert op2.is_structurally_equivalent(op3)
@@ -122,9 +108,7 @@ def test_any_all_of_init(op_type: type[AllOfOp | AnyOfOp]):
 @pytest.mark.parametrize("op_type", [OperationOp, TypeOp, AttributeOp])
 def test_qualified_name(op_type: type[OperationOp | TypeOp | AttributeOp]):
     """Test qualified_name property of OperationOp, TypeOp, AttributeOp."""
-    op = op_type.create(
-        attributes={"sym_name": StringAttr("myname")}, regions=[Region(Block())]
-    )
+    op = op_type.create(attributes={"sym_name": StringAttr("myname")}, regions=[Region(Block())])
     dialect = DialectOp("mydialect", Region(Block([op])))
     dialect.verify()
     assert op.qualified_name == "mydialect.myname"

@@ -2,17 +2,7 @@ import pytest
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, memref_stream
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    ArrayAttr,
-    Float32Type,
-    IndexType,
-    IntAttr,
-    IntegerAttr,
-    MemRefType,
-    ModuleOp,
-    i32,
-)
+from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr, Float32Type, IndexType, IntAttr, IntegerAttr, MemRefType, ModuleOp, i32
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.memref_stream import MemRefStreamFunctions
@@ -294,17 +284,11 @@ def test_memref_stream_interleaved_reduction_with_initial_value():
         ),
         (create_ssa_value(MemRefType(f32, [3, 8])),),
         (create_ssa_value(f32),),
-        Region(
-            Block(
-                arg_types=(f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32)
-            )
-        ),
+        Region(Block(arg_types=(f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32))),
         ArrayAttr(
             (
                 AffineMapAttr(AffineMap.from_callable(lambda n, m, k, j: (n, k))),
-                AffineMapAttr(
-                    AffineMap.from_callable(lambda n, m, k, j: (k, m * 4 + j))
-                ),
+                AffineMapAttr(AffineMap.from_callable(lambda n, m, k, j: (k, m * 4 + j))),
                 AffineMapAttr(AffineMap.from_callable(lambda n, m, j: (n, m * 4 + j))),
             )
         ),
@@ -347,9 +331,7 @@ def test_memref_stream_interleaved_reduction_with_initial_value():
     op.verify()
 
     a = ShapedArray(TypedPtr.new_float32([float(i) for i in range(3 * 5)]), [3, 5])
-    b = ShapedArray(
-        TypedPtr.new_float32([float(i) / 100 for i in range(5 * 8)]), [5, 8]
-    )
+    b = ShapedArray(TypedPtr.new_float32([float(i) / 100 for i in range(5 * 8)]), [5, 8])
     c = ShapedArray(TypedPtr.new_float32([-1000.0] * (3 * 5)), [3, 5])
 
     with pytest.raises(

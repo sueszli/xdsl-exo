@@ -6,20 +6,7 @@ from xdsl.utils.exceptions import ParseError
 
 from ..frontend.location import Location
 from ..frontend.parser import ToyParser
-from ..frontend.toy_ast import (
-    BinaryExprAST,
-    CallExprAST,
-    FunctionAST,
-    LiteralExprAST,
-    ModuleAST,
-    NumberExprAST,
-    PrintExprAST,
-    PrototypeAST,
-    ReturnExprAST,
-    VarDeclExprAST,
-    VariableExprAST,
-    VarType,
-)
+from ..frontend.toy_ast import BinaryExprAST, CallExprAST, FunctionAST, LiteralExprAST, ModuleAST, NumberExprAST, PrintExprAST, PrototypeAST, ReturnExprAST, VarDeclExprAST, VariableExprAST, VarType
 
 
 def test_parse_ast():

@@ -7,13 +7,7 @@ from xdsl.dialects import arith, memref, omp, scf
 from xdsl.dialects.builtin import IndexType, ModuleOp
 from xdsl.ir import Block, Region
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 
 
@@ -50,9 +44,7 @@ class ConvertParallel(RewritePattern):
                 chunk_op = []
             else:
                 self.schedule = "static"
-                chunk_op = [
-                    arith.ConstantOp.from_int_and_width(self.chunk, IndexType())
-                ]
+                chunk_op = [arith.ConstantOp.from_int_and_width(self.chunk, IndexType())]
             wsloop = omp.WsLoopOp(
                 operands=[
                     [],
@@ -66,9 +58,7 @@ class ConvertParallel(RewritePattern):
                 regions=[Region(Block())],
             )
             if self.schedule is not None:
-                wsloop.schedule_kind = omp.ScheduleKindAttr(
-                    omp.ScheduleKind(self.schedule)
-                )
+                wsloop.schedule_kind = omp.ScheduleKindAttr(omp.ScheduleKind(self.schedule))
             omp.TerminatorOp()
 
         rewriter.insertion_point = InsertPoint.at_end(wsloop.body.block)
@@ -91,9 +81,7 @@ class ConvertParallel(RewritePattern):
         with ImplicitBuilder(rewriter):
             scope_terminator = memref.AllocaScopeReturnOp(operands=[[]])
 
-        for newarg, oldarg in zip(
-            loop_nest.body.block.args, loop.body.block.args[:collapse]
-        ):
+        for newarg, oldarg in zip(loop_nest.body.block.args, loop.body.block.args[:collapse]):
             oldarg.replace_by(newarg)
 
         for _ in range(collapse):
@@ -151,9 +139,7 @@ class ConvertScfToOpenMPPass(ModulePass):
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ConvertParallel(
-                        self.collapse, self.nested, self.schedule, self.chunk
-                    ),
+                    ConvertParallel(self.collapse, self.nested, self.schedule, self.chunk),
                 ]
             ),
             apply_recursively=False,

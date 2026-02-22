@@ -1,12 +1,7 @@
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_scf
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 
 

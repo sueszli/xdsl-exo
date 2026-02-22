@@ -1,23 +1,14 @@
 from typing import Any, cast
 
 from xdsl.dialects import affine
-from xdsl.interpreter import (
-    Interpreter,
-    InterpreterFunctions,
-    ReturnedValues,
-    impl,
-    impl_terminator,
-    register_impls,
-)
+from xdsl.interpreter import Interpreter, InterpreterFunctions, ReturnedValues, impl, impl_terminator, register_impls
 from xdsl.interpreters.shaped_array import ShapedArray
 
 
 @register_impls
 class AffineFunctions(InterpreterFunctions):
     @impl(affine.StoreOp)
-    def run_store(
-        self, interpreter: Interpreter, op: affine.StoreOp, args: tuple[Any, ...]
-    ):
+    def run_store(self, interpreter: Interpreter, op: affine.StoreOp, args: tuple[Any, ...]):
         value, memref, *affine_dims = args
 
         affine_map = op.map
@@ -32,9 +23,7 @@ class AffineFunctions(InterpreterFunctions):
         return ()
 
     @impl(affine.LoadOp)
-    def run_load(
-        self, interpreter: Interpreter, op: affine.LoadOp, args: tuple[Any, ...]
-    ):
+    def run_load(self, interpreter: Interpreter, op: affine.LoadOp, args: tuple[Any, ...]):
         memref, *affine_dims = args
 
         affine_map = op.map
@@ -48,9 +37,7 @@ class AffineFunctions(InterpreterFunctions):
         return (value,)
 
     @impl(affine.ForOp)
-    def run_for(
-        self, interpreter: Interpreter, op: affine.ForOp, args: tuple[Any, ...]
-    ):
+    def run_for(self, interpreter: Interpreter, op: affine.ForOp, args: tuple[Any, ...]):
         assert not args, "Arguments not supported yet"
         assert not op.results, "Results not supported yet"
 
@@ -71,13 +58,9 @@ class AffineFunctions(InterpreterFunctions):
         return ()
 
     @impl(affine.ApplyOp)
-    def run_apply(
-        self, interpreter: Interpreter, op: affine.ApplyOp, args: tuple[Any, ...]
-    ):
+    def run_apply(self, interpreter: Interpreter, op: affine.ApplyOp, args: tuple[Any, ...]):
         return op.map.data.eval(args, ())
 
     @impl_terminator(affine.YieldOp)
-    def run_yield(
-        self, interpreter: Interpreter, op: affine.YieldOp, args: tuple[Any, ...]
-    ):
+    def run_yield(self, interpreter: Interpreter, op: affine.YieldOp, args: tuple[Any, ...]):
         return ReturnedValues(args), ()

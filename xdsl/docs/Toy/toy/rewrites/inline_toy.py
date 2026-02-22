@@ -1,12 +1,7 @@
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.transforms.dead_code_elimination import dce
 
 from ..dialects import toy
@@ -17,9 +12,7 @@ class InlineFunctions(RewritePattern):
 
     def lookup_func_op(self, module: ModuleOp, name: str) -> toy.FuncOp:
         if self._func_op_by_name is None:
-            self._func_op_by_name = {
-                op.sym_name.data: op for op in module.ops if isinstance(op, toy.FuncOp)
-            }
+            self._func_op_by_name = {op.sym_name.data: op for op in module.ops if isinstance(op, toy.FuncOp)}
         return self._func_op_by_name[name]
 
     @op_type_rewrite_pattern
@@ -76,11 +69,7 @@ class RemoveUnusedPrivateFunctions(RewritePattern):
             module = op.parent_op()
             assert isinstance(module, ModuleOp)
 
-            self._used_funcs = {
-                op.callee.string_value()
-                for op in module.walk()
-                if isinstance(op, toy.GenericCallOp)
-            }
+            self._used_funcs = {op.callee.string_value() for op in module.walk() if isinstance(op, toy.GenericCallOp)}
 
         return op.sym_name.data not in self._used_funcs
 

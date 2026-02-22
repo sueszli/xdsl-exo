@@ -4,10 +4,7 @@ from xdsl.context import Context
 from xdsl.dialects.builtin import UnregisteredAttr, UnregisteredOp
 from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import IRDLOperation, irdl_attr_definition, irdl_op_definition
-from xdsl.utils.exceptions import (
-    AlreadyRegisteredConstructException,
-    UnregisteredConstructException,
-)
+from xdsl.utils.exceptions import AlreadyRegisteredConstructException, UnregisteredConstructException
 
 
 @irdl_op_definition
@@ -231,9 +228,7 @@ def test_load_registered_dialect():
 
 def test_load_registered_dialect_not_registered():
     ctx = Context()
-    with pytest.raises(
-        UnregisteredConstructException, match="'test' dialect is not registered"
-    ):
+    with pytest.raises(UnregisteredConstructException, match="'test' dialect is not registered"):
         ctx.load_registered_dialect("test")
 
 
@@ -259,8 +254,7 @@ def test_load_dialect_already_registered():
     ctx.register_dialect("test", lambda: testDialect)
     with pytest.raises(
         AlreadyRegisteredConstructException,
-        match="'test' dialect is already registered, use "
-        "'load_registered_dialect' instead",
+        match="'test' dialect is already registered, use " "'load_registered_dialect' instead",
     ):
         ctx.load_dialect(testDialect)
 

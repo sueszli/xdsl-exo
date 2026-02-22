@@ -29,15 +29,13 @@ class PostOrderIterator(Iterator[Block]):
     def __next__(self) -> Block:
         if not self.stack:
             raise StopIteration
-        (block, visited) = self.stack.pop()
+        block, visited = self.stack.pop()
         while not visited:
             self.stack.append((block, True))
             term = block.last_op
             if isinstance(term, Operation) and term.has_trait(IsTerminator()):
-                self.stack.extend(
-                    (x, False) for x in reversed(term.successors) if x not in self.seen
-                )
+                self.stack.extend((x, False) for x in reversed(term.successors) if x not in self.seen)
                 self.seen.update(term.successors)
             # stack cannot be empty here
-            (block, visited) = self.stack.pop()
+            block, visited = self.stack.pop()
         return block

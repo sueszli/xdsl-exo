@@ -5,9 +5,7 @@ from xdsl.dialects.csl import csl_wrapper
 
 
 def test_get_layout_arg():
-    m_op = csl_wrapper.ModuleOp(
-        7, 8, "wse2", params={"one": IntegerAttr(9, 16), "two": IntegerAttr(10, 16)}
-    )
+    m_op = csl_wrapper.ModuleOp(7, 8, "wse2", params={"one": IntegerAttr(9, 16), "two": IntegerAttr(10, 16)})
     assert m_op.get_layout_param("x") == m_op.layout_module.block.args[0]
     assert m_op.get_layout_param("y") == m_op.layout_module.block.args[1]
     assert m_op.get_layout_param("width") == m_op.layout_module.block.args[2]
@@ -19,9 +17,7 @@ def test_get_layout_arg():
 
 
 def test_get_program_arg():
-    m_op = csl_wrapper.ModuleOp(
-        7, 8, "wse3", params={"one": IntegerAttr(9, 16), "two": IntegerAttr(10, 16)}
-    )
+    m_op = csl_wrapper.ModuleOp(7, 8, "wse3", params={"one": IntegerAttr(9, 16), "two": IntegerAttr(10, 16)})
     assert m_op.get_program_param("width") == m_op.program_module.block.args[0]
     assert m_op.get_program_param("height") == m_op.program_module.block.args[1]
     assert m_op.get_program_param("one") == m_op.program_module.block.args[2]
@@ -31,9 +27,7 @@ def test_get_program_arg():
 
 
 def test_update_program_args():
-    m_op = csl_wrapper.ModuleOp(
-        7, 8, "wse2", params={"one": IntegerAttr(9, 16), "two": IntegerAttr(10, 16)}
-    )
+    m_op = csl_wrapper.ModuleOp(7, 8, "wse2", params={"one": IntegerAttr(9, 16), "two": IntegerAttr(10, 16)})
     assert len(m_op.program_module.block.args) == 4
     with ImplicitBuilder(m_op.layout_module.block):
         zero_const = arith.ConstantOp(IntegerAttr(0, 16))

@@ -39,9 +39,7 @@ class BaseParser(GenericParser[MLIRTokenKind]):
             "Expected boolean literal" + context_msg,
         )
 
-    def parse_optional_integer(
-        self, allow_boolean: bool = True, allow_negative: bool = True
-    ) -> int | None:
+    def parse_optional_integer(self, allow_boolean: bool = True, allow_negative: bool = True) -> int | None:
         """
         Parse an (possible negative) integer. The integer can either be
         decimal or hexadecimal.
@@ -116,9 +114,7 @@ class BaseParser(GenericParser[MLIRTokenKind]):
             "Expected float literal",
         )
 
-    def parse_optional_number(
-        self, *, allow_boolean: bool = False
-    ) -> int | float | None:
+    def parse_optional_number(self, *, allow_boolean: bool = False) -> int | float | None:
         """
         Parse a (possibly negative) integer or float literal, if present.
         Can optionally parse 'true' or 'false' into 1 and 0.
@@ -126,11 +122,7 @@ class BaseParser(GenericParser[MLIRTokenKind]):
 
         is_negative = self._parse_optional_token(MLIRTokenKind.MINUS) is not None
 
-        if (
-            value := self.parse_optional_integer(
-                allow_boolean=False, allow_negative=False
-            )
-        ) is not None:
+        if (value := self.parse_optional_integer(allow_boolean=False, allow_negative=False)) is not None:
             return -value if is_negative else value
 
         if (value := self.parse_optional_float(allow_negative=False)) is not None:
@@ -144,17 +136,14 @@ class BaseParser(GenericParser[MLIRTokenKind]):
 
         return None
 
-    def parse_number(
-        self, allow_boolean: bool = False, context_msg: str = ""
-    ) -> int | float:
+    def parse_number(self, allow_boolean: bool = False, context_msg: str = "") -> int | float:
         """
         Parse a (possibly negative) integer or float literal.
         Can optionally parse 'true' or 'false' into 1 and 0.
         """
         return self.expect(
             lambda: self.parse_optional_number(allow_boolean=allow_boolean),
-            f"integer{', boolean,' if allow_boolean else ''} or float literal expected"
-            + context_msg,
+            f"integer{', boolean,' if allow_boolean else ''} or float literal expected" + context_msg,
         )
 
     def parse_optional_str_literal(self) -> str | None:
@@ -222,17 +211,12 @@ class BaseParser(GenericParser[MLIRTokenKind]):
         Parse an identifier, if present, with syntax:
             ident ::= (letter|[_]) (letter|digit|[_$.])*
         """
-        return self.expect(
-            self.parse_optional_identifier, "identifier expected" + context_msg
-        )
+        return self.expect(self.parse_optional_identifier, "identifier expected" + context_msg)
 
     def parse_optional_keyword(self, keyword: str) -> str | None:
         """Parse a specific identifier if it is present"""
 
-        if (
-            self._current_token.kind == MLIRTokenKind.BARE_IDENT
-            and self._current_token.text == keyword
-        ):
+        if self._current_token.kind == MLIRTokenKind.BARE_IDENT and self._current_token.text == keyword:
             self._consume_token(MLIRTokenKind.BARE_IDENT)
             return keyword
         return None
@@ -245,35 +229,27 @@ class BaseParser(GenericParser[MLIRTokenKind]):
             return keyword
         self.raise_error(error_msg)
 
-    def parse_optional_punctuation(
-        self, punctuation: PunctuationSpelling
-    ) -> PunctuationSpelling | None:
+    def parse_optional_punctuation(self, punctuation: PunctuationSpelling) -> PunctuationSpelling | None:
         """
         Parse a punctuation, if it is present. Otherwise, return None.
         Punctuations are defined by `PunctuationSpelling`.
         """
         # This check is only necessary to catch errors made by users that
         # are not using pyright.
-        assert MLIRTokenKind.is_spelling_of_punctuation(punctuation), (
-            "'parse_optional_punctuation' must be called with a valid punctuation"
-        )
+        assert MLIRTokenKind.is_spelling_of_punctuation(punctuation), "'parse_optional_punctuation' must be called with a valid punctuation"
         kind = MLIRTokenKind.get_punctuation_kind_from_name(punctuation)
         if self._parse_optional_token(kind) is not None:
             return punctuation
         return None
 
-    def parse_punctuation(
-        self, punctuation: PunctuationSpelling, context_msg: str = ""
-    ) -> PunctuationSpelling:
+    def parse_punctuation(self, punctuation: PunctuationSpelling, context_msg: str = "") -> PunctuationSpelling:
         """
         Parse a punctuation. Punctuations are defined by
         `PunctuationSpelling`.
         """
         # This check is only necessary to catch errors made by users that
         # are not using pyright.
-        assert MLIRTokenKind.is_spelling_of_punctuation(punctuation), (
-            "'parse_punctuation' must be called with a valid punctuation"
-        )
+        assert MLIRTokenKind.is_spelling_of_punctuation(punctuation), "'parse_punctuation' must be called with a valid punctuation"
         kind = MLIRTokenKind.get_punctuation_kind_from_name(punctuation)
         self._parse_token(kind, f"Expected '{punctuation}'" + context_msg)
         return punctuation
@@ -286,9 +262,7 @@ class BaseParser(GenericParser[MLIRTokenKind]):
         enum_values = tuple(enum_type)
         if len(enum_values) == 1:
             self.raise_error(f"Expected `{enum_values[0]}`.")
-        self.raise_error(
-            f"Expected `{'`, `'.join(enum_values[:-1])}`, or `{enum_values[-1]}`."
-        )
+        self.raise_error(f"Expected `{'`, `'.join(enum_values[:-1])}`, or `{enum_values[-1]}`.")
 
     def parse_optional_str_enum(self, enum_type: type[_EnumType]) -> _EnumType | None:
         """Parse a string enum value, if present."""

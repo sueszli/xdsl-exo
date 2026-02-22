@@ -167,9 +167,7 @@ class MachineArchSpec:
         if not march.startswith("RV"):
             raise ValueError("Spec must start with RV...")
 
-        match = re.fullmatch(
-            r"RV(\d+)([A-Y]*)((Z[a-z]+)?(_Z[a-z]+)*)_?((X[a-z]+)?(_X[a-z]+)*)", march
-        )
+        match = re.fullmatch(r"RV(\d+)([A-Y]*)((Z[a-z]+)?(_Z[a-z]+)*)_?((X[a-z]+)?(_X[a-z]+)*)", march)
         if match is None:
             raise ValueError(f'Malformed march string: "{march}"')
         width_str, letters, exts, _, _, more_exts, _, _ = match.groups()
@@ -181,11 +179,7 @@ class MachineArchSpec:
         object.__setattr__(
             self,
             "extensions",
-            _expand_isa_letters(
-                list(letters)
-                + ["Z" + z.lower().strip("_") for z in exts.split("Z")[1:]]
-                + ["X" + x.lower().strip("_") for x in more_exts.split("X")[1:]]
-            ),
+            _expand_isa_letters(list(letters) + ["Z" + z.lower().strip("_") for z in exts.split("Z")[1:]] + ["X" + x.lower().strip("_") for x in more_exts.split("X")[1:]]),
         )
 
         # determine flen
@@ -267,6 +261,4 @@ class MAbi(Enum):
 class RecognizedTargets(Enum):
     riscv32_riscemu = TargetDefinition(MAbi.ILP32.value, MachineArchSpec("RV32IMA_Zto"))
     riscv64_linux = TargetDefinition(MAbi.LP64D.value, MachineArchSpec("RV64G"))
-    snitch = TargetDefinition(
-        MAbi.ILP32D.value, MachineArchSpec("RV32IMAD_Xssr_Xfrep_Xdma")
-    )
+    snitch = TargetDefinition(MAbi.ILP32D.value, MachineArchSpec("RV32IMAD_Xssr_Xfrep_Xdma"))

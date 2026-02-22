@@ -1,12 +1,6 @@
 from math import ceil
 
-from xdsl.interpreter import (
-    Interpreter,
-    InterpreterFunctions,
-    PythonValues,
-    impl_external,
-    register_impls,
-)
+from xdsl.interpreter import Interpreter, InterpreterFunctions, PythonValues, impl_external, register_impls
 from xdsl.interpreters.utils import ptr
 from xdsl.ir import Operation
 
@@ -14,9 +8,7 @@ from xdsl.ir import Operation
 @register_impls
 class RiscvLibcFunctions(InterpreterFunctions):
     @impl_external("malloc")
-    def malloc(
-        self, interpreter: Interpreter, op: Operation, args: PythonValues
-    ) -> PythonValues:
+    def malloc(self, interpreter: Interpreter, op: Operation, args: PythonValues) -> PythonValues:
         assert len(args) == 1
         assert isinstance(args[0], int)
         size = args[0]
@@ -28,9 +20,7 @@ class RiscvLibcFunctions(InterpreterFunctions):
         return (ptr.RawPtr.zeros(size),)
 
     @impl_external("calloc")
-    def calloc(
-        self, interpreter: Interpreter, op: Operation, args: PythonValues
-    ) -> PythonValues:
+    def calloc(self, interpreter: Interpreter, op: Operation, args: PythonValues) -> PythonValues:
         assert len(args) == 2
         assert isinstance(args[0], int)
         assert isinstance(args[1], int)
@@ -46,9 +36,7 @@ class RiscvLibcFunctions(InterpreterFunctions):
         return (ptr.RawPtr.zeros(size),)
 
     @impl_external("free")
-    def free(
-        self, interpreter: Interpreter, op: Operation, args: PythonValues
-    ) -> PythonValues:
+    def free(self, interpreter: Interpreter, op: Operation, args: PythonValues) -> PythonValues:
         assert len(args) == 1
         assert isinstance(args[0], ptr.RawPtr)
         return ()

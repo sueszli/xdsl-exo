@@ -67,38 +67,26 @@ def test_register_from_string():
         TestRegister.from_name("yy")
 
     # Incorrect name
-    with pytest.raises(
-        VerifyException, match="Invalid register name z0 for register type test.reg"
-    ):
+    with pytest.raises(VerifyException, match="Invalid register name z0 for register type test.reg"):
         TestRegister.from_name("z0")
 
 
 def test_invalid_register_name():
-    with pytest.raises(
-        VerifyException, match="Invalid register name foo for register type test.reg."
-    ):
+    with pytest.raises(VerifyException, match="Invalid register name foo for register type test.reg."):
         TestRegister.from_name("foo")
 
 
 def test_invalid_index():
-    with pytest.raises(
-        AssertionError, match="Infinite index must be positive, got -1."
-    ):
+    with pytest.raises(AssertionError, match="Infinite index must be positive, got -1."):
         TestRegister.infinite_register(-1)
 
-    with pytest.raises(
-        VerifyException, match="Invalid index 1 for unallocated register."
-    ):
+    with pytest.raises(VerifyException, match="Invalid index 1 for unallocated register."):
         TestRegister(IntAttr(1), StringAttr(""))
 
-    with pytest.raises(
-        VerifyException, match="Missing index for register x1, expected 1."
-    ):
+    with pytest.raises(VerifyException, match="Missing index for register x1, expected 1."):
         TestRegister(NoneAttr(), StringAttr("x1"))
 
-    with pytest.raises(
-        VerifyException, match="Invalid index 2 for register x1, expected 1."
-    ):
+    with pytest.raises(VerifyException, match="Invalid index 2 for register x1, expected 1."):
         TestRegister(IntAttr(2), StringAttr("x1"))
 
 

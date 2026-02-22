@@ -4,13 +4,7 @@ from xdsl.dialects import builtin, memref, scf
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.irdl import Operand
 from xdsl.passes import Context, ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 
 
@@ -28,11 +22,7 @@ def find_same_target_store(load: memref.LoadOp):
     found_op = None
 
     for op in parent_block.ops:
-        if (
-            isinstance(op, memref.StoreOp)
-            and op.memref == load.memref
-            and op.indices == load.indices
-        ):
+        if isinstance(op, memref.StoreOp) and op.memref == load.memref and op.indices == load.indices:
             if found_op is None:
                 found_op = op
             else:
@@ -111,22 +101,13 @@ class LoopHoistMemRef(RewritePattern):
         load_store_pairs: dict[memref.LoadOp, memref.StoreOp] = {}
 
         for load in loads:
-            if (
-                (store := find_same_target_store(load))
-                and parent_block.get_operation_index(load)
-                < parent_block.get_operation_index(store)
-                and not any(is_loop_dependent(idx, for_op) for idx in load.indices)
-            ):
+            if (store := find_same_target_store(load)) and parent_block.get_operation_index(load) < parent_block.get_operation_index(store) and not any(is_loop_dependent(idx, for_op) for idx in load.indices):
                 load_store_pairs[load] = store
 
         # filter out stores using the same value
         store_vals = [store.value for store in load_store_pairs.values()]
         dup_store_vals = [val for val in store_vals if store_vals.count(val) > 1]
-        load_store_pairs = {
-            load: store
-            for load, store in load_store_pairs.items()
-            if store.value not in dup_store_vals
-        }
+        load_store_pairs = {load: store for load, store in load_store_pairs.items() if store.value not in dup_store_vals}
 
         if not load_store_pairs:
             return
@@ -139,22 +120,10 @@ class LoopHoistMemRef(RewritePattern):
         block_map: dict[Block, Block] = {}
         for_op.body.clone_into(new_body, None, None, block_map)
 
-        load_map = {
-            load: new_load
-            for load, new_load in zip(for_op.body.block.ops, new_body.block.ops)
-            if isinstance(load, memref.LoadOp) and isinstance(new_load, memref.LoadOp)
-        }
-        store_map = {
-            store: new_store
-            for store, new_store in zip(for_op.body.block.ops, new_body.block.ops)
-            if isinstance(store, memref.StoreOp)
-            and isinstance(new_store, memref.StoreOp)
-        }
+        load_map = {load: new_load for load, new_load in zip(for_op.body.block.ops, new_body.block.ops) if isinstance(load, memref.LoadOp) and isinstance(new_load, memref.LoadOp)}
+        store_map = {store: new_store for store, new_store in zip(for_op.body.block.ops, new_body.block.ops) if isinstance(store, memref.StoreOp) and isinstance(new_store, memref.StoreOp)}
 
-        new_block_args = [
-            new_body.block.insert_arg(new_load.res.type, len(new_body.block.args))
-            for new_load in new_loads
-        ]
+        new_block_args = [new_body.block.insert_arg(new_load.res.type, len(new_body.block.args)) for new_load in new_loads]
 
         toerase_ops: list[Operation] = []
         for new_block_arg, load in zip(new_block_args, load_store_pairs.keys()):
@@ -179,10 +148,7 @@ class LoopHoistMemRef(RewritePattern):
         new_for_op = scf.ForOp(for_op.lb, for_op.ub, for_op.step, new_loads, new_body)
 
         # use yielded results of new loop in stores after the loop
-        new_stores = [
-            memref.StoreOp.get(new_for_op.res[idx], store.memref, store.indices)
-            for idx, store in enumerate(load_store_pairs.values())
-        ]
+        new_stores = [memref.StoreOp.get(new_for_op.res[idx], store.memref, store.indices) for idx, store in enumerate(load_store_pairs.values())]
         rewriter.insert_op(new_stores, InsertPoint.after(for_op))
 
         rewriter.insert_op(new_for_op, InsertPoint.before(for_op))

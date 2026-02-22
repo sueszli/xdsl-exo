@@ -1,15 +1,7 @@
 from typing import Any
 
 from xdsl.dialects import scf
-from xdsl.interpreter import (
-    Interpreter,
-    InterpreterFunctions,
-    PythonValues,
-    ReturnedValues,
-    impl,
-    impl_terminator,
-    register_impls,
-)
+from xdsl.interpreter import Interpreter, InterpreterFunctions, PythonValues, ReturnedValues, impl, impl_terminator, register_impls
 
 
 @register_impls
@@ -22,16 +14,12 @@ class ScfFunctions(InterpreterFunctions):
         return results
 
     @impl(scf.ForOp)
-    def run_for(
-        self, interpreter: Interpreter, op: scf.ForOp, args: PythonValues
-    ) -> PythonValues:
+    def run_for(self, interpreter: Interpreter, op: scf.ForOp, args: PythonValues) -> PythonValues:
         lb, ub, step, *loop_args = args
         loop_args = tuple(loop_args)
 
         for i in range(lb, ub, step):
-            loop_args = interpreter.run_ssacfg_region(
-                op.body, (i, *loop_args), "for_loop"
-            )
+            loop_args = interpreter.run_ssacfg_region(op.body, (i, *loop_args), "for_loop")
 
         return loop_args
 

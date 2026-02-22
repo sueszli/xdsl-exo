@@ -54,9 +54,7 @@ class PrintfOp(riscv.RISCVCustomFormatOperation, riscv.RISCVInstruction):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["format_str"] = StringAttr(
-            parser.parse_str_literal("format string.")
-        )
+        attributes["format_str"] = StringAttr(parser.parse_str_literal("format string."))
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:

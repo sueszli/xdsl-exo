@@ -1,40 +1,13 @@
 from typing import Any, cast
 
-from xdsl.backend.riscv.lowering.utils import (
-    cast_operands_to_regs,
-    move_to_unallocated_regs,
-)
+from xdsl.backend.riscv.lowering.utils import cast_operands_to_regs, move_to_unallocated_regs
 from xdsl.context import Context
-from xdsl.dialects import (
-    builtin,
-    memref,
-    memref_stream,
-    riscv,
-    riscv_snitch,
-    snitch,
-    snitch_stream,
-)
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    Float16Type,
-    Float32Type,
-    Float64Type,
-    IntAttr,
-    MemRefType,
-    ModuleOp,
-    UnrealizedConversionCastOp,
-    VectorType,
-)
+from xdsl.dialects import builtin, memref, memref_stream, riscv, riscv_snitch, snitch, snitch_stream
+from xdsl.dialects.builtin import ArrayAttr, Float16Type, Float32Type, Float64Type, IntAttr, MemRefType, ModuleOp, UnrealizedConversionCastOp, VectorType
 from xdsl.ir import Attribute, AttributeCovT, Operation
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import DiagnosticException
 
@@ -61,23 +34,15 @@ def snitch_stream_element_type_is_valid(attr: Attribute) -> bool:
 
 class ReadOpLowering(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: memref_stream.ReadOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: memref_stream.ReadOp, rewriter: PatternRewriter) -> None:
         stream_type = op.stream.type
         assert isinstance(stream_type, memref_stream.ReadableStreamType)
-        value_type = cast(
-            memref_stream.ReadableStreamType[Attribute], stream_type
-        ).element_type
+        value_type = cast(memref_stream.ReadableStreamType[Attribute], stream_type).element_type
         if not snitch_stream_element_type_is_valid(value_type):
-            raise DiagnosticException(
-                f"Invalid snitch stream element type {value_type}"
-            )
+            raise DiagnosticException(f"Invalid snitch stream element type {value_type}")
         register_type = riscv.Registers.UNALLOCATED_FLOAT
 
-        new_stream = UnrealizedConversionCastOp.get(
-            (op.stream,), (snitch.ReadableStreamType(register_type),)
-        )
+        new_stream = UnrealizedConversionCastOp.get((op.stream,), (snitch.ReadableStreamType(register_type),))
         new_op = riscv_snitch.ReadOp(new_stream.results[0])
         if len(op.res.uses) == 1:
             new_mv = ()
@@ -99,34 +64,21 @@ class ReadOpLowering(RewritePattern):
 
 class WriteOpLowering(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: memref_stream.WriteOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: memref_stream.WriteOp, rewriter: PatternRewriter) -> None:
         stream_type = op.stream.type
         assert isinstance(stream_type, memref_stream.WritableStreamType)
-        value_type = cast(
-            memref_stream.WritableStreamType[Attribute], stream_type
-        ).element_type
+        value_type = cast(memref_stream.WritableStreamType[Attribute], stream_type).element_type
         if not snitch_stream_element_type_is_valid(value_type):
-            raise DiagnosticException(
-                f"Invalid snitch stream element type {value_type}"
-            )
+            raise DiagnosticException(f"Invalid snitch stream element type {value_type}")
         register_type = riscv.Registers.UNALLOCATED_FLOAT
 
-        new_stream = UnrealizedConversionCastOp.get(
-            (op.stream,), (snitch.WritableStreamType(register_type),)
-        )
+        new_stream = UnrealizedConversionCastOp.get((op.stream,), (snitch.WritableStreamType(register_type),))
         cast_op = UnrealizedConversionCastOp.get((op.value,), (register_type,))
-        if isinstance(defining_op := op.value.owner, Operation) and (
-            defining_op.parent_region() is op.parent_region()
-            and not isinstance(defining_op, memref_stream.ReadOp)
-        ):
+        if isinstance(defining_op := op.value.owner, Operation) and (defining_op.parent_region() is op.parent_region() and not isinstance(defining_op, memref_stream.ReadOp)):
             move_ops = ()
             new_values = cast_op.results
         else:
-            move_ops = (
-                riscv.FMvDOp(cast_op.results[0], rd=riscv.Registers.UNALLOCATED_FLOAT),
-            )
+            move_ops = (riscv.FMvDOp(cast_op.results[0], rd=riscv.Registers.UNALLOCATED_FLOAT),)
             new_values = move_ops[0].results
         new_write = riscv_snitch.WriteOp(new_values[0], new_stream.results[0])
 
@@ -137,23 +89,12 @@ class WriteOpLowering(RewritePattern):
 
 class StreamOpLowering(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: memref_stream.StreamingRegionOp, rewriter: PatternRewriter
-    ) -> None:
-        operand_types = tuple(
-            cast(memref.MemRefType[Attribute], value_type)
-            for value in op.operands
-            if isinstance(value_type := value.type, memref.MemRefType)
-        )
+    def match_and_rewrite(self, op: memref_stream.StreamingRegionOp, rewriter: PatternRewriter) -> None:
+        operand_types = tuple(cast(memref.MemRefType[Attribute], value_type) for value in op.operands if isinstance(value_type := value.type, memref.MemRefType))
         stride_patterns = tuple(
             snitch_stream.StridePattern(
                 ArrayAttr(ub.value for ub in pattern.ub),
-                ArrayAttr(
-                    IntAttr(stride)
-                    for stride in strides_for_affine_map(
-                        pattern.index_map.data, memref_type
-                    )
-                ),
+                ArrayAttr(IntAttr(stride) for stride in strides_for_affine_map(pattern.index_map.data, memref_type)),
             ).simplified()
             for pattern, memref_type in zip(op.patterns, operand_types, strict=True)
         )
@@ -185,15 +126,11 @@ class StreamOpLowering(RewritePattern):
                 cast_op := builtin.UnrealizedConversionCastOp.get((arg,), (arg.type,)),
                 InsertPoint.at_start(new_body),
             )
-            arg.replace_by_if(
-                cast_op.results[0], lambda use: use.operation is not cast_op
-            )
+            arg.replace_by_if(cast_op.results[0], lambda use: use.operation is not cast_op)
             rewriter.replace_value_with_new_type(arg, stream_type)
 
 
-def strides_for_affine_map(
-    affine_map: AffineMap, memref_type: MemRefType[AttributeCovT]
-) -> list[int]:
+def strides_for_affine_map(affine_map: AffineMap, memref_type: MemRefType[AttributeCovT]) -> list[int]:
     """
     Given an iteration space represented as an affine map (for indexing) and a shape (for
     bounds), returns the corresponding iteration strides for each dimension.

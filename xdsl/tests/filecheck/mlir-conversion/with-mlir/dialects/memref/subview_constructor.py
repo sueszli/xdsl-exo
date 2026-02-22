@@ -14,14 +14,10 @@ def subview_module():
     input = memref.AllocOp.get(f32, 0, [100, 200, 300, 400])
     assert isa(input.memref.type, memref.MemRefType[Attribute])
 
-    subview = memref.SubviewOp.from_static_parameters(
-        input, input.memref.type, [1, 2, 3, 4], [90, 95, 1, 80], [3, 4, 1, 2]
-    )
+    subview = memref.SubviewOp.from_static_parameters(input, input.memref.type, [1, 2, 3, 4], [90, 95, 1, 80], [3, 4, 1, 2])
     assert isa(subview.result.type, memref.MemRefType[Attribute])
 
-    memref.SubviewOp.from_static_parameters(
-        subview, subview.result.type, [2, 5, 6, 1], [70, 1, 20, 64], [1, 5, 3, 2]
-    )
+    memref.SubviewOp.from_static_parameters(subview, subview.result.type, [2, 5, 6, 1], [70, 1, 20, 64], [1, 5, 3, 2])
 
     subview_reduced = memref.SubviewOp.from_static_parameters(
         input,

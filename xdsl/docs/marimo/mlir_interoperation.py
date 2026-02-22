@@ -6,28 +6,27 @@ app = marimo.App(width="medium")
 
 @app.cell(hide_code=True)
 def _():
-    import marimo as mo
     import subprocess
+
+    import marimo as mo
+
     return mo, subprocess
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         # xDSL-MLIR Interoperation Tutorial
 
         This tutorial aims to showcase a simple pipeline of actions to unlock MLIR optimisations when lowering from xDSL.
         This tutorial can help users getting familiar with the xDSL-MLIR interoperation. We will start from a higher level of xDSL abstraction, lower to MLIR generic format, apply an optimisation and the return to xDSL-land.
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## Problem Setup
 
         We start by writing a simple example consisting of adding integers.
@@ -45,8 +44,7 @@ def _(mo):
         e = c + d
         print(e)
         ```
-        """
-    )
+        """)
     return
 
 
@@ -96,12 +94,10 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         Using xDSLs printer we can print this operation.
         For convenience we provide a file called `source.mlir` with the code printed below
-        """
-    )
+        """)
     return
 
 
@@ -125,16 +121,14 @@ def _(mo, subprocess):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         Now, let's try to benefit from some MLIR optimization.
         For this example, we will use the [Common subexpression elimination](https://en.wikipedia.org/wiki/Common_subexpression_elimination).
 
         See some documentation here: [mlir.llvm CSE docs](https://mlir.llvm.org/docs/Passes/#-cse-eliminate-common-sub-expressions).
 
         Assuming you have already `mlir-opt` installed in your machine:
-        """
-    )
+        """)
     return
 
 
@@ -166,14 +160,13 @@ def _(mo):
 def _(mlir_opt_tool, source_file, subprocess):
     # mlir-opt --cse --mlir-print-op-generic
     ps1 = subprocess.run([mlir_opt_tool, source_file, "--cse", "--mlir-print-op-generic"], capture_output=True)
-    print(ps1.stdout.decode('utf-8').strip())
+    print(ps1.stdout.decode("utf-8").strip())
     return (ps1,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         We can clearly see in the optimized output that after CSE we do not need to calculate:
 
         ```
@@ -183,8 +176,7 @@ def _(mo):
         twice!
 
         Now can we back to xDSL? Yes we can!
-        """
-    )
+        """)
     return
 
 

@@ -4,60 +4,14 @@ from collections.abc import Iterable, Sequence, Set
 from dataclasses import dataclass
 from typing import ClassVar, cast
 
-from xdsl.dialects.builtin import (
-    I16,
-    I32,
-    ArrayAttr,
-    ContainerOf,
-    DictionaryAttr,
-    Float16Type,
-    Float32Type,
-    Float64Type,
-    FunctionType,
-    IndexType,
-    IntegerAttr,
-    IntegerType,
-    StringAttr,
-    SymbolRefAttr,
-    UnitAttr,
-)
-from xdsl.dialects.pdl import (
-    AnyPDLTypeConstr,
-    AttributeType,
-    OperationType,
-    RangeType,
-    TypeType,
-    ValueType,
-)
+from xdsl.dialects.builtin import I16, I32, ArrayAttr, ContainerOf, DictionaryAttr, Float16Type, Float32Type, Float64Type, FunctionType, IndexType, IntegerAttr, IntegerType, StringAttr, SymbolRefAttr, UnitAttr
+from xdsl.dialects.pdl import AnyPDLTypeConstr, AttributeType, OperationType, RangeType, TypeType, ValueType
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
-from xdsl.irdl import (
-    AnyAttr,
-    AnyOf,
-    AttrSizedOperandSegments,
-    ConstraintContext,
-    GenericAttrConstraint,
-    IRDLOperation,
-    VarConstraint,
-    base,
-    irdl_op_definition,
-    operand_def,
-    opt_prop_def,
-    prop_def,
-    region_def,
-    result_def,
-    successor_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.irdl import AnyAttr, AnyOf, AttrSizedOperandSegments, ConstraintContext, GenericAttrConstraint, IRDLOperation, VarConstraint, base, irdl_op_definition, operand_def, opt_prop_def, prop_def, region_def, result_def, successor_def, traits_def, var_operand_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import (
-    CallableOpInterface,
-    IsolatedFromAbove,
-    IsTerminator,
-    SymbolOpInterface,
-)
+from xdsl.traits import CallableOpInterface, IsolatedFromAbove, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -82,9 +36,7 @@ class GetOperandOp(IRDLOperation):
     def __init__(self, index: int | IntegerAttr[I32], input_op: SSAValue) -> None:
         if isinstance(index, int):
             index = IntegerAttr.from_int_and_width(index, 32)
-        super().__init__(
-            operands=[input_op], properties={"index": index}, result_types=[ValueType()]
-        )
+        super().__init__(operands=[input_op], properties={"index": index}, result_types=[ValueType()])
 
 
 @irdl_op_definition
@@ -115,9 +67,7 @@ class CheckOperationNameOp(IRDLOperation):
     true_dest = successor_def()
     false_dest = successor_def()
 
-    assembly_format = (
-        "`of` $input_op `is` $name attr-dict `->` $true_dest `, ` $false_dest"
-    )
+    assembly_format = "`of` $input_op `is` $name attr-dict `->` $true_dest `, ` $false_dest"
 
     def __init__(
         self,
@@ -219,9 +169,7 @@ class IsNotNullOp(IRDLOperation):
     true_dest = successor_def()
     false_dest = successor_def()
 
-    assembly_format = (
-        "$value `:` type($value) attr-dict `->` $true_dest `, ` $false_dest"
-    )
+    assembly_format = "$value `:` type($value) attr-dict `->` $true_dest `, ` $false_dest"
 
     def __init__(self, value: SSAValue, trueDest: Block, falseDest: Block) -> None:
         super().__init__(operands=[value], successors=[trueDest, falseDest])
@@ -243,9 +191,7 @@ class GetResultOp(IRDLOperation):
     def __init__(self, index: int | IntegerAttr[I32], input_op: SSAValue) -> None:
         if isinstance(index, int):
             index = IntegerAttr.from_int_and_width(index, 32)
-        super().__init__(
-            operands=[input_op], properties={"index": index}, result_types=[ValueType()]
-        )
+        super().__init__(operands=[input_op], properties={"index": index}, result_types=[ValueType()])
 
 
 @irdl_op_definition
@@ -337,9 +283,7 @@ class CheckAttributeOp(IRDLOperation):
     true_dest = successor_def()
     false_dest = successor_def()
 
-    assembly_format = (
-        "$attribute `is` $constantValue attr-dict `->` $true_dest `, ` $false_dest"
-    )
+    assembly_format = "$attribute `is` $constantValue attr-dict `->` $true_dest `, ` $false_dest"
 
     def __init__(
         self,
@@ -369,13 +313,9 @@ class AreEqualOp(IRDLOperation):
     true_dest = successor_def()
     false_dest = successor_def()
 
-    assembly_format = (
-        "operands `:` type($lhs) attr-dict `->` $true_dest `, ` $false_dest"
-    )
+    assembly_format = "operands `:` type($lhs) attr-dict `->` $true_dest `, ` $false_dest"
 
-    def __init__(
-        self, lhs: SSAValue, rhs: SSAValue, trueDest: Block, falseDest: Block
-    ) -> None:
+    def __init__(self, lhs: SSAValue, rhs: SSAValue, trueDest: Block, falseDest: Block) -> None:
         super().__init__(operands=[lhs, rhs], successors=[trueDest, falseDest])
 
 
@@ -399,11 +339,7 @@ class RecordMatchOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    assembly_format = (
-        "$rewriter (`(` $inputs^ `:` type($inputs) `)`)? `:` `benefit` `(` $benefit `)` `,`"
-        "(`generatedOps` `(` $generatedOps^ `)` `,`)? `loc` `(` `[` $matched_ops `]` `)`"
-        "(`,` `root` `(` $rootKind^ `)`)? attr-dict `->` $dest"
-    )
+    assembly_format = "$rewriter (`(` $inputs^ `:` type($inputs) `)`)? `:` `benefit` `(` $benefit `)` `,`" "(`generatedOps` `(` $generatedOps^ `)` `,`)? `loc` `(` `[` $matched_ops `]` `)`" "(`,` `root` `(` $rootKind^ `)`)? attr-dict `->` $dest"
 
     def __init__(
         self,
@@ -419,9 +355,7 @@ class RecordMatchOp(IRDLOperation):
             rewriter = SymbolRefAttr(rewriter)
         if isinstance(root_kind, str):
             root_kind = StringAttr(root_kind)
-        if (
-            generated_ops is None
-        ):  # TODO: if generatedOps is actually optional (check this), we shouldn't even pass an empty list
+        if generated_ops is None:  # TODO: if generatedOps is actually optional (check this), we shouldn't even pass an empty list
             generated_ops = []
         if isinstance(benefit, int):
             benefit = IntegerAttr.from_int_and_width(benefit, 16)
@@ -438,9 +372,7 @@ class RecordMatchOp(IRDLOperation):
 
 
 @dataclass(frozen=True)
-class ValueConstrFromResultConstr(
-    GenericAttrConstraint[ValueType | RangeType[ValueType]]
-):
+class ValueConstrFromResultConstr(GenericAttrConstraint[ValueType | RangeType[ValueType]]):
     result_constr: GenericAttrConstraint[TypeType | RangeType[TypeType]]
 
     def can_infer(self, var_constraint_names: Set[str]) -> bool:
@@ -458,9 +390,7 @@ class ValueConstrFromResultConstr(
         elif isa(attr, ValueType):
             result_type = TypeType()
         else:
-            raise VerifyException(
-                f"Expected an attribute of type ValueType or RangeType[ValueType], but got {attr}"
-            )
+            raise VerifyException(f"Expected an attribute of type ValueType or RangeType[ValueType], but got {attr}")
         return self.result_constr.verify(result_type, constraint_context)
 
 
@@ -480,11 +410,7 @@ class GetValueTypeOp(IRDLOperation):
     def __init__(self, value: SSAValue) -> None:
         super().__init__(
             operands=[value],
-            result_types=[
-                RangeType(TypeType())
-                if isinstance(value.type, RangeType)
-                else TypeType()
-            ],
+            result_types=[RangeType(TypeType()) if isinstance(value.type, RangeType) else TypeType()],
         )
 
 
@@ -498,9 +424,7 @@ class ReplaceOp(IRDLOperation):
     input_op = operand_def(OperationType)
     repl_values = var_operand_def(ValueType | RangeType[ValueType])
 
-    assembly_format = (
-        "$input_op `with` ` ` `(` ($repl_values^ `:` type($repl_values))? `)` attr-dict"
-    )
+    assembly_format = "$input_op `with` ` ` `(` ($repl_values^ `:` type($repl_values))? `)` attr-dict"
 
     def __init__(self, input_op: SSAValue, repl_values: list[SSAValue]) -> None:
         super().__init__(operands=[input_op, repl_values])
@@ -575,16 +499,18 @@ class CreateOperationOp(IRDLOperation):
         super().__init__(
             operands=[input_operands, input_attributes, input_result_types],
             result_types=[OperationType()],
-            properties={
-                "name": name,
-                "inferredResultTypes": inferred_result_types,
-                "inputAttributeNames": input_attribute_names,
-            }
-            if inferred_result_types
-            else {
-                "name": name,
-                "inputAttributeNames": input_attribute_names,
-            },
+            properties=(
+                {
+                    "name": name,
+                    "inferredResultTypes": inferred_result_types,
+                    "inputAttributeNames": input_attribute_names,
+                }
+                if inferred_result_types
+                else {
+                    "name": name,
+                    "inputAttributeNames": input_attribute_names,
+                }
+            ),
         )
 
     @staticmethod
@@ -643,16 +569,18 @@ class CreateOperationOp(IRDLOperation):
 
         op = CreateOperationOp.build(
             operands=(input_operands, input_attributes, input_result_types),
-            properties={
-                "name": name,
-                "inputAttributeNames": input_attribute_names,
-            }
-            if inferred_result_types is None
-            else {
-                "name": name,
-                "inferredResultTypes": inferred_result_types,
-                "inputAttributeNames": input_attribute_names,
-            },
+            properties=(
+                {
+                    "name": name,
+                    "inputAttributeNames": input_attribute_names,
+                }
+                if inferred_result_types is None
+                else {
+                    "name": name,
+                    "inferredResultTypes": inferred_result_types,
+                    "inputAttributeNames": input_attribute_names,
+                }
+            ),
             result_types=(OperationType(),),
         )
         return op
@@ -743,9 +671,7 @@ class FuncOp(IRDLOperation):
 
     body = region_def()
 
-    traits = traits_def(
-        IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()
-    )
+    traits = traits_def(IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface())
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
@@ -757,9 +683,7 @@ class FuncOp(IRDLOperation):
             extra_attrs,
             arg_attrs,
             res_attrs,
-        ) = parse_func_op_like(
-            parser, reserved_attr_names=("sym_name", "function_type")
-        )
+        ) = parse_func_op_like(parser, reserved_attr_names=("sym_name", "function_type"))
         func = FuncOp(
             sym_name=name,
             function_type=(input_types, return_types),

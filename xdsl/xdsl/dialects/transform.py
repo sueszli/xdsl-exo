@@ -4,52 +4,11 @@ from abc import ABC
 from collections.abc import Mapping, Sequence
 from typing import Annotated, TypeAlias
 
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    DenseArrayBase,
-    DictionaryAttr,
-    FunctionType,
-    IntAttr,
-    IntegerAttr,
-    IntegerType,
-    StringAttr,
-    SymbolRefAttr,
-    UnitAttr,
-)
+from xdsl.dialects.builtin import ArrayAttr, DenseArrayBase, DictionaryAttr, FunctionType, IntAttr, IntegerAttr, IntegerType, StringAttr, SymbolRefAttr, UnitAttr
 from xdsl.dialects.func import FuncOpCallableInterface
-from xdsl.dialects.utils import (
-    AbstractYieldOperation,
-    parse_func_op_like,
-    print_func_op_like,
-)
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    EnumAttribute,
-    ParametrizedAttribute,
-    Region,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    AnyOf,
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    ParameterDef,
-    ParsePropInAttrDict,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_attr_def,
-    opt_operand_def,
-    opt_prop_def,
-    prop_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.dialects.utils import AbstractYieldOperation, parse_func_op_like, print_func_op_like
+from xdsl.ir import Attribute, Dialect, EnumAttribute, ParametrizedAttribute, Region, SSAValue, TypeAttribute
+from xdsl.irdl import AnyOf, AttrSizedOperandSegments, IRDLOperation, ParameterDef, ParsePropInAttrDict, irdl_attr_definition, irdl_op_definition, operand_def, opt_attr_def, opt_operand_def, opt_prop_def, prop_def, region_def, result_def, traits_def, var_operand_def, var_result_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsolatedFromAbove, IsTerminator, SymbolOpInterface
@@ -146,15 +105,11 @@ class FailurePropagationModeType(StrEnum):
 
 
 @irdl_attr_definition
-class FailurePropagationModeAttr(
-    EnumAttribute[FailurePropagationModeType], TypeAttribute
-):
+class FailurePropagationModeAttr(EnumAttribute[FailurePropagationModeType], TypeAttribute):
     name = "transform.failures"
 
 
-AnyIntegerOrFailurePropagationModeAttr: TypeAlias = Annotated[
-    Attribute, AnyOf([IntegerType, FailurePropagationModeAttr])
-]
+AnyIntegerOrFailurePropagationModeAttr: TypeAlias = Annotated[Attribute, AnyOf([IntegerType, FailurePropagationModeAttr])]
 
 
 @irdl_op_definition
@@ -169,9 +124,7 @@ class ApplyRegisteredPassOp(IRDLOperation):
     pass_name = prop_def(StringAttr)
     target = operand_def(TransformHandleType)
     result = result_def(TransformHandleType)
-    assembly_format = (
-        "$pass_name `to` $target attr-dict `:` functional-type(operands, results)"
-    )
+    assembly_format = "$pass_name `to` $target attr-dict `:` functional-type(operands, results)"
     irdl_options = [ParsePropInAttrDict()]
 
     def __init__(
@@ -318,14 +271,12 @@ class GetResultOp(IRDLOperation):
     def __init__(
         self,
         target: SSAValue,
-        raw_position_list: (Sequence[int] | Sequence[IntAttr] | DenseArrayBase),
+        raw_position_list: Sequence[int] | Sequence[IntAttr] | DenseArrayBase,
         is_inverted: bool = False,
         is_all: bool = False,
     ):
         if isinstance(raw_position_list, Sequence):
-            raw_position_list = DenseArrayBase.create_dense_int(
-                IntegerType(64), raw_position_list
-            )
+            raw_position_list = DenseArrayBase.create_dense_int(IntegerType(64), raw_position_list)
         super().__init__(
             properties={
                 "raw_position_list": raw_position_list,
@@ -377,9 +328,7 @@ class IncludeOp(IRDLOperation):
         operands_input: Sequence[SSAValue],
     ):
         if isinstance(failure_propagation_mode, int):
-            failure_propagation_mode = IntegerAttr(
-                failure_propagation_mode, IntegerType(1)
-            )
+            failure_propagation_mode = IntegerAttr(failure_propagation_mode, IntegerType(1))
         super().__init__(
             properties={
                 "target": SymbolRefAttr(target),
@@ -421,12 +370,7 @@ class MatchOperationNameOp(IRDLOperation):
         operand_handle: SSAValue,
     ):
         if isinstance(op_names, Sequence):
-            op_names = ArrayAttr(
-                [
-                    StringAttr(name) if isinstance(name, str) else name
-                    for name in op_names
-                ]
-            )
+            op_names = ArrayAttr([StringAttr(name) if isinstance(name, str) else name for name in op_names])
         super().__init__(
             properties={"op_names": op_names},
             operands=[operand_handle],
@@ -441,15 +385,11 @@ class MatchParamCmpIOp(IRDLOperation):
 
     name = "transform.match.param.cmpi"
 
-    predicate = prop_def(
-        IntegerAttr
-    )  # Valid values given in xdsl/xdsl/dialects/arith.py
+    predicate = prop_def(IntegerAttr)  # Valid values given in xdsl/xdsl/dialects/arith.py
     param = operand_def(TransformParamHandleType)
     reference = operand_def(TransformParamHandleType)
 
-    def __init__(
-        self, predicate: int | IntegerAttr, param: SSAValue, reference: SSAValue
-    ):
+    def __init__(self, predicate: int | IntegerAttr, param: SSAValue, reference: SSAValue):
         if isinstance(predicate, int):
             predicate = IntegerAttr(predicate, IntegerType(64))
         super().__init__(
@@ -490,9 +430,7 @@ class ParamConstantOp(IRDLOperation):
     param = result_def(ParamType)
 
     def __init__(self, value: Attribute, param_type: TypeAttribute):
-        super().__init__(
-            properties={"value": value}, result_types=[ParamType(param_type)]
-        )
+        super().__init__(properties={"value": value}, result_types=[ParamType(param_type)])
 
 
 @irdl_op_definition
@@ -518,21 +456,13 @@ class SplitHandleOp(IRDLOperation):
         overflow_result: int | IntegerAttr | None = None,
     ):
         if isinstance(pass_through_empty_handle, bool):
-            pass_through_empty_handle = IntegerAttr(
-                int(pass_through_empty_handle), IntegerType(1)
-            )
+            pass_through_empty_handle = IntegerAttr(int(pass_through_empty_handle), IntegerType(1))
         if isinstance(fail_on_payload_too_small, bool):
-            fail_on_payload_too_small = IntegerAttr(
-                int(fail_on_payload_too_small), IntegerType(1)
-            )
+            fail_on_payload_too_small = IntegerAttr(int(fail_on_payload_too_small), IntegerType(1))
         if isinstance(pass_through_empty_handle, int):
-            pass_through_empty_handle = IntegerAttr(
-                pass_through_empty_handle, IntegerType(1)
-            )
+            pass_through_empty_handle = IntegerAttr(pass_through_empty_handle, IntegerType(1))
         if isinstance(fail_on_payload_too_small, int):
-            fail_on_payload_too_small = IntegerAttr(
-                fail_on_payload_too_small, IntegerType(1)
-            )
+            fail_on_payload_too_small = IntegerAttr(fail_on_payload_too_small, IntegerType(1))
         if isinstance(overflow_result, int):
             overflow_result = IntegerAttr(overflow_result, IntegerType(64))
         super().__init__(
@@ -581,9 +511,7 @@ class SequenceOp(IRDLOperation):
         body: Region,
     ):
         if isinstance(failure_propagation_mode, int):
-            failure_propagation_mode = IntegerAttr(
-                failure_propagation_mode, IntegerType(32)
-            )
+            failure_propagation_mode = IntegerAttr(failure_propagation_mode, IntegerType(32))
         super().__init__(
             properties={
                 "failure_propagation_mode": failure_propagation_mode,
@@ -593,13 +521,8 @@ class SequenceOp(IRDLOperation):
         )
 
     def verify_(self):
-        if not isinstance(
-            self.failure_propagation_mode, FailurePropagationModeAttr
-        ) and not isinstance(self.failure_propagation_mode, IntegerAttr):
-            raise VerifyException(
-                "Expected failure_propagation_mode to be of type "
-                f"FailurePropagationModeAttr, got {type(self.failure_propagation_mode)}"
-            )
+        if not isinstance(self.failure_propagation_mode, FailurePropagationModeAttr) and not isinstance(self.failure_propagation_mode, IntegerAttr):
+            raise VerifyException("Expected failure_propagation_mode to be of type " f"FailurePropagationModeAttr, got {type(self.failure_propagation_mode)}")
 
 
 @irdl_op_definition
@@ -625,20 +548,14 @@ class TileOp(IRDLOperation):
         dynamic_sizes: Sequence[SSAValue],
         static_sizes: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None = None,
         interchange: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None = None,
-        scalable_sizes: (
-            DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None
-        ) = None,
+        scalable_sizes: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None = None,
     ):
         if isinstance(static_sizes, Sequence):
-            static_sizes = DenseArrayBase.create_dense_int(
-                IntegerType(64), static_sizes
-            )
+            static_sizes = DenseArrayBase.create_dense_int(IntegerType(64), static_sizes)
         if isinstance(interchange, Sequence):
             interchange = DenseArrayBase.create_dense_int(IntegerType(64), interchange)
         if isinstance(scalable_sizes, Sequence):
-            scalable_sizes = DenseArrayBase.create_dense_int(
-                IntegerType(1), scalable_sizes
-            )
+            scalable_sizes = DenseArrayBase.create_dense_int(IntegerType(1), scalable_sizes)
         super().__init__(
             operands=(target, dynamic_sizes),
             properties={
@@ -648,17 +565,7 @@ class TileOp(IRDLOperation):
             },
             result_types=[
                 AnyOpType(),
-                [
-                    AnyOpType()
-                    for _ in range(
-                        (
-                            len(static_sizes.get_values())
-                            - static_sizes.get_values().count(0)
-                        )
-                        if static_sizes
-                        else 0
-                    )
-                ],
+                [AnyOpType() for _ in range((len(static_sizes.get_values()) - static_sizes.get_values().count(0)) if static_sizes else 0)],
             ],
         )
 
@@ -697,13 +604,9 @@ class TileToForallOp(IRDLOperation):
         mapping: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None,
     ):
         if isinstance(static_num_threads, Sequence):
-            static_num_threads = DenseArrayBase.create_dense_int(
-                IntegerType(64), static_num_threads
-            )
+            static_num_threads = DenseArrayBase.create_dense_int(IntegerType(64), static_num_threads)
         if isinstance(static_tile_sizes, Sequence):
-            static_tile_sizes = DenseArrayBase.create_dense_int(
-                IntegerType(64), static_tile_sizes
-            )
+            static_tile_sizes = DenseArrayBase.create_dense_int(IntegerType(64), static_tile_sizes)
         if isinstance(mapping, Sequence):
             mapping = DenseArrayBase.create_dense_int(IntegerType(64), mapping)
 
@@ -761,9 +664,7 @@ class NamedSequenceOp(IRDLOperation):
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     body = region_def("single_block")
 
-    traits = traits_def(
-        IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()
-    )
+    traits = traits_def(IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface())
 
     def __init__(
         self,
@@ -808,9 +709,7 @@ class NamedSequenceOp(IRDLOperation):
             extra_attrs,
             arg_attrs,
             res_attrs,
-        ) = parse_func_op_like(
-            parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
-        )
+        ) = parse_func_op_like(parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility"))
         named_sequence = NamedSequenceOp(
             sym_name=name,
             function_type=(input_types, return_types),

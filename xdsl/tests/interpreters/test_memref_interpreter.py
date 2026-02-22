@@ -1,13 +1,6 @@
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, func, memref
-from xdsl.dialects.builtin import (
-    DenseIntOrFPElementsAttr,
-    IndexType,
-    ModuleOp,
-    StringAttr,
-    TensorType,
-    i32,
-)
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IndexType, ModuleOp, StringAttr, TensorType, i32
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.memref import MemRefFunctions
@@ -32,9 +25,7 @@ def test_functions():
 
     (shaped_array,) = interpreter.run_op(alloc_op, ())
 
-    assert shaped_array == ShapedArray(
-        TypedPtr.new_index((0,) * 6, interpreter.index_bitwidth), [2, 3]
-    )
+    assert shaped_array == ShapedArray(TypedPtr.new_index((0,) * 6, interpreter.index_bitwidth), [2, 3])
     (zero,) = interpreter.run_op(zero_op, ())
     (one,) = interpreter.run_op(one_op, ())
 

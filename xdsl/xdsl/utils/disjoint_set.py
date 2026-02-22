@@ -89,9 +89,7 @@ class IntDisjointSet:
         lhs_count = self._count[lhs_root]
         rhs_count = self._count[rhs_root]
         # Choose the root of the larger tree as the new parent
-        new_parent, new_child = (
-            (lhs_root, rhs_root) if lhs_count <= rhs_count else (rhs_root, lhs_root)
-        )
+        new_parent, new_child = (lhs_root, rhs_root) if lhs_count <= rhs_count else (rhs_root, lhs_root)
         self._parent[new_child] = new_parent
         self._count[new_parent] = lhs_count + rhs_count
         # Note: We don't need to update _count[new_child] since it's no longer a root
@@ -171,6 +169,4 @@ class DisjointSet(Generic[_T]):
         Raises:
             KeyError: If either value is not in the disjoint set
         """
-        return self._base.connected(
-            self._index_by_value[lhs], self._index_by_value[rhs]
-        )
+        return self._base.connected(self._index_by_value[lhs], self._index_by_value[rhs])

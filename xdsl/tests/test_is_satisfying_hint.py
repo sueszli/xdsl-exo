@@ -1,16 +1,6 @@
 from typing import Any, Generic, Literal, TypeAlias, TypeVar
 
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    DictionaryAttr,
-    FloatData,
-    IndexType,
-    IntAttr,
-    IntegerAttr,
-    IntegerType,
-    StringAttr,
-    i32,
-)
+from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FloatData, IndexType, IntAttr, IntegerAttr, IntegerType, StringAttr, i32
 from xdsl.ir import Attribute, ParametrizedAttribute, SSAValue
 from xdsl.irdl import BaseAttr, EqAttrConstraint, ParameterDef, irdl_attr_definition
 from xdsl.utils.hints import isa

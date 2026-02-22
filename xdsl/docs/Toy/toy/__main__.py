@@ -18,9 +18,7 @@ from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
 
 from .compiler import context, emulate_riscv, transform
-from .emulator.toy_accelerator_instruction_functions import (
-    ToyAcceleratorInstructionFunctions,
-)
+from .emulator.toy_accelerator_instruction_functions import ToyAcceleratorInstructionFunctions
 from .frontend.ir_gen import IRGen
 from .frontend.parser import ToyParser as ToyParser
 from .interpreter import Interpreter, ToyFunctions

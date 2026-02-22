@@ -26,28 +26,9 @@ from itertools import product
 from typing import cast
 
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    IntAttr,
-)
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    ParametrizedAttribute,
-    Region,
-    SSAValue,
-)
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    ParameterDef,
-    irdl_attr_definition,
-    irdl_op_definition,
-    prop_def,
-    region_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.dialects.builtin import ArrayAttr, IntAttr
+from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, Region, SSAValue
+from xdsl.irdl import AttrSizedOperandSegments, IRDLOperation, ParameterDef, irdl_attr_definition, irdl_op_definition, prop_def, region_def, traits_def, var_operand_def
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import NoTerminator
@@ -93,21 +74,11 @@ class StridePattern(ParametrizedAttribute):
         with parser.in_angle_brackets():
             parser.parse_identifier("ub")
             parser.parse_punctuation("=")
-            ub = ArrayAttr(
-                IntAttr(i)
-                for i in parser.parse_comma_separated_list(
-                    parser.Delimiter.SQUARE, parser.parse_integer
-                )
-            )
+            ub = ArrayAttr(IntAttr(i) for i in parser.parse_comma_separated_list(parser.Delimiter.SQUARE, parser.parse_integer))
             parser.parse_punctuation(",")
             parser.parse_identifier("strides")
             parser.parse_punctuation("=")
-            strides = ArrayAttr(
-                IntAttr(i)
-                for i in parser.parse_comma_separated_list(
-                    parser.Delimiter.SQUARE, parser.parse_integer
-                )
-            )
+            strides = ArrayAttr(IntAttr(i) for i in parser.parse_comma_separated_list(parser.Delimiter.SQUARE, parser.parse_integer))
             if parser.parse_optional_punctuation(","):
                 parser.parse_identifier("repeat")
                 parser.parse_punctuation("=")
@@ -127,9 +98,7 @@ class StridePattern(ParametrizedAttribute):
                 printer.print_string(f", repeat = {self.repeat.data}")
 
     @staticmethod
-    def from_bounds_and_strides(
-        ub: Sequence[int], strides: Sequence[int], repeat: int = 1
-    ) -> StridePattern:
+    def from_bounds_and_strides(ub: Sequence[int], strides: Sequence[int], repeat: int = 1) -> StridePattern:
         return StridePattern(
             ArrayAttr(IntAttr(i) for i in ub),
             ArrayAttr(IntAttr(i) for i in strides),
@@ -141,17 +110,12 @@ class StridePattern(ParametrizedAttribute):
 
     def verify(self) -> None:
         if len(self.ub) != len(self.strides):
-            raise VerifyException(
-                f"Expect stride pattern upper bounds {self.ub} to be equal in length to strides {self.strides}"
-            )
+            raise VerifyException(f"Expect stride pattern upper bounds {self.ub} to be equal in length to strides {self.strides}")
 
     def offset_iter(self) -> Iterator[int]:
         for indices in product(*(range(bound.data) for bound in self.ub.data)):
             indices: tuple[int, ...] = indices
-            offset = sum(
-                index * stride.data
-                for (index, stride) in zip(indices, self.strides.data)
-            )
+            offset = sum(index * stride.data for (index, stride) in zip(indices, self.strides.data))
             for _ in range(self.repeat.data):
                 yield offset
 
@@ -183,9 +147,7 @@ class StridePattern(ParametrizedAttribute):
 
         if not tuples:
             # All bounds are 1
-            return StridePattern.from_bounds_and_strides(
-                (1,), (self.strides.data[-1].data,)
-            )
+            return StridePattern.from_bounds_and_strides((1,), (self.strides.data[-1].data,))
 
         # Outermost bound and stride
         ub0, s0 = tuples[0]
@@ -330,13 +292,9 @@ class StreamingRegionOp(IRDLOperation):
         pos = parser.pos
         if parser.parse_optional_characters("ins"):
             parser.parse_punctuation("(")
-            unresolved_ins = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
-            )
+            unresolved_ins = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_unresolved_operand)
             parser.parse_punctuation(":")
-            ins_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
-            )
+            ins_types = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
             parser.parse_punctuation(")")
             ins = parser.resolve_operands(unresolved_ins, ins_types, pos)
         else:
@@ -345,13 +303,9 @@ class StreamingRegionOp(IRDLOperation):
         pos = parser.pos
         if parser.parse_optional_characters("outs"):
             parser.parse_punctuation("(")
-            unresolved_outs = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
-            )
+            unresolved_outs = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_unresolved_operand)
             parser.parse_punctuation(":")
-            outs_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
-            )
+            outs_types = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
             parser.parse_punctuation(")")
             outs = parser.resolve_operands(unresolved_outs, outs_types, pos)
         else:
@@ -359,9 +313,7 @@ class StreamingRegionOp(IRDLOperation):
 
         if parser.parse_optional_keyword("attributes"):
             parser.parse_punctuation("=")
-            extra_attrs = parser.expect(
-                parser.parse_optional_attr_dict, "expect extra attributes"
-            )
+            extra_attrs = parser.expect(parser.parse_optional_attr_dict, "expect extra attributes")
         else:
             extra_attrs = {}
 

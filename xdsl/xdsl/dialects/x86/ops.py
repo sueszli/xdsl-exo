@@ -8,56 +8,17 @@ from typing import IO, Generic, TypeVar
 from typing_extensions import Self
 
 from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
-from xdsl.dialects.builtin import (
-    IntegerAttr,
-    IntegerType,
-    ModuleOp,
-    Signedness,
-    StringAttr,
-)
-from xdsl.ir import (
-    Attribute,
-    Operation,
-    SSAValue,
-)
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    Successor,
-    attr_def,
-    irdl_op_definition,
-    operand_def,
-    opt_attr_def,
-    result_def,
-    successor_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, Signedness, StringAttr
+from xdsl.ir import Attribute, Operation, SSAValue
+from xdsl.irdl import AttrSizedOperandSegments, IRDLOperation, Successor, attr_def, irdl_op_definition, operand_def, opt_attr_def, result_def, successor_def, traits_def, var_operand_def
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
 
-from .assembly import (
-    AssemblyInstructionArg,
-    assembly_arg_str,
-    memory_access_str,
-    parse_immediate_value,
-    parse_optional_immediate_value,
-    parse_type_pair,
-    print_immediate_value,
-    print_type_pair,
-)
+from .assembly import AssemblyInstructionArg, assembly_arg_str, memory_access_str, parse_immediate_value, parse_optional_immediate_value, parse_type_pair, print_immediate_value, print_type_pair
 from .attributes import LabelAttr
-from .register import (
-    RAX,
-    RDX,
-    RSP,
-    GeneralRegisterType,
-    RFLAGSRegisterType,
-    X86RegisterType,
-    X86VectorRegisterType,
-)
+from .register import RAX, RDX, RSP, GeneralRegisterType, RFLAGSRegisterType, X86RegisterType, X86VectorRegisterType
 
 R1InvT = TypeVar("R1InvT", bound=X86RegisterType)
 R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
@@ -108,9 +69,7 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
         """
         if operand := parser.parse_optional_unresolved_operand():
             operands = [operand]
-            while parser.parse_optional_punctuation(",") and (
-                operand := parser.parse_optional_unresolved_operand()
-            ):
+            while parser.parse_optional_punctuation(",") and (operand := parser.parse_optional_unresolved_operand()):
                 operands.append(operand)
             return operands
         return []
@@ -123,9 +82,7 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
         return parser.parse_optional_attr_dict()
 
     @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+    def parse_op_type(cls, parser: Parser) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
         parser.parse_punctuation(":")
         func_type = parser.parse_function_type()
         return func_type.inputs.data, func_type.outputs.data
@@ -135,11 +92,7 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
             printer.print(" ")
             printer.print_list(self.operands, printer.print_operand)
         printed_attributes = self.custom_print_attributes(printer)
-        unprinted_attributes = {
-            name: attr
-            for name, attr in self.attributes.items()
-            if name not in printed_attributes
-        }
+        unprinted_attributes = {name: attr for name, attr in self.attributes.items() if name not in printed_attributes}
         printer.print_op_attributes(unprinted_attributes)
         printer.print_regions(self.regions)
         self.print_op_type(printer)
@@ -186,20 +139,14 @@ class X86Instruction(X86AsmOperation):
     def assembly_line(self) -> str | None:
         # default assembly code generator
         instruction_name = self.assembly_instruction_name()
-        arg_str = ", ".join(
-            assembly_arg_str(arg)
-            for arg in self.assembly_line_args()
-            if arg is not None
-        )
+        arg_str = ", ".join(assembly_arg_str(arg) for arg in self.assembly_line_args() if arg is not None)
         return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
 
 
 # region: Operation Base Classes
 
 
-class R_RR_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
-):
+class R_RR_Operation(Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
     A base class for x86 operations that have two registers.
     """
@@ -262,9 +209,7 @@ class R_R_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation, A
         return (self.source,)
 
 
-class R_RM_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
-):
+class R_RM_Operation(Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
     A base class for x86 operations that have one register and one memory access with an optional offset.
     """
@@ -316,9 +261,7 @@ class R_RM_Operation(
         return {"offset"}
 
 
-class R_M_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
-):
+class R_M_Operation(Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
     A base class for x86 operations that have one register and one memory access with an optional offset.
     """
@@ -387,9 +330,7 @@ class R_RImm_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation
         result: R1InvT,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
+            immediate = IntegerAttr(immediate, 32)  # the default immediate size is 32 bits
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -408,9 +349,7 @@ class R_RImm_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(32, Signedness.SIGNED)
-        )
+        temp = parse_optional_immediate_value(parser, IntegerType(32, Signedness.SIGNED))
         if temp is not None:
             attributes["immediate"] = temp
         return attributes
@@ -421,9 +360,7 @@ class R_RImm_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation
         return {"immediate"}
 
 
-class M_MR_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
-):
+class M_MR_Operation(Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
     A base class for x86 operations that have one memory reference and one register.
     """
@@ -489,9 +426,7 @@ class M_MImm_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
+            immediate = IntegerAttr(immediate, 32)  # the default immediate size is 32 bits
         if isinstance(offset, int):
             offset = IntegerAttr(offset, 64)
         if isinstance(comment, str):
@@ -531,9 +466,7 @@ class M_MImm_Operation(Generic[R1InvT], X86Instruction, X86CustomFormatOperation
         return {"immediate", "offset"}
 
 
-class R_RRImm_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
-):
+class R_RRImm_Operation(Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
     A base class for x86 operations that have one destination register, one source register and an immediate value.
     """
@@ -552,9 +485,7 @@ class R_RRImm_Operation(
         r1: R1InvT,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
+            immediate = IntegerAttr(immediate, 32)  # the default immediate size is 32 bits
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -583,9 +514,7 @@ class R_RRImm_Operation(
         return {"immediate"}
 
 
-class R_RMImm_Operation(
-    Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC
-):
+class R_RMImm_Operation(Generic[R1InvT, R2InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
     A base class for x86 operations that have one source register, one memory reference and an immediate value.
     """
@@ -606,9 +535,7 @@ class R_RMImm_Operation(
         r1: R1InvT,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
+            immediate = IntegerAttr(immediate, 32)  # the default immediate size is 32 bits
         if isinstance(offset, int):
             offset = IntegerAttr(offset, 64)
         if isinstance(comment, str):
@@ -748,15 +675,11 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
 
         for op_arg, block_arg in zip(self.then_values, self.then_block.args):
             if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
+                raise VerifyException(f"Block arg types must match {op_arg.type} {block_arg.type}")
 
         for op_arg, block_arg in zip(self.else_values, self.else_block.args):
             if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
+                raise VerifyException(f"Block arg types must match {op_arg.type} {block_arg.type}")
 
         # The else block must be the one immediately following this one
 
@@ -800,14 +723,10 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
         rflags = parse_type_pair(parser)
         parser.parse_punctuation(",")
         then_block = parser.parse_successor()
-        then_args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: parse_type_pair(parser)
-        )
+        then_args = parser.parse_comma_separated_list(parser.Delimiter.PAREN, lambda: parse_type_pair(parser))
         parser.parse_punctuation(",")
         else_block = parser.parse_successor()
-        else_args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: parse_type_pair(parser)
-        )
+        else_args = parser.parse_comma_separated_list(parser.Delimiter.PAREN, lambda: parse_type_pair(parser))
         attrs = parser.parse_optional_attr_dict_with_keyword()
         op = cls(rflags, then_args, else_args, then_block, else_block)
         if attrs is not None:
@@ -815,9 +734,7 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
         return op
 
 
-class RRROperation(
-    Generic[R1InvT, R2InvT, R3InvT], X86Instruction, X86CustomFormatOperation, ABC
-):
+class RRROperation(Generic[R1InvT, R2InvT, R3InvT], X86Instruction, X86CustomFormatOperation, ABC):
     """
     A base class for x86 operations that have three registers.
     """
@@ -1609,9 +1526,7 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
     name = "x86.m.pop"
 
     rsp_input = operand_def(RSP)
-    destination = operand_def(
-        GeneralRegisterType
-    )  # the destination is a pointer to the memory location and the register itself is not modified
+    destination = operand_def(GeneralRegisterType)  # the destination is a pointer to the memory location and the register itself is not modified
     offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     rsp_output = result_def(RSP)
 
@@ -1644,9 +1559,7 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
+        temp = parse_optional_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
         if temp is not None:
             attributes["offset"] = temp
         return attributes
@@ -1818,9 +1731,7 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
+        temp = parse_optional_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
         if temp is not None:
             attributes["offset"] = temp
         return attributes
@@ -1878,9 +1789,7 @@ class LabelOp(X86AsmOperation, X86CustomFormatOperation):
         return
 
     @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+    def parse_op_type(cls, parser: Parser) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
         return (), ()
 
 
@@ -1918,16 +1827,12 @@ class DirectiveOp(X86AsmOperation, X86CustomFormatOperation):
         else:
             arg_str = ""
 
-        return AssemblyPrinter.assembly_line(
-            self.directive.data, arg_str, is_indented=False
-        )
+        return AssemblyPrinter.assembly_line(self.directive.data, arg_str, is_indented=False)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["directive"] = StringAttr(
-            parser.parse_str_literal("Expected directive")
-        )
+        attributes["directive"] = StringAttr(parser.parse_str_literal("Expected directive"))
         if (value := parser.parse_optional_str_literal()) is not None:
             attributes["value"] = StringAttr(value)
         return attributes
@@ -1944,9 +1849,7 @@ class DirectiveOp(X86AsmOperation, X86CustomFormatOperation):
         return
 
     @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+    def parse_op_type(cls, parser: Parser) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
         return (), ()
 
 
@@ -1989,15 +1892,10 @@ class S_JmpOp(X86Instruction, X86CustomFormatOperation):
 
         for op_arg, block_arg in zip(self.block_values, self.successor.args):
             if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
+                raise VerifyException(f"Block arg types must match {op_arg.type} {block_arg.type}")
 
         if not isinstance(self.successor.first_op, LabelOp):
-            raise VerifyException(
-                "jmp operation successor must have a x86.label operation as a "
-                f"first argument, found {self.successor.first_op}"
-            )
+            raise VerifyException("jmp operation successor must have a x86.label operation as a " f"first argument, found {self.successor.first_op}")
 
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
@@ -2011,9 +1909,7 @@ class S_JmpOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         successor = parser.parse_successor()
-        block_values = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: parse_type_pair(parser)
-        )
+        block_values = parser.parse_comma_separated_list(parser.Delimiter.PAREN, lambda: parse_type_pair(parser))
         attrs = parser.parse_optional_attr_dict_with_keyword()
         op = cls(block_values, successor)
         if attrs is not None:
@@ -2112,9 +2008,7 @@ class RM_CmpOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
+        temp = parse_optional_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
         if temp is not None:
             attributes["offset"] = temp
         return attributes
@@ -2226,9 +2120,7 @@ class MR_CmpOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
+        temp = parse_optional_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
         if temp is not None:
             attributes["offset"] = temp
         return attributes
@@ -2266,9 +2158,7 @@ class MImm_CmpOp(X86Instruction, X86CustomFormatOperation):
         result: RFLAGSRegisterType,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
+            immediate = IntegerAttr(immediate, 32)  # the default immediate size is 32 bits
         if isinstance(offset, int):
             offset = IntegerAttr(offset, 64)
         if isinstance(comment, str):
@@ -2295,9 +2185,7 @@ class MImm_CmpOp(X86Instruction, X86CustomFormatOperation):
         temp = parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
         attributes["immediate"] = temp
         if parser.parse_optional_punctuation(",") is not None:
-            temp2 = parse_optional_immediate_value(
-                parser, IntegerType(32, Signedness.SIGNED)
-            )
+            temp2 = parse_optional_immediate_value(parser, IntegerType(32, Signedness.SIGNED))
             if temp2 is not None:
                 attributes["offset"] = temp2
         return attributes
@@ -2641,9 +2529,7 @@ class S_JzOp(ConditionalJumpOperation):
 
 
 @irdl_op_definition
-class RRR_Vfmadd231pdOp(
-    RRROperation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
-):
+class RRR_Vfmadd231pdOp(RRROperation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]):
     """
     Multiply packed double-precision floating-point elements in r2 and r3, add the
     intermediate result to r1, and store the final result in r1.
@@ -2655,9 +2541,7 @@ class RRR_Vfmadd231pdOp(
 
 
 @irdl_op_definition
-class RRR_Vfmadd231psOp(
-    RRROperation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
-):
+class RRR_Vfmadd231psOp(RRROperation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]):
     """
     Multiply packed single-precision floating-point elements in r2 and r3, add the
     intermediate result to r1, and store the final result in r1.
@@ -2735,9 +2619,7 @@ class RM_VbroadcastssOp(R_M_Operation[GeneralRegisterType, X86VectorRegisterType
     name = "x86.rm.vbroadcastss"
 
 
-class GetAnyRegisterOperation(
-    Generic[R1InvT], X86AsmOperation, X86CustomFormatOperation, ABC
-):
+class GetAnyRegisterOperation(Generic[R1InvT], X86AsmOperation, X86CustomFormatOperation, ABC):
     """
     This instruction allows us to create an SSAValue for a given register name.
     """

@@ -27,28 +27,16 @@ def test_abs():
 
     executable = JaxExecutable.compile(module)
 
-    assert executable.execute([array(-2, dtype=jax.numpy.int32)]) == [
-        array(2, dtype=jax.numpy.int32)
-    ]
-    assert executable.execute([array(0, dtype=jax.numpy.int32)]) == [
-        array(0, dtype=jax.numpy.int32)
-    ]
-    assert executable.execute([array(2, dtype=jax.numpy.int32)]) == [
-        array(2, dtype=jax.numpy.int32)
-    ]
+    assert executable.execute([array(-2, dtype=jax.numpy.int32)]) == [array(2, dtype=jax.numpy.int32)]
+    assert executable.execute([array(0, dtype=jax.numpy.int32)]) == [array(0, dtype=jax.numpy.int32)]
+    assert executable.execute([array(2, dtype=jax.numpy.int32)]) == [array(2, dtype=jax.numpy.int32)]
 
     @executable
     def abs_tuple(a: jax.Array) -> tuple[jax.Array]: ...
 
-    assert abs_tuple(array(-2, dtype=jax.numpy.int32)) == (
-        array(2, dtype=jax.numpy.int32),
-    )
-    assert abs_tuple(array(0, dtype=jax.numpy.int32)) == (
-        array(0, dtype=jax.numpy.int32),
-    )
-    assert abs_tuple(array(2, dtype=jax.numpy.int32)) == (
-        array(2, dtype=jax.numpy.int32),
-    )
+    assert abs_tuple(array(-2, dtype=jax.numpy.int32)) == (array(2, dtype=jax.numpy.int32),)
+    assert abs_tuple(array(0, dtype=jax.numpy.int32)) == (array(0, dtype=jax.numpy.int32),)
+    assert abs_tuple(array(2, dtype=jax.numpy.int32)) == (array(2, dtype=jax.numpy.int32),)
 
     @executable
     def abs_one(a: jax.Array) -> jax.Array: ...
@@ -145,9 +133,7 @@ def test_parameter_annotation():
     module = ModuleOp([main_op])
     executable = JaxExecutable.compile(module)
 
-    with pytest.raises(
-        NotImplementedError, match="Parameter .* is not annotated as jnp.ndarray"
-    ):
+    with pytest.raises(NotImplementedError, match="Parameter .* is not annotated as jnp.ndarray"):
 
         @executable
         def abs_wrong_annotation(a: int) -> jax.Array: ...  # pyright: ignore[reportUnusedFunction]
@@ -166,9 +152,7 @@ def test_return_annotation_tuple_type():
 
     with pytest.raises(
         NotImplementedError,
-        match=re.escape(
-            "Return annotation is must be jnp.ndarray or a tuple of jnp.ndarray, got tuple[int]."
-        ),
+        match=re.escape("Return annotation is must be jnp.ndarray or a tuple of jnp.ndarray, got tuple[int]."),
     ):
 
         @executable  # pyright: ignore[reportArgumentType]

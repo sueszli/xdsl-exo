@@ -113,10 +113,7 @@ def foo(x: i32):
     stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
         CheckAndInlineConstants.run(stmts, __file__)
-    assert (
-        err.value.msg
-        == "Constant 'z' is already defined and cannot be used as a function/block argument name."
-    )
+    assert err.value.msg == "Constant 'z' is already defined and cannot be used as a function/block argument name."
 
 
 def test_raises_exception_on_duplicate_const():
@@ -137,10 +134,7 @@ z: Const[i32] = 23 / 0
     stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
         CheckAndInlineConstants.run(stmts, __file__)
-    assert (
-        err.value.msg
-        == "Non-constant expression cannot be assigned to constant variable 'z' or cannot be evaluated."
-    )
+    assert err.value.msg == "Non-constant expression cannot be assigned to constant variable 'z' or cannot be evaluated."
 
 
 def test_raises_exception_on_evaluation_error_II():
@@ -150,7 +144,4 @@ a: Const[i32] = x + 12
     stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
         CheckAndInlineConstants.run(stmts, __file__)
-    assert (
-        err.value.msg
-        == "Non-constant expression cannot be assigned to constant variable 'a' or cannot be evaluated."
-    )
+    assert err.value.msg == "Non-constant expression cannot be assigned to constant variable 'a' or cannot be evaluated."

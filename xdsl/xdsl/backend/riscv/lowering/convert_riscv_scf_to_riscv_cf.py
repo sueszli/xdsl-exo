@@ -1,12 +1,7 @@
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_cf, riscv_scf
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import BlockInsertPoint, InsertPoint
 
 
@@ -139,9 +134,7 @@ class LowerRiscvScfForPattern(RewritePattern):
         )
 
         # Insert label at the start of the first body block.
-        rewriter.insert_op(
-            riscv.LabelOp(f"scf_body_{suffix}"), InsertPoint.at_start(first_body_block)
-        )
+        rewriter.insert_op(riscv.LabelOp(f"scf_body_{suffix}"), InsertPoint.at_start(first_body_block))
 
         # Replace operation by arguments to the newly end block.
         rewriter.replace_matched_op(
@@ -154,6 +147,4 @@ class ConvertRiscvScfToRiscvCfPass(ModulePass):
     name = "convert-riscv-scf-to-riscv-cf"
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(
-            LowerRiscvScfForPattern(), walk_regions_first=True
-        ).rewrite_module(op)
+        PatternRewriteWalker(LowerRiscvScfForPattern(), walk_regions_first=True).rewrite_module(op)

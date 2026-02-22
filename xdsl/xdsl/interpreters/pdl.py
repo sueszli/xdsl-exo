@@ -23,9 +23,7 @@ class PDLMatcher:
     against.
     """
 
-    matching_context: dict[SSAValue, Operation | Attribute | SSAValue] = field(
-        default_factory=dict[SSAValue, Operation | Attribute | SSAValue]
-    )
+    matching_context: dict[SSAValue, Operation | Attribute | SSAValue] = field(default_factory=dict[SSAValue, Operation | Attribute | SSAValue])
     """
     For each SSAValue that is an OpResult of an operation in the PDL dialect,
     the corresponding xDSL object.
@@ -37,9 +35,7 @@ class PDLMatcher:
     not verify that the functions are used with the correct types.
     """
 
-    def get_constant_or_matched_value(
-        self, ssa_val: SSAValue
-    ) -> Operation | Attribute | SSAValue:
+    def get_constant_or_matched_value(self, ssa_val: SSAValue) -> Operation | Attribute | SSAValue:
         """
         Get the value that is already matched, or that is defined by a constant such as
         the result of a constant `pdl.attribute`, or of a `pdl.type`, or of a matched
@@ -57,9 +53,7 @@ class PDLMatcher:
             return ssa_val.owner.constantType
         raise InterpretationError("expected constant or matched value")
 
-    def match_operand(
-        self, ssa_val: SSAValue, pdl_op: pdl.OperandOp, xdsl_val: SSAValue
-    ):
+    def match_operand(self, ssa_val: SSAValue, pdl_op: pdl.OperandOp, xdsl_val: SSAValue):
         if ssa_val in self.matching_context:
             return self.matching_context[ssa_val] == xdsl_val
 
@@ -67,18 +61,14 @@ class PDLMatcher:
             assert isinstance(pdl_op.value_type, OpResult)
             assert isinstance(pdl_op.value_type.op, pdl.TypeOp)
 
-            if not self.match_type(
-                pdl_op.value_type, pdl_op.value_type.op, xdsl_val.type
-            ):
+            if not self.match_type(pdl_op.value_type, pdl_op.value_type.op, xdsl_val.type):
                 return False
 
         self.matching_context[ssa_val] = xdsl_val
 
         return True
 
-    def match_result(
-        self, ssa_val: SSAValue, pdl_op: pdl.ResultOp, xdsl_operand: SSAValue
-    ):
+    def match_result(self, ssa_val: SSAValue, pdl_op: pdl.ResultOp, xdsl_operand: SSAValue):
         if ssa_val in self.matching_context:
             return self.matching_context[ssa_val] == xdsl_operand
 
@@ -133,22 +123,16 @@ class PDLMatcher:
             assert isinstance(pdl_op.value_type, OpResult)
             assert isinstance(pdl_op.value_type.op, pdl.TypeOp)
 
-            assert isa(xdsl_attr, IntegerAttr[IntegerType]), (
-                "Only handle integer types for now"
-            )
+            assert isa(xdsl_attr, IntegerAttr[IntegerType]), "Only handle integer types for now"
 
-            if not self.match_type(
-                pdl_op.value_type, pdl_op.value_type.op, xdsl_attr.type
-            ):
+            if not self.match_type(pdl_op.value_type, pdl_op.value_type.op, xdsl_attr.type):
                 return False
 
         self.matching_context[ssa_val] = xdsl_attr
 
         return True
 
-    def match_operation(
-        self, ssa_val: SSAValue, pdl_op: pdl.OperationOp, xdsl_op: Operation
-    ) -> bool:
+    def match_operation(self, ssa_val: SSAValue, pdl_op: pdl.OperationOp, xdsl_op: Operation) -> bool:
         if ssa_val in self.matching_context:
             return self.matching_context[ssa_val] == xdsl_op
 
@@ -178,9 +162,7 @@ class PDLMatcher:
             assert isinstance(pdl_operand.op, pdl.OperandOp | pdl.ResultOp)
             match pdl_operand.op:
                 case pdl.OperandOp():
-                    if not self.match_operand(
-                        pdl_operand, pdl_operand.op, xdsl_operand
-                    ):
+                    if not self.match_operand(pdl_operand, pdl_operand.op, xdsl_operand):
                         return False
                 case pdl.ResultOp():
                     if not self.match_result(pdl_operand, pdl_operand.op, xdsl_operand):
@@ -203,9 +185,7 @@ class PDLMatcher:
         return True
 
     def check_native_constraints(self, pdl_op: pdl.ApplyNativeConstraintOp) -> bool:
-        args = [
-            self.get_constant_or_matched_value(operand) for operand in pdl_op.operands
-        ]
+        args = [self.get_constant_or_matched_value(operand) for operand in pdl_op.operands]
         name = pdl_op.constraint_name.data
         if name not in self.native_constraints:
             raise InterpretationError(f"{name} PDL native constraint is not registered")
@@ -218,9 +198,7 @@ class PDLRewritePattern(RewritePattern):
     pdl_rewrite_op: pdl.RewriteOp
     interpreter: Interpreter
 
-    def __init__(
-        self, pdl_rewrite_op: pdl.RewriteOp, ctx: Context, file: IO[str] | None = None
-    ):
+    def __init__(self, pdl_rewrite_op: pdl.RewriteOp, ctx: Context, file: IO[str] | None = None):
         pdl_pattern = pdl_rewrite_op.parent_op()
         assert isinstance(pdl_pattern, pdl.PatternOp)
         pdl_module = pdl_pattern.parent_op()
@@ -233,9 +211,7 @@ class PDLRewritePattern(RewritePattern):
     def match_and_rewrite(self, xdsl_op: Operation, rewriter: PatternRewriter) -> None:
         pdl_op_val = self.pdl_rewrite_op.root
         assert pdl_op_val is not None, "TODO: handle None root op in pdl.RewriteOp"
-        assert self.pdl_rewrite_op.body is not None, (
-            "TODO: handle None body op in pdl.RewriteOp"
-        )
+        assert self.pdl_rewrite_op.body is not None, "TODO: handle None body op in pdl.RewriteOp"
 
         assert isinstance(pdl_op_val, OpResult)
         pdl_op = pdl_op_val.op
@@ -284,17 +260,13 @@ class PDLRewriteFunctions(InterpreterFunctions):
         self._rewriter = rewriter
 
     @impl(pdl.OperationOp)
-    def run_operation(
-        self, interpreter: Interpreter, op: pdl.OperationOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
+    def run_operation(self, interpreter: Interpreter, op: pdl.OperationOp, args: tuple[Any, ...]) -> tuple[Any, ...]:
         assert op.opName is not None
         op_name = op.opName.data
         op_type = self.ctx.get_optional_op(op_name)
 
         if op_type is None:
-            raise InterpretationError(
-                f"Could not find op type for name {op_name} in context"
-            )
+            raise InterpretationError(f"Could not find op type for name {op_name} in context")
 
         attribute_value_names = [avn.data for avn in op.attributeValueNames.data]
 
@@ -326,9 +298,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
 
         # Move the attributes to the attribute or property dictionary
         # depending on whether they are a properties or not.
-        for attribute_name, attribute_value in zip(
-            attribute_value_names, attribute_values
-        ):
+        for attribute_name, attribute_value in zip(attribute_value_names, attribute_values):
             if attribute_name in property_names:
                 properties[attribute_name] = attribute_value
             else:
@@ -347,24 +317,18 @@ class PDLRewriteFunctions(InterpreterFunctions):
         return (result_op,)
 
     @impl(pdl.ResultOp)
-    def run_result(
-        self, interpreter: Interpreter, op: pdl.ResultOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
+    def run_result(self, interpreter: Interpreter, op: pdl.ResultOp, args: tuple[Any, ...]) -> tuple[Any, ...]:
         (parent,) = args
         assert isinstance(parent, Operation)
         return (parent.results[op.index.value.data],)
 
     @impl(pdl.AttributeOp)
-    def run_attribute(
-        self, interpreter: Interpreter, op: pdl.AttributeOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
+    def run_attribute(self, interpreter: Interpreter, op: pdl.AttributeOp, args: tuple[Any, ...]) -> tuple[Any, ...]:
         assert isinstance(op.value, Attribute)
         return (op.value,)
 
     @impl(pdl.ReplaceOp)
-    def run_replace(
-        self, interpreter: Interpreter, op: pdl.ReplaceOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
+    def run_replace(self, interpreter: Interpreter, op: pdl.ReplaceOp, args: tuple[Any, ...]) -> tuple[Any, ...]:
         rewriter = self.rewriter
 
         (old,) = interpreter.get_values((op.op_value,))
@@ -376,23 +340,17 @@ class PDLRewriteFunctions(InterpreterFunctions):
             new_vals = interpreter.get_values(op.repl_values)
             rewriter.replace_op(old, new_ops=[], new_results=list(new_vals))
         else:
-            raise ValueError(
-                "Either a replacing operatoin or values must be provided with replace op"
-            )
+            raise ValueError("Either a replacing operatoin or values must be provided with replace op")
 
         return ()
 
     @impl(pdl.EraseOp)
-    def run_erase(
-        self, interpreter: Interpreter, op: pdl.EraseOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
+    def run_erase(self, interpreter: Interpreter, op: pdl.EraseOp, args: tuple[Any, ...]) -> tuple[Any, ...]:
         (old,) = interpreter.get_values((op.op_value,))
         self.rewriter.erase_op(old)
         return ()
 
     @impl(pdl.TypeOp)
-    def run_type(
-        self, interpreter: Interpreter, op: pdl.TypeOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
+    def run_type(self, interpreter: Interpreter, op: pdl.TypeOp, args: tuple[Any, ...]) -> tuple[Any, ...]:
         assert isinstance(op.constantType, Attribute)
         return (op.constantType,)

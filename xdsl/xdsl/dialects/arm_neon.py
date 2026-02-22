@@ -7,27 +7,8 @@ from xdsl.dialects.arm.assembly import AssemblyInstructionArg, reg, square_brack
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.register import ARMRegisterType, IntRegisterType
 from xdsl.dialects.builtin import IntegerAttr, StringAttr, i8
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    EnumAttribute,
-    Operation,
-    SpacedOpaqueSyntaxAttribute,
-    SSAValue,
-    StrEnum,
-)
-from xdsl.irdl import (
-    VarConstraint,
-    attr_def,
-    base,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    prop_def,
-    result_def,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.ir import Attribute, Dialect, EnumAttribute, Operation, SpacedOpaqueSyntaxAttribute, SSAValue, StrEnum
+from xdsl.irdl import VarConstraint, attr_def, base, irdl_attr_definition, irdl_op_definition, operand_def, prop_def, result_def, var_operand_def, var_result_def
 from xdsl.utils.exceptions import VerifyException
 
 ARM_NEON_INDEX_BY_NAME = {f"v{i}": i for i in range(0, 32)}
@@ -230,9 +211,7 @@ class DSSFMulVecScalarOp(ARMInstruction):
         return (
             VectorWithArrangement(self.d, self.arrangement),
             VectorWithArrangement(self.s1, self.arrangement),
-            VectorWithArrangement(
-                self.s2, self.arrangement, index=self.scalar_idx.value.data
-            ),
+            VectorWithArrangement(self.s2, self.arrangement, index=self.scalar_idx.value.data),
         )
 
 
@@ -251,9 +230,7 @@ class DSSFmlaVecScalarOp(ARMInstruction):
     See external [documentation](https://developer.arm.com/documentation/100069/0606/SIMD-Vector-Instructions/FMLA--vector-).
     """
 
-    SAME_NEON_REGISTER_TYPE: ClassVar = VarConstraint(
-        "SAME_NEON_REGISTER_TYPE", base(NEONRegisterType)
-    )
+    SAME_NEON_REGISTER_TYPE: ClassVar = VarConstraint("SAME_NEON_REGISTER_TYPE", base(NEONRegisterType))
 
     name = "arm_neon.dss.fmla"
     res = result_def(SAME_NEON_REGISTER_TYPE)
@@ -263,10 +240,8 @@ class DSSFmlaVecScalarOp(ARMInstruction):
     scalar_idx = attr_def(IntegerAttr[i8])
     arrangement = attr_def(NeonArrangementAttr)
 
-    assembly_format = (
-        "$d `,` $s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` \
+    assembly_format = "$d `,` $s1 `,` $s2 `[` $scalar_idx `]` $arrangement attr-dict `:` \
         `(` type($s1) `,` type($s2) `)` `->` type($res)"
-    )
 
     def __init__(
         self,
@@ -298,9 +273,7 @@ class DSSFmlaVecScalarOp(ARMInstruction):
         return (
             VectorWithArrangement(self.res, self.arrangement),
             VectorWithArrangement(self.s1, self.arrangement),
-            VectorWithArrangement(
-                self.s2, self.arrangement, index=self.scalar_idx.value.data
-            ),
+            VectorWithArrangement(self.s2, self.arrangement, index=self.scalar_idx.value.data),
         )
 
 
@@ -368,9 +341,7 @@ class DVarSLd1Op(ARMInstruction):
         comment: str | StringAttr | None = None,
     ):
         if not (1 <= len(self.dest_regs) <= 4):
-            raise ValueError(
-                f"dest_regs must contain between 1 and 4 elements, but got {len(self.dest_regs)}."
-            )
+            raise ValueError(f"dest_regs must contain between 1 and 4 elements, but got {len(self.dest_regs)}.")
         if isinstance(comment, str):
             comment = StringAttr(comment)
         if isinstance(arrangement, NeonArrangement):
@@ -386,9 +357,7 @@ class DVarSLd1Op(ARMInstruction):
 
     def verify_(self) -> None:
         if not (1 <= len(self.dest_regs) <= 4):
-            raise VerifyException(
-                f"dest_regs must contain between 1 and 4 elements, but got {len(self.dest_regs)}."
-            )
+            raise VerifyException(f"dest_regs must contain between 1 and 4 elements, but got {len(self.dest_regs)}.")
 
     def assembly_line_args(self):
         return (
@@ -420,9 +389,7 @@ class DVarSSt1Op(ARMInstruction):
         comment: str | StringAttr | None = None,
     ):
         if not (1 <= len(self.src_regs) <= 4):
-            raise ValueError(
-                f"src_regs must contain between 1 and 4 elements, but got {len(self.src_regs)}."
-            )
+            raise ValueError(f"src_regs must contain between 1 and 4 elements, but got {len(self.src_regs)}.")
         if isinstance(comment, str):
             comment = StringAttr(comment)
         if isinstance(arrangement, NeonArrangement):
@@ -438,9 +405,7 @@ class DVarSSt1Op(ARMInstruction):
 
     def verify_(self) -> None:
         if not (1 <= len(self.src_regs) <= 4):
-            raise VerifyException(
-                f"src_regs must contain between 1 and 4 elements, but got {len(self.src_regs)}."
-            )
+            raise VerifyException(f"src_regs must contain between 1 and 4 elements, but got {len(self.src_regs)}.")
 
     def assembly_line_args(self):
         return (

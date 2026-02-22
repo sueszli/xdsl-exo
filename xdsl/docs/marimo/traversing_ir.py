@@ -6,15 +6,16 @@ app = marimo.App(width="medium")
 
 @app.cell(hide_code=True)
 def _():
+    from collections import Counter, defaultdict
+
     import marimo as mo
-    from xdsl.ir import Dialect
-    from collections import defaultdict
-    from xdsl.dialects import builtin, func, arith, scf
+
     from xdsl.context import Context
+    from xdsl.dialects import arith, builtin, func, scf
+    from xdsl.ir import BlockArgument, Dialect, OpResult
     from xdsl.parser import Parser
     from xdsl.utils import marimo as xmo
-    from collections import Counter
-    from xdsl.ir import OpResult, BlockArgument
+
     return (
         BlockArgument,
         Counter,
@@ -63,12 +64,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo, sum_of_squares_text):
-    mo.md(fr"""
+    mo.md(rf"""
     In this notebook, we'll be looking at the structure of the following module:
 
     {mo.ui.code_editor(sum_of_squares_text, language="javascript", disabled=True)}
-    """
-    )
+    """)
     return
 
 
@@ -100,13 +100,11 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         The Operation class exposes a `walk` function, which lets us iterate over the IR from top to bottom.
 
         For example, to get the names of all the operations in our module, we can write a snippet like this:
-        """
-    )
+        """)
     return
 
 
@@ -118,8 +116,7 @@ def _(sum_of_squares_module):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         These helpers will be useful for the exercises below:
 
         `Operation`:
@@ -142,8 +139,7 @@ def _(mo):
         `Use`:
 
         * `operation: Operation`
-        """
-    )
+        """)
     return
 
 
@@ -167,8 +163,7 @@ def _(mo, sum_of_squares_module, unique_operations):
     except Exception as e:
         _res = f"{type(e).__name__}: {e}"
 
-    mo.md(
-        fr"""
+    mo.md(rf"""
         ### Exercise 1. Unique Operations
 
         Modify the function below to return the set of operations used in the module.
@@ -177,8 +172,7 @@ def _(mo, sum_of_squares_module, unique_operations):
         Expected: {{arith.addi, arith.constant, arith.muli, builtin.module, func.func, func.return, scf.for, scf.yield}}
         Result:   {_res}
         ```
-        """
-    )
+        """)
     return
 
 
@@ -186,6 +180,7 @@ def _(mo, sum_of_squares_module, unique_operations):
 def _(builtin):
     def unique_operations(module: builtin.ModuleOp) -> set[str]:
         return set()
+
     return (unique_operations,)
 
 
@@ -195,6 +190,7 @@ def _(builtin):
 
     def _unique_operations(module: builtin.ModuleOp) -> set[str]:
         return {op.name for op in module.walk()}
+
     return
 
 
@@ -205,8 +201,7 @@ def _(mo, operation_counts, sum_of_squares_module):
     except Exception as e:
         _res = f"{type(e).__name__}: {e}"
 
-    mo.md(
-        fr"""
+    mo.md(rf"""
         ### Exercise 2. Operation Counter
 
         Modify the function below to return the number of instances of the operations in the module.
@@ -215,8 +210,7 @@ def _(mo, operation_counts, sum_of_squares_module):
         Expected: {{'builtin.module': 1, 'func.func': 1, 'arith.constant': 2, 'scf.for': 1, 'arith.muli': 1, 'arith.addi': 1, 'scf.yield': 1, 'func.return': 1}}
         Result:   {_res}
         ```
-        """
-    )
+        """)
     return
 
 
@@ -226,6 +220,7 @@ def _(builtin):
 
     def operation_counts(module: builtin.ModuleOp) -> dict[str, int]:
         return {}
+
     return (operation_counts,)
 
 
@@ -235,6 +230,7 @@ def _(Counter, builtin):
 
     def _operation_counts(module: builtin.ModuleOp) -> dict[str, int]:
         return dict(Counter(op.name for op in module.walk()))
+
     return
 
 
@@ -242,16 +238,12 @@ def _(Counter, builtin):
 def _(mo, operations_by_dialect, sum_of_squares_module):
     try:
         _unsorted = operations_by_dialect(sum_of_squares_module)
-        _sorted = {
-            k: sorted(_unsorted[k])
-            for k in sorted(_unsorted)
-        }
+        _sorted = {k: sorted(_unsorted[k]) for k in sorted(_unsorted)}
         _res = str(_sorted)
     except Exception as e:
         _res = f"{type(e).__name__}: {e}"
 
-    mo.md(
-        fr"""
+    mo.md(rf"""
         ### Exercise 3. Operations By Dialect
 
         Modify the function below to return the operations by dialect in the module
@@ -260,8 +252,7 @@ def _(mo, operations_by_dialect, sum_of_squares_module):
         Expected: {{'arith': ['addi', 'constant', 'constant', 'muli'], 'builtin': ['module'], 'func': ['func', 'return'], 'scf': ['for', 'yield']}}
         Result:   {_res}
         ```
-        """
-    )
+        """)
     return
 
 
@@ -271,6 +262,7 @@ def _(builtin):
 
     def operations_by_dialect(module: builtin.ModuleOp) -> dict[str, list[str]]:
         return {}
+
     return (operations_by_dialect,)
 
 
@@ -285,6 +277,7 @@ def _(Dialect, builtin, defaultdict):
             d, o = Dialect.split_name(op.name)
             res[d].append(o)
         return dict(res)
+
     return
 
 
@@ -296,12 +289,10 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         SSA values in IR are either defined as results or block arguments.
         In xDSL, the values have optional name hints, and are numbered in ascending order when printing if the name hint is missing.
-        """
-    )
+        """)
     return
 
 
@@ -309,27 +300,20 @@ def _(mo):
 def _(sum_of_squares_module):
     all_operands = set(val.name_hint for op in sum_of_squares_module.walk() for val in op.operands)
     all_results = set(val.name_hint for op in sum_of_squares_module.walk() for val in op.results)
-    all_block_args = set(
-        val.name_hint
-        for op in sum_of_squares_module.walk()
-        for region in op.regions
-        for block in region.blocks
-        for val in block.args
-    )
+    all_block_args = set(val.name_hint for op in sum_of_squares_module.walk() for region in op.regions for block in region.blocks for val in block.args)
     all_ssa_values = all_operands | all_results | all_block_args
     return all_block_args, all_operands, all_results, all_ssa_values
 
 
 @app.cell(hide_code=True)
 def _(all_ssa_values, mo):
-    mo.md(fr"""
+    mo.md(rf"""
     Here are all the name hints of SSA values in our module:
 
     ```
     {{{', '.join(sorted(all_ssa_values))}}}
     ```
-    """
-    )
+    """)
     return
 
 
@@ -337,16 +321,12 @@ def _(all_ssa_values, mo):
 def _(definition_by_use, mo, sum_of_squares_module):
     try:
         _unsorted = definition_by_use(sum_of_squares_module)
-        _sorted = {
-            k: sorted(_unsorted[k])
-            for k in sorted(_unsorted)
-        }
+        _sorted = {k: sorted(_unsorted[k]) for k in sorted(_unsorted)}
         _res = str(_sorted)
     except Exception as e:
         _res = f"{type(e).__name__}: {e}"
 
-    mo.md(
-        fr"""
+    mo.md(rf"""
         ### Exercise 4. Definition By Use
 
         Modify the function below to return the operation that defines the value by the operation that uses it.
@@ -359,8 +339,7 @@ def _(definition_by_use, mo, sum_of_squares_module):
         Expected: {{'arith.addi': ['arith.muli', 'scf.for'], 'arith.muli': ['scf.for', 'scf.for'], 'func.return': ['scf.for'], 'scf.for': ['arith.constant', 'arith.constant', 'arith.constant', 'func.func'], 'scf.yield': ['arith.addi']}}
         Result:   {_res}
         ```
-        """
-    )
+        """)
     return
 
 
@@ -368,6 +347,7 @@ def _(definition_by_use, mo, sum_of_squares_module):
 def _(builtin):
     def definition_by_use(module: builtin.ModuleOp) -> dict[str, list[str]]:
         return {}
+
     return (definition_by_use,)
 
 
@@ -387,6 +367,7 @@ def _(OpResult, builtin, defaultdict):
 
                 res[use_op.name].append(op.name)
         return dict(res)
+
     return
 
 
@@ -394,16 +375,12 @@ def _(OpResult, builtin, defaultdict):
 def _(mo, sum_of_squares_module, uses_by_definition):
     try:
         _unsorted = uses_by_definition(sum_of_squares_module)
-        _sorted = {
-            k: sorted(_unsorted[k])
-            for k in sorted(_unsorted)
-        }
+        _sorted = {k: sorted(_unsorted[k]) for k in sorted(_unsorted)}
         _res = str(_sorted)
     except Exception as e:
         _res = f"{type(e).__name__}: {e}"
 
-    mo.md(
-        fr"""
+    mo.md(rf"""
         ### Exercise 5. Uses By Definition
 
         Modify the function below to return the operations that use the result by the operation that defines it.
@@ -414,8 +391,7 @@ def _(mo, sum_of_squares_module, uses_by_definition):
         Expected: {{'arith.addi': ['scf.yield'], 'arith.constant': ['scf.for', 'scf.for', 'scf.for'], 'arith.muli': ['arith.addi'], 'scf.for': ['func.return']}}
         Result:   {_sorted}
         ```
-        """
-    )
+        """)
     return
 
 
@@ -423,6 +399,7 @@ def _(mo, sum_of_squares_module, uses_by_definition):
 def _(builtin):
     def uses_by_definition(module: builtin.ModuleOp) -> dict[str, list[str]]:
         return {}
+
     return (uses_by_definition,)
 
 
@@ -439,6 +416,7 @@ def _(builtin, defaultdict):
                     res[def_op.name].append(use.operation.name)
 
         return dict(res)
+
     return
 
 

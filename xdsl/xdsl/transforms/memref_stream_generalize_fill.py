@@ -4,30 +4,16 @@ from typing import cast
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import memref, memref_stream
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    ArrayAttr,
-    IndexType,
-    IntegerAttr,
-    MemRefType,
-    ModuleOp,
-)
+from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr, IndexType, IntegerAttr, MemRefType, ModuleOp
 from xdsl.ir import Attribute, Block, Region
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
 class GeneralizeFillPattern(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: memref_stream.FillOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: memref_stream.FillOp, rewriter: PatternRewriter) -> None:
         block = Block(arg_types=(op.value.type, op.value.type))
 
         with ImplicitBuilder(block) as (arg0, _):

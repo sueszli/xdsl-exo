@@ -2,12 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from xdsl.dialects import riscv_debug
-from xdsl.interpreter import (
-    Interpreter,
-    InterpreterFunctions,
-    impl,
-    register_impls,
-)
+from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.interpreters.riscv import RiscvFunctions
 
 

@@ -7,28 +7,10 @@ See external [documentation](https://circt.llvm.org/docs/Dialects/Seq/).
 from enum import Enum
 from typing import ClassVar
 
-from xdsl.dialects.builtin import (
-    IntegerAttr,
-    IntegerType,
-    TypeAttribute,
-    i1,
-)
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, TypeAttribute, i1
 from xdsl.dialects.hw import InnerSymAttr
 from xdsl.ir import Data, Dialect, Operation, SSAValue
-from xdsl.irdl import (
-    AnyAttr,
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    ParametrizedAttribute,
-    VarConstraint,
-    attr_def,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_attr_def,
-    opt_operand_def,
-    result_def,
-)
+from xdsl.irdl import AnyAttr, AttrSizedOperandSegments, IRDLOperation, ParametrizedAttribute, VarConstraint, attr_def, irdl_attr_definition, irdl_op_definition, operand_def, opt_attr_def, opt_operand_def, result_def
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -59,17 +41,13 @@ class ClockDividerOp(IRDLOperation):
     def __init__(self, clockIn: SSAValue | Operation, pow2: int | IntegerAttr):
         if isinstance(pow2, int):
             pow2 = IntegerAttr(pow2, IntegerType(8))
-        super().__init__(
-            operands=[clockIn], attributes={"pow2": pow2}, result_types=[clock]
-        )
+        super().__init__(operands=[clockIn], attributes={"pow2": pow2}, result_types=[clock])
 
     def verify_(self) -> None:
         if self.pow2.type != IntegerType(8):
             raise VerifyException("pow2 has to be an 8-bit signless integer")
         if self.pow2.value.data.bit_count() != 1:
-            raise VerifyException(
-                f"divider value {self.pow2.value.data} is not a power of 2"
-            )
+            raise VerifyException(f"divider value {self.pow2.value.data} is not a power of 2")
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -105,12 +83,7 @@ class CompRegOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    assembly_format = (
-        "(`sym` $inner_sym^)? $input `,` $clk "
-        "(`reset` $reset^ `,` $reset_value)? "
-        "(`powerOn` $power_on_value^)? "
-        "attr-dict `:` type($input)"
-    )
+    assembly_format = "(`sym` $inner_sym^)? $input `,` $clk " "(`reset` $reset^ `,` $reset_value)? " "(`powerOn` $power_on_value^)? " "attr-dict `:` type($input)"
 
     def __init__(
         self,

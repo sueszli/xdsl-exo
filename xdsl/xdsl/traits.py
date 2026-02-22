@@ -25,7 +25,6 @@ class OpTrait:
 
     def verify(self, op: Operation) -> None:
         """Check that the operation satisfies the trait requirements."""
-        pass
 
 
 OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
@@ -56,9 +55,7 @@ class HasParent(OpTrait):
         if isinstance(parent, self.op_types):
             return
         if len(self.op_types) == 1:
-            raise VerifyException(
-                f"'{op.name}' expects parent op '{self.op_types[0].name}'"
-            )
+            raise VerifyException(f"'{op.name}' expects parent op '{self.op_types[0].name}'")
         names = ", ".join(f"'{p.name}'" for p in self.op_types)
         raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
 
@@ -78,13 +75,9 @@ class HasAncestor(OpTrait):
     def verify(self, op: Operation) -> None:
         if self.get_ancestor(op) is None:
             if len(self.op_types) == 1:
-                raise VerifyException(
-                    f"'{op.name}' expects ancestor op '{self.op_types[0].name}'"
-                )
+                raise VerifyException(f"'{op.name}' expects ancestor op '{self.op_types[0].name}'")
             names = ", ".join(f"'{p.name}'" for p in self.op_types)
-            raise VerifyException(
-                f"'{op.name}' expects ancestor op to be one of {names}"
-            )
+            raise VerifyException(f"'{op.name}' expects ancestor op to be one of {names}")
 
     def walk_ancestors(self, op: Operation) -> Iterator[Operation]:
         """Iterates over the ancestors of an operation, including the input"""
@@ -110,9 +103,7 @@ class IsTerminator(OpTrait):
     def verify(self, op: Operation) -> None:
         """Check that the operation satisfies the IsTerminator trait requirements."""
         if op.parent is not None and op.parent.last_op != op:
-            raise VerifyException(
-                f"'{op.name}' must be the last operation in its parent block"
-            )
+            raise VerifyException(f"'{op.name}' must be the last operation in its parent block")
 
 
 class NoTerminator(OpTrait):
@@ -125,9 +116,7 @@ class NoTerminator(OpTrait):
     def verify(self, op: Operation) -> None:
         for region in op.regions:
             if len(region.blocks) > 1:
-                raise VerifyException(
-                    f"'{op.name}' does not contain single-block regions"
-                )
+                raise VerifyException(f"'{op.name}' does not contain single-block regions")
 
 
 @dataclass(frozen=True)
@@ -148,21 +137,13 @@ class SingleBlockImplicitTerminator(OpTrait):
     def verify(self, op: Operation) -> None:
         for region in op.regions:
             if len(region.blocks) > 1:
-                raise VerifyException(
-                    f"'{op.name}' does not contain single-block regions"
-                )
+                raise VerifyException(f"'{op.name}' does not contain single-block regions")
             for block in region.blocks:
                 if (last_op := block.last_op) is None:
-                    raise VerifyException(
-                        f"'{op.name}' contains empty block instead of at least "
-                        f"terminating with {self.op_type.name}"
-                    )
+                    raise VerifyException(f"'{op.name}' contains empty block instead of at least " f"terminating with {self.op_type.name}")
 
                 if not isinstance(last_op, self.op_type):
-                    raise VerifyException(
-                        f"'{op.name}' terminates with operation {last_op.name} "
-                        f"instead of {self.op_type.name}"
-                    )
+                    raise VerifyException(f"'{op.name}' terminates with operation {last_op.name} " f"instead of {self.op_type.name}")
 
 
 def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> None:
@@ -179,16 +160,8 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
         from xdsl.dialects.builtin import UnregisteredOp
 
         for block in region.blocks:
-            if (
-                (last_op := block.last_op) is not None
-                and not isinstance(last_op, UnregisteredOp)
-                and last_op.has_trait(IsTerminator)
-                and not isinstance(last_op, trait.op_type)
-            ):
-                raise VerifyException(
-                    f"'{op.name}' terminates with operation {last_op.name} "
-                    f"instead of {trait.op_type.name}"
-                )
+            if (last_op := block.last_op) is not None and not isinstance(last_op, UnregisteredOp) and last_op.has_trait(IsTerminator) and not isinstance(last_op, trait.op_type):
+                raise VerifyException(f"'{op.name}' terminates with operation {last_op.name} " f"instead of {trait.op_type.name}")
 
     from xdsl.builder import ImplicitBuilder
     from xdsl.ir import Block
@@ -198,9 +171,7 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
             region.add_block(Block())
 
         for block in region.blocks:
-            if (last_op := block.last_op) is None or not last_op.has_trait(
-                IsTerminator, value_if_unregistered=False
-            ):
+            if (last_op := block.last_op) is None or not last_op.has_trait(IsTerminator, value_if_unregistered=False):
                 with ImplicitBuilder(block):
                     trait.op_type.create()
 
@@ -231,10 +202,7 @@ class IsolatedFromAbove(OpTrait):
                     for operand in child_op.operands:
                         # The operand must not be defined out of the IsolatedFromAbove op.
                         if not op.is_ancestor(operand.owner):
-                            raise VerifyException(
-                                "Operation using value defined out of its "
-                                f"IsolatedFromAbove parent: {child_op}"
-                            )
+                            raise VerifyException("Operation using value defined out of its " f"IsolatedFromAbove parent: {child_op}")
                     # Check nested regions too; unless the operation is IsolatedFromAbove
                     # too; in which case it will check itself.
                     if not child_op.has_trait(IsolatedFromAbove):
@@ -274,13 +242,9 @@ class SymbolTable(OpTrait):
         from xdsl.dialects.builtin import StringAttr
 
         if len(op.regions) != 1:
-            raise VerifyException(
-                "Operations with a 'SymbolTable' must have exactly one region"
-            )
+            raise VerifyException("Operations with a 'SymbolTable' must have exactly one region")
         if len(op.regions[0].blocks) != 1:
-            raise VerifyException(
-                "Operations with a 'SymbolTable' must have exactly one block"
-            )
+            raise VerifyException("Operations with a 'SymbolTable' must have exactly one block")
         block = op.regions[0].blocks[0]
         met_names: set[StringAttr] = set()
         for o in block.ops:
@@ -293,9 +257,7 @@ class SymbolTable(OpTrait):
             met_names.add(sym_name)
 
     @staticmethod
-    def lookup_symbol(
-        op: Operation, name: str | StringAttr | SymbolRefAttr
-    ) -> Operation | None:
+    def lookup_symbol(op: Operation, name: str | StringAttr | SymbolRefAttr) -> Operation | None:
         """
         Lookup a symbol by reference, starting from a specific operation's closest
         SymbolTable parent.
@@ -311,9 +273,7 @@ class SymbolTable(OpTrait):
         if isinstance(name, str | StringAttr):
             name = SymbolRefAttr(name)
         for o in anchor.regions[0].block.ops:
-            if (
-                sym_interface := o.get_trait(SymbolOpInterface)
-            ) is not None and sym_interface.get_sym_attr_name(o) == name.root_reference:
+            if (sym_interface := o.get_trait(SymbolOpInterface)) is not None and sym_interface.get_sym_attr_name(o) == name.root_reference:
                 if not name.nested_references:
                     return o
                 nested_root, *nested_references = name.nested_references.data
@@ -322,9 +282,7 @@ class SymbolTable(OpTrait):
         return None
 
     @staticmethod
-    def insert_or_update(
-        symbol_table_op: Operation, symbol_op: Operation
-    ) -> Operation | None:
+    def insert_or_update(symbol_table_op: Operation, symbol_op: Operation) -> Operation | None:
         """
         This takes a symbol_table_op and a symbol_op. It looks if another operation
         inside symbol_table_op already defines symbol_ops symbol. If another operation
@@ -337,9 +295,7 @@ class SymbolTable(OpTrait):
         trait = symbol_op.get_trait(SymbolOpInterface)
 
         if trait is None:
-            raise ValueError(
-                "Passed symbol_op does not have the SymbolOpInterface trait"
-            )
+            raise ValueError("Passed symbol_op does not have the SymbolOpInterface trait")
 
         symbol_name = trait.get_sym_attr_name(symbol_op)
 
@@ -393,10 +349,7 @@ class SymbolOpInterface(OpTrait):
         if sym_name is None and self.is_optional_symbol(op):
             return None
         if not isinstance(sym_name, StringAttr):
-            raise VerifyException(
-                f'Operation {op.name} must have a "sym_name" attribute of type '
-                f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
-            )
+            raise VerifyException(f'Operation {op.name} must have a "sym_name" attribute of type ' f"`StringAttr` to conform to {SymbolOpInterface.__name__}")
         return sym_name
 
     def is_optional_symbol(self, op: Operation) -> bool:
@@ -692,9 +645,7 @@ class AlwaysSpeculatable(ConditionallySpeculatable):
 class RecursivelySpeculatable(ConditionallySpeculatable):
     @classmethod
     def is_speculatable(cls, op: Operation):
-        return all(
-            is_speculatable(o) for r in op.regions for b in r.blocks for o in b.ops
-        )
+        return all(is_speculatable(o) for r in op.regions for b in r.blocks for o in b.ops)
 
 
 def is_speculatable(op: Operation):
@@ -738,16 +689,10 @@ class SameOperandsAndResultType(OpTrait):
     """Constrain the operation to have the same operands and result type."""
 
     def verify(self, op: Operation) -> None:
-        from xdsl.utils.type import (
-            get_element_type_or_self,
-            get_encoding,
-            have_compatible_shape,
-        )
+        from xdsl.utils.type import get_element_type_or_self, get_encoding, have_compatible_shape
 
         if len(op.results) < 1 or len(op.operands) < 1:
-            raise VerifyException(
-                f"'{op.name}' requires at least one result or operand"
-            )
+            raise VerifyException(f"'{op.name}' requires at least one result or operand")
 
         result_type0 = get_element_type_or_self(op.result_types[0])
 
@@ -755,32 +700,20 @@ class SameOperandsAndResultType(OpTrait):
 
         for result_type in op.result_types[1:]:
             result_type_elem = get_element_type_or_self(result_type)
-            if result_type0 != result_type_elem or not have_compatible_shape(
-                op.result_types[0], result_type
-            ):
-                raise VerifyException(
-                    f"'{op.name} requires the same type for all operands and results"
-                )
+            if result_type0 != result_type_elem or not have_compatible_shape(op.result_types[0], result_type):
+                raise VerifyException(f"'{op.name} requires the same type for all operands and results")
 
             element_encoding = get_encoding(result_type)
 
             if encoding != element_encoding:
-                raise VerifyException(
-                    f"'{op.name} requires the same encoding for all operands and results"
-                )
+                raise VerifyException(f"'{op.name} requires the same encoding for all operands and results")
 
         for operand_type in op.operand_types:
             operand_type_elem = get_element_type_or_self(operand_type)
-            if result_type0 != operand_type_elem or not have_compatible_shape(
-                op.result_types[0], operand_type
-            ):
-                raise VerifyException(
-                    f"'{op.name} requires the same type for all operands and results"
-                )
+            if result_type0 != operand_type_elem or not have_compatible_shape(op.result_types[0], operand_type):
+                raise VerifyException(f"'{op.name} requires the same type for all operands and results")
 
             element_encoding = get_encoding(operand_type)
 
             if encoding != element_encoding:
-                raise VerifyException(
-                    f"'{op.name} requires the same encoding for all operands and results"
-                )
+                raise VerifyException(f"'{op.name} requires the same encoding for all operands and results")

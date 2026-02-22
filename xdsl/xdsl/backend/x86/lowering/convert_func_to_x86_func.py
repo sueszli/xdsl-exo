@@ -3,13 +3,7 @@ from xdsl.dialects import builtin, func, x86, x86_func
 from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.ir import Attribute, Block
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import DiagnosticException
 
@@ -41,28 +35,20 @@ class LowerFuncOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter):
         if op.body.blocks.first is None:
-            raise DiagnosticException(
-                "Cannot lower external functions (not implemented)"
-            )
+            raise DiagnosticException("Cannot lower external functions (not implemented)")
 
         for ty in op.function_type.inputs.data:
             if isinstance(ty, builtin.ShapedType):
-                raise DiagnosticException(
-                    "Cannot lower shaped function parameters (not implemented)"
-                )
+                raise DiagnosticException("Cannot lower shaped function parameters (not implemented)")
             elif isinstance(ty, builtin.FixedBitwidthType) and ty.bitwidth > 64:
-                raise DiagnosticException(
-                    "Cannot lower function parameters bigger than 64 bits (not implemented)"
-                )
+                raise DiagnosticException("Cannot lower function parameters bigger than 64 bits (not implemented)")
 
         if op.sym_visibility == StringAttr("public"):
             directive_op = x86.DirectiveOp(".global", op.sym_name)
             rewriter.insert_op_before_matched_op(directive_op)
 
         num_inputs = len(op.function_type.inputs.data)
-        reg_args_types = arg_passing_registers[
-            : min(num_inputs, MAX_REG_PASSING_INPUTS)
-        ]
+        reg_args_types = arg_passing_registers[: min(num_inputs, MAX_REG_PASSING_INPUTS)]
 
         new_region = rewriter.move_region_contents_to_new_regions(op.body)
         first_block = new_region.blocks.first
@@ -80,9 +66,7 @@ class LowerFuncOp(RewritePattern):
             first_block.erase_arg(arg)
 
         # The last argument of the basic block should be the stack pointer
-        sp = first_block.insert_arg(
-            x86.register.RSP, min(num_inputs, MAX_REG_PASSING_INPUTS)
-        )
+        sp = first_block.insert_arg(x86.register.RSP, min(num_inputs, MAX_REG_PASSING_INPUTS))
 
         # If needed, load the stack-carried parameters by iteratively
         # consuming the 7th argument of the basic block. Once the 7th argument
@@ -97,9 +81,7 @@ class LowerFuncOp(RewritePattern):
                 result=x86.register.UNALLOCATED_GENERAL,
                 comment=f"Load the {i + MAX_REG_PASSING_INPUTS + 1}th argument of the function",
             )
-            cast_op = builtin.UnrealizedConversionCastOp.get(
-                (mov_op.result,), (arg.type,)
-            )
+            cast_op = builtin.UnrealizedConversionCastOp.get((mov_op.result,), (arg.type,))
             rewriter.insert_op([mov_op, cast_op], insertion_point)
             arg.replace_by(cast_op.results[0])
             first_block.erase_arg(arg)
@@ -124,27 +106,16 @@ class LowerReturnOp(RewritePattern):
         if len(op.arguments) == 0:
             return
         elif len(op.arguments) > 1:
-            raise DiagnosticException(
-                "Cannot lower func.return with more than 1 argument (not implemented)"
-            )
+            raise DiagnosticException("Cannot lower func.return with more than 1 argument (not implemented)")
 
         return_value = op.arguments[0]
 
         if isinstance(return_value.type, builtin.ShapedType):
-            raise DiagnosticException(
-                "Cannot lower shaped function output (not implemented)"
-            )
-        elif (
-            isinstance(return_value.type, builtin.FixedBitwidthType)
-            and return_value.type.bitwidth > 64
-        ):
-            raise DiagnosticException(
-                "Cannot lower function return values bigger than 64 bits (not implemented)"
-            )
+            raise DiagnosticException("Cannot lower shaped function output (not implemented)")
+        elif isinstance(return_value.type, builtin.FixedBitwidthType) and return_value.type.bitwidth > 64:
+            raise DiagnosticException("Cannot lower function return values bigger than 64 bits (not implemented)")
 
-        cast_op = builtin.UnrealizedConversionCastOp.get(
-            (return_value,), (x86.register.UNALLOCATED_GENERAL,)
-        )
+        cast_op = builtin.UnrealizedConversionCastOp.get((return_value,), (x86.register.UNALLOCATED_GENERAL,))
         get_reg_op = x86.ops.GetRegisterOp(return_passing_register)
         mov_op = x86.ops.RR_MovOp(cast_op, get_reg_op, result=return_passing_register)
         ret_op = x86_func.RetOp()

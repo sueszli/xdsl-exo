@@ -3,14 +3,7 @@ from abc import ABC, abstractmethod
 from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
 from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import Operation, SSAValue
-from xdsl.irdl import (
-    IRDLOperation,
-    irdl_op_definition,
-    operand_def,
-    opt_attr_def,
-    prop_def,
-    result_def,
-)
+from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def, opt_attr_def, prop_def, result_def
 
 from .assembly import AssemblyInstructionArg, reg
 from .register import IntRegisterType
@@ -52,9 +45,7 @@ class ARMInstruction(ARMOperation, ABC):
     def assembly_line(self) -> str | None:
         # default assembly code generator
         instruction_name = self.assembly_instruction_name()
-        arg_str = ", ".join(
-            arg.assembly_str() for arg in self.assembly_line_args() if arg is not None
-        )
+        arg_str = ", ".join(arg.assembly_str() for arg in self.assembly_line_args() if arg is not None)
         return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
 
 
@@ -125,9 +116,7 @@ class DSSMulOp(ARMInstruction):
     d = result_def(IntRegisterType)
     s1 = operand_def(IntRegisterType)
     s2 = operand_def(IntRegisterType)
-    assembly_format = (
-        "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
-    )
+    assembly_format = "$s1 `,` $s2 attr-dict `:` `(` type($s1) `,` type($s2) `)` `->` type($d)"
 
     def __init__(
         self,

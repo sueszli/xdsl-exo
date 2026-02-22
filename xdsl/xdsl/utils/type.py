@@ -4,13 +4,7 @@ Type utilities.
 
 from typing import Any, cast
 
-from xdsl.dialects.builtin import (
-    DYNAMIC_INDEX,
-    ContainerType,
-    NoneAttr,
-    ShapedType,
-    TensorType,
-)
+from xdsl.dialects.builtin import DYNAMIC_INDEX, ContainerType, NoneAttr, ShapedType, TensorType
 from xdsl.ir import Attribute
 
 
@@ -47,7 +41,4 @@ def have_compatible_shape(lhs_type: Attribute, rhs_type: Attribute) -> bool:
     if lhs_type.get_num_dims() != rhs_type.get_num_dims():
         return False
 
-    return all(
-        dim1 == DYNAMIC_INDEX or dim2 == DYNAMIC_INDEX or dim1 == dim2
-        for dim1, dim2 in zip(lhs_type.get_shape(), rhs_type.get_shape())
-    )
+    return all(dim1 == DYNAMIC_INDEX or dim2 == DYNAMIC_INDEX or dim1 == dim2 for dim1, dim2 in zip(lhs_type.get_shape(), rhs_type.get_shape()))

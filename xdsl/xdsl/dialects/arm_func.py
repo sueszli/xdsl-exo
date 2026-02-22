@@ -4,27 +4,12 @@ from collections.abc import Sequence
 
 from xdsl.dialects import arm
 from xdsl.dialects.builtin import FunctionType, StringAttr
-from xdsl.dialects.utils import (
-    parse_func_op_like,
-    print_func_op_like,
-)
+from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
 from xdsl.ir import Attribute, Dialect, Operation, Region
-from xdsl.irdl import (
-    attr_def,
-    irdl_op_definition,
-    opt_attr_def,
-    region_def,
-    traits_def,
-)
+from xdsl.irdl import attr_def, irdl_op_definition, opt_attr_def, region_def, traits_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import (
-    CallableOpInterface,
-    HasParent,
-    IsolatedFromAbove,
-    IsTerminator,
-    SymbolOpInterface,
-)
+from xdsl.traits import CallableOpInterface, HasParent, IsolatedFromAbove, IsTerminator, SymbolOpInterface
 
 
 class FuncOpCallableInterface(CallableOpInterface):
@@ -83,11 +68,9 @@ class FuncOp(arm.ops.ARMOperation):
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
         visibility = parser.parse_optional_visibility_keyword()
-        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
-            parse_func_op_like(
-                parser,
-                reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
-            )
+        name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs = parse_func_op_like(
+            parser,
+            reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
         if arg_attrs:
             raise NotImplementedError("arg_attrs not implemented in arm_func")

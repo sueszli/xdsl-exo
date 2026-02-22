@@ -4,9 +4,7 @@ import pytest
 
 from xdsl.dialects.builtin import Float64Type, MemRefType, f64
 from xdsl.ir.affine import AffineMap
-from xdsl.transforms.convert_memref_stream_to_snitch_stream import (
-    strides_for_affine_map,
-)
+from xdsl.transforms.convert_memref_stream_to_snitch_stream import strides_for_affine_map
 from xdsl.utils.exceptions import DiagnosticException
 
 
@@ -21,9 +19,7 @@ def test_strides_map_from_memref_type():
     ):
         mem_type([]).get_affine_map_in_bytes()
 
-    assert mem_type([2, 3]).get_affine_map_in_bytes() == AffineMap.from_callable(
-        lambda i, j: (i * 24 + j * 8,)
-    )
+    assert mem_type([2, 3]).get_affine_map_in_bytes() == AffineMap.from_callable(lambda i, j: (i * 24 + j * 8,))
 
 
 def test_strides_for_affine_map():

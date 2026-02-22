@@ -122,8 +122,7 @@ class CheckStructure:
                         self.file,
                         stmt.lineno,
                         stmt.col_offset,
-                        f"Expected a function, but found a block '{stmt.name}'."
-                        " Only functions can be declared in the CodeContext",
+                        f"Expected a function, but found a block '{stmt.name}'." " Only functions can be declared in the CodeContext",
                     )
 
                 # Record this function.
@@ -134,8 +133,7 @@ class CheckStructure:
                         self.file,
                         stmt.lineno,
                         stmt.col_offset,
-                        f"Function '{stmt.name}' is already defined at line "
-                        f"{line} column {col}.",
+                        f"Function '{stmt.name}' is already defined at line " f"{line} column {col}.",
                     )
                 self.functions_and_blocks[stmt.name] = (stmt, dict())
 
@@ -147,16 +145,14 @@ class CheckStructure:
                         self.file,
                         stmt.lineno,
                         stmt.col_offset,
-                        f"Function '{stmt.name}' must have an explicit terminator."
-                        " Have you tried adding a return statement?",
+                        f"Function '{stmt.name}' must have an explicit terminator." " Have you tried adding a return statement?",
                     )
                 if not isinstance(stmt.body[-1], ast.Return):
                     raise CodeGenerationException(
                         self.file,
                         stmt.lineno,
                         stmt.col_offset,
-                        f"Function '{stmt.name}' must have an explicit return"
-                        " in the end.",
+                        f"Function '{stmt.name}' must have an explicit return" " in the end.",
                     )
 
                 # Lastly, record basic block information that we can check
@@ -164,22 +160,15 @@ class CheckStructure:
                 for inner_stmt in stmt.body:
                     if isinstance(inner_stmt, ast.FunctionDef) and is_block(inner_stmt):
                         if inner_stmt.name in self.functions_and_blocks[stmt.name][1]:
-                            line = self.functions_and_blocks[stmt.name][1][
-                                inner_stmt.name
-                            ].lineno
-                            col = self.functions_and_blocks[stmt.name][1][
-                                inner_stmt.name
-                            ].col_offset
+                            line = self.functions_and_blocks[stmt.name][1][inner_stmt.name].lineno
+                            col = self.functions_and_blocks[stmt.name][1][inner_stmt.name].col_offset
                             raise CodeGenerationException(
                                 self.file,
                                 stmt.lineno,
                                 stmt.col_offset,
-                                f"Block '{inner_stmt.name}' is already defined at line "
-                                f"{line} column {col}.",
+                                f"Block '{inner_stmt.name}' is already defined at line " f"{line} column {col}.",
                             )
-                        self.functions_and_blocks[stmt.name][1][inner_stmt.name] = (
-                            inner_stmt
-                        )
+                        self.functions_and_blocks[stmt.name][1][inner_stmt.name] = inner_stmt
                 continue
 
             # Otherwise, not a function, pass nor constant expression. Abort.
@@ -197,25 +186,11 @@ class CheckStructure:
 
     def _is_branch(self, function_name: str, node: ast.expr | None) -> bool:
         """Returns true if the terminator node is an unconditional branch."""
-        return (
-            node is not None
-            and isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Name)
-            and node.func.id in self.functions_and_blocks[function_name][1]
-        )
+        return node is not None and isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in self.functions_and_blocks[function_name][1]
 
     def _is_cond_branch(self, function_name: str, node: ast.expr | None) -> bool:
         """Returns true if the terminator node is a conditional branch."""
-        return (
-            node is not None
-            and isinstance(node, ast.IfExp)
-            and isinstance(node.body, ast.Call)
-            and isinstance(node.body.func, ast.Name)
-            and node.body.func.id in self.functions_and_blocks[function_name][1]
-            and isinstance(node.orelse, ast.Call)
-            and isinstance(node.orelse.func, ast.Name)
-            and node.orelse.func.id in self.functions_and_blocks[function_name][1]
-        )
+        return node is not None and isinstance(node, ast.IfExp) and isinstance(node.body, ast.Call) and isinstance(node.body.func, ast.Name) and node.body.func.id in self.functions_and_blocks[function_name][1] and isinstance(node.orelse, ast.Call) and isinstance(node.orelse.func, ast.Name) and node.orelse.func.id in self.functions_and_blocks[function_name][1]
 
     def _check_block_structure(self, function_name: str, node: ast.FunctionDef) -> bool:
         # Check that the basic block is well-formed.
@@ -227,16 +202,14 @@ class CheckStructure:
                         self.file,
                         stmt.lineno,
                         stmt.col_offset,
-                        f"Cannot have a nested block '{stmt.name}'"
-                        f" inside the block '{node.name}'.",
+                        f"Cannot have a nested block '{stmt.name}'" f" inside the block '{node.name}'.",
                     )
                 else:
                     raise CodeGenerationException(
                         self.file,
                         stmt.lineno,
                         stmt.col_offset,
-                        f"Cannot have a nested function '{stmt.name}'"
-                        f" inside the block '{node.name}'.",
+                        f"Cannot have a nested function '{stmt.name}'" f" inside the block '{node.name}'.",
                     )
 
         # Check blocks have an explicit terminator.
@@ -245,8 +218,7 @@ class CheckStructure:
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Block '{node.name}' must have an explicit terminator."
-                " Have you tried adding a return statement?",
+                f"Block '{node.name}' must have an explicit terminator." " Have you tried adding a return statement?",
             )
 
         # Check if the terminator of the block is well-formed. It can
@@ -254,9 +226,7 @@ class CheckStructure:
         # a conditional branch.
         assert isinstance(node.body[-1], ast.Return)
         terminator = node.body[-1].value
-        return self._is_branch(function_name, terminator) or self._is_cond_branch(
-            function_name, terminator
-        )
+        return self._is_branch(function_name, terminator) or self._is_cond_branch(function_name, terminator)
 
     def _check_function_structure(self, node: ast.FunctionDef):
         # Functions cannot have inner functions but can have blocks inside
@@ -276,9 +246,7 @@ class CheckStructure:
                     self.file,
                     stmt.lineno,
                     stmt.col_offset,
-                    f"Function '{node.name}' cannot contain operations outside"
-                    " of blocks apart from explicit entry point or constant "
-                    "expressions.",
+                    f"Function '{node.name}' cannot contain operations outside" " of blocks apart from explicit entry point or constant " "expressions.",
                 )
 
             # Otherwise we allow anything, and only have to carefully look at
@@ -292,8 +260,7 @@ class CheckStructure:
                     self.file,
                     stmt.lineno,
                     stmt.col_offset,
-                    f"Cannot have an inner function '{stmt.name}' inside "
-                    f"the function '{node.name}'.",
+                    f"Cannot have an inner function '{stmt.name}' inside " f"the function '{node.name}'.",
                 )
 
             # Check the block and record if its terminator is a branch or not.
@@ -302,26 +269,20 @@ class CheckStructure:
 
         # Last check: we must have exactly one terminating block if blocks are
         # explicitly defined.
-        if (
-            num_explicit_blocks > 1
-            and num_explicit_blocks == num_explicit_blocks_with_branches
-        ):
+        if num_explicit_blocks > 1 and num_explicit_blocks == num_explicit_blocks_with_branches:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
                 f"Function '{node.name}' does not have a terminating block.",
             )
-        num_explicit_terminating_blocks = (
-            num_explicit_blocks - num_explicit_blocks_with_branches
-        )
+        num_explicit_terminating_blocks = num_explicit_blocks - num_explicit_blocks_with_branches
         if num_explicit_terminating_blocks > 1:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Function '{node.name}' expected one terminating block, got"
-                f" {num_explicit_terminating_blocks}.",
+                f"Function '{node.name}' expected one terminating block, got" f" {num_explicit_terminating_blocks}.",
             )
 
 
@@ -348,27 +309,17 @@ class CheckAndInlineConstants:
         CheckAndInlineConstants.run_with_variables(stmts, set(), file)
 
     @staticmethod
-    def run_with_variables(
-        stmts: Sequence[ast.stmt], defined_variables: set[str], file: str | None
-    ) -> None:
+    def run_with_variables(stmts: Sequence[ast.stmt], defined_variables: set[str], file: str | None) -> None:
         for i, stmt in enumerate(stmts):
             # This variable (`a = ...`) can be redefined as a constant, and so
             # we have to keep track of these to raise an exception.
-            if (
-                isinstance(stmt, ast.Assign)
-                and len(stmt.targets) == 1
-                and isinstance(stmt.targets[0], ast.Name)
-            ):
+            if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and isinstance(stmt.targets[0], ast.Name):
                 defined_variables.add(stmt.targets[0].id)
                 continue
 
             # Similarly, this case (`a: i32 = ...`) can also be redefined as a
             # constant.
-            if (
-                isinstance(stmt, ast.AnnAssign)
-                and isinstance(stmt.target, ast.Name)
-                and not is_constant(stmt.annotation)
-            ):
+            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name) and not is_constant(stmt.annotation):
                 defined_variables.add(stmt.target.id)
                 continue
 
@@ -379,8 +330,7 @@ class CheckAndInlineConstants:
                         file,
                         stmt.lineno,
                         stmt.col_offset,
-                        "All constant expressions have to be assigned to "
-                        "'ast.Name' nodes.",
+                        "All constant expressions have to be assigned to " "'ast.Name' nodes.",
                     )
 
                 name = stmt.target.id
@@ -394,8 +344,7 @@ class CheckAndInlineConstants:
                         file,
                         stmt.lineno,
                         stmt.col_offset,
-                        f"Non-constant expression cannot be assigned to "
-                        f"constant variable '{name}' or cannot be evaluated.",
+                        f"Non-constant expression cannot be assigned to " f"constant variable '{name}' or cannot be evaluated.",
                     )
 
                 # For now, support primitive types only and add a guard to abort
@@ -405,8 +354,7 @@ class CheckAndInlineConstants:
                         file,
                         stmt.lineno,
                         stmt.col_offset,
-                        f"Constant '{name}' has evaluated type '{type(value)}' "
-                        "which is not supported.",
+                        f"Constant '{name}' has evaluated type '{type(value)}' " "which is not supported.",
                     )
 
                 # TODO: We should typecheck the value against the type. This can
@@ -424,9 +372,7 @@ class CheckAndInlineConstants:
             # Hence, it is sufficient to check the function body only.
             if isinstance(stmt, ast.FunctionDef):
                 new_defined_variables = {arg.arg for arg in stmt.args.args}
-                CheckAndInlineConstants.run_with_variables(
-                    stmt.body, new_defined_variables, file
-                )
+                CheckAndInlineConstants.run_with_variables(stmt.body, new_defined_variables, file)
 
 
 @dataclass
@@ -449,11 +395,7 @@ class ConstantInliner(ast.NodeTransformer):
     """Path to the file containing the program."""
 
     def visit_Assign(self, node: ast.Assign) -> ast.Assign:
-        if (
-            len(node.targets) == 1
-            and isinstance(node.targets[0], ast.Name)
-            and node.targets[0].id == self.name
-        ):
+        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name) and node.targets[0].id == self.name:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
@@ -482,8 +424,7 @@ class ConstantInliner(ast.NodeTransformer):
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    f"Constant '{self.name}' is already defined and cannot be "
-                    "used as a function/block argument name.",
+                    f"Constant '{self.name}' is already defined and cannot be " "used as a function/block argument name.",
                 )
         for stmt in node.body:
             self.visit(stmt)

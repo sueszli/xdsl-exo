@@ -5,13 +5,7 @@ from xdsl.dialects import riscv, riscv_func
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
 class LowerSyscallOp(RewritePattern):
@@ -65,10 +59,7 @@ class InsertExitSyscallOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_func.ReturnOp, rewriter: PatternRewriter):
         parent_op = op.parent_op()
-        if (
-            not isinstance(parent_op, riscv_func.FuncOp)
-            or parent_op.sym_name.data != "main"
-        ):
+        if not isinstance(parent_op, riscv_func.FuncOp) or parent_op.sym_name.data != "main":
             return
 
         EXIT = 93
@@ -83,9 +74,7 @@ class LowerRISCVFunc(ModulePass):
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         if self.insert_exit_syscall:
-            PatternRewriteWalker(
-                InsertExitSyscallOp(), apply_recursively=False
-            ).rewrite_module(op)
+            PatternRewriteWalker(InsertExitSyscallOp(), apply_recursively=False).rewrite_module(op)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

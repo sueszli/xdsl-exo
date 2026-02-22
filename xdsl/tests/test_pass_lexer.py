@@ -1,11 +1,7 @@
 import pytest
 
 from xdsl.utils.exceptions import PassPipelineParseError
-from xdsl.utils.parse_pipeline import (
-    PipelineLexer,
-    Token,
-    parse_pipeline,
-)
+from xdsl.utils.parse_pipeline import PipelineLexer, Token, parse_pipeline
 
 Kind = Token.Kind
 
@@ -13,11 +9,7 @@ generator = PipelineLexer._generator  # pyright: ignore[reportPrivateUsage]
 
 
 def test_pass_lexer():
-    tokens = list(
-        generator(
-            'pass-1,pass-2{arg1=1 arg2=test arg3="test-str" arg-4=-34.4e-12 no-val-arg},pass-3'
-        )
-    )
+    tokens = list(generator('pass-1,pass-2{arg1=1 arg2=test arg3="test-str" arg-4=-34.4e-12 no-val-arg},pass-3'))
 
     assert [t.kind for t in tokens] == [
         Kind.IDENT, Kind.COMMA,  # pass-1,
@@ -57,9 +49,7 @@ def test_pass_lex_errors():
         ("pass-1{arg2 arg1=false}", "pass-1", {"arg1", "arg2"}),
     ],
 )
-def test_pass_parser_argument_dict_edge_cases(
-    input_str: str, pass_name: str, pass_arg_names: set[str]
-):
+def test_pass_parser_argument_dict_edge_cases(input_str: str, pass_name: str, pass_arg_names: set[str]):
     """
     This test checks edge-cases in the parsing code.
     """
@@ -92,14 +82,10 @@ def test_pass_parse_errors():
         # numbers are not valid pass names!
         list(parse_pipeline("1"))
 
-    with pytest.raises(
-        PassPipelineParseError, match="Expected a comma or pass arguments here"
-    ):
+    with pytest.raises(PassPipelineParseError, match="Expected a comma or pass arguments here"):
         list(parse_pipeline("pass-1="))
 
-    with pytest.raises(
-        PassPipelineParseError, match="Expected a comma after pass argument dict here"
-    ):
+    with pytest.raises(PassPipelineParseError, match="Expected a comma after pass argument dict here"):
         list(parse_pipeline("pass-1{arg1=1}="))
 
     with pytest.raises(PassPipelineParseError, match="Expected argument name here"):

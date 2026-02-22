@@ -1,8 +1,5 @@
 from xdsl.dialects import eqsat, pdl
-from xdsl.dialects.builtin import (
-    IntegerType,
-    StringAttr,
-)
+from xdsl.dialects.builtin import IntegerType, StringAttr
 from xdsl.interpreters.eqsat_pdl import EqsatPDLMatcher
 
 

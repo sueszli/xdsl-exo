@@ -4,22 +4,12 @@ from typing import cast
 from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.arith import AddiOp, CmpiOp, IndexCastOp
-from xdsl.dialects.builtin import (
-    DenseIntElementsAttr,
-    VectorType,
-    i32,
-)
+from xdsl.dialects.builtin import DenseIntElementsAttr, VectorType, i32
 from xdsl.dialects.cf import BranchOp, ConditionalBranchOp, SwitchOp
 from xdsl.dialects.scf import ForOp, IfOp, IndexSwitchOp, YieldOp
 from xdsl.ir import Block, Region
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import BlockInsertPoint, InsertPoint
 from xdsl.traits import IsTerminator
 
@@ -43,9 +33,7 @@ class IfLowering(RewritePattern):
             assert parent is not None
             continue_block = Block(arg_types=if_op.result_types)
             parent.insert_block_before(continue_block, remaining_ops_block)
-            rewriter.insert_op(
-                BranchOp(remaining_ops_block), InsertPoint.at_end(continue_block)
-            )
+            rewriter.insert_op(BranchOp(remaining_ops_block), InsertPoint.at_end(continue_block))
         else:
             continue_block = remaining_ops_block
 
@@ -133,9 +121,7 @@ class ForLowering(RewritePattern):
         stepped = AddiOp(iv, for_op.step)
         rewriter.insert_op(stepped, InsertPoint.before(terminator))
 
-        rewriter.replace_op(
-            terminator, BranchOp(condition_block, stepped, *terminator.operands)
-        )
+        rewriter.replace_op(terminator, BranchOp(condition_block, stepped, *terminator.operands))
 
         # The initial values of loop-carried values are obtained from the operands
         # of the loop operation.
@@ -147,9 +133,7 @@ class ForLowering(RewritePattern):
         # With the body block done, we can fill in the condition block.
         comparison = CmpiOp(iv, for_op.ub, "slt")
         rewriter.insert_op(comparison, InsertPoint.at_end(condition_block))
-        cond_branch_op = ConditionalBranchOp(
-            comparison, first_body_block, (), end_block, ()
-        )
+        cond_branch_op = ConditionalBranchOp(comparison, first_body_block, (), end_block, ())
         rewriter.insert_op(cond_branch_op, InsertPoint.at_end(condition_block))
 
         # The result of the loop operation are the values of the condition block
@@ -161,9 +145,7 @@ class SwitchLowering(RewritePattern):
     """Lowers `scf.index_switch` to `cf.switch`."""
 
     @staticmethod
-    def _convert_region(
-        region: Region, continue_block: Block, rewriter: PatternRewriter
-    ) -> Block:
+    def _convert_region(region: Region, continue_block: Block, rewriter: PatternRewriter) -> Block:
         block = region.first_block
         assert block is not None
 
@@ -191,16 +173,11 @@ class SwitchLowering(RewritePattern):
             rewriter.insert_block_argument(continue_block, i, ty)
 
         # Convert the case regions
-        case_successors = tuple(
-            self._convert_region(region, continue_block, rewriter)
-            for region in op.case_regions
-        )
+        case_successors = tuple(self._convert_region(region, continue_block, rewriter) for region in op.case_regions)
         case_values = cast(Sequence[int], op.cases.get_values())
 
         # Convert the default region
-        default_block = self._convert_region(
-            op.default_region, continue_block, rewriter
-        )
+        default_block = self._convert_region(op.default_region, continue_block, rewriter)
 
         # Cast switch index to integer case value
         case_value = IndexCastOp(op.arg, i32)
@@ -213,9 +190,7 @@ class SwitchLowering(RewritePattern):
                 case_value,
                 default_block,
                 (),
-                DenseIntElementsAttr.create_dense_int(
-                    VectorType(i32, (len(case_values),)), case_values
-                ),
+                DenseIntElementsAttr.create_dense_int(VectorType(i32, (len(case_values),)), case_values),
                 case_successors,
                 case_operands,
             ),

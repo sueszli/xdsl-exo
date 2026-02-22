@@ -4,28 +4,17 @@ import pytest
 from textual.screen import Screen
 from textual.widgets import Tree
 
-from xdsl.backend.riscv.lowering import (
-    convert_arith_to_riscv,
-    convert_func_to_riscv_func,
-)
+from xdsl.backend.riscv.lowering import convert_arith_to_riscv, convert_func_to_riscv_func
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, func, get_all_dialects, riscv, riscv_func
-from xdsl.dialects.builtin import (
-    IndexType,
-    IntegerAttr,
-    ModuleOp,
-    UnrealizedConversionCastOp,
-)
+from xdsl.dialects.builtin import IndexType, IntegerAttr, ModuleOp, UnrealizedConversionCastOp
 from xdsl.interactive import _pasteboard
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
 from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
 from xdsl.interactive.rewrites import get_all_possible_rewrites
 from xdsl.ir import Block, Region
-from xdsl.transforms import (
-    get_all_passes,
-    individual_rewrite,
-)
+from xdsl.transforms import get_all_passes, individual_rewrite
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
 
@@ -50,32 +39,22 @@ async def test_inputs():
         # Test incorrect input
         app.input_text_area.insert("dkjfd")
         await pilot.pause()
-        assert (
-            app.output_text_area.text
-            == "<unknown>:1:5\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
-        )
+        assert app.output_text_area.text == "<unknown>:1:5\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
 
         assert isinstance(app.current_module, ParseError)
-        assert (
-            str(app.current_module)
-            == "<unknown>:1:5\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
-        )
+        assert str(app.current_module) == "<unknown>:1:5\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
 
         # Test corect input
         app.input_text_area.clear()
-        app.input_text_area.insert(
-            """
+        app.input_text_area.insert("""
         func.func @hello(%n : index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
         }
-        """
-        )
+        """)
         await pilot.pause()
-        assert (
-            app.output_text_area.text
-            == """builtin.module {
+        assert app.output_text_area.text == """builtin.module {
   func.func @hello(%n : index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
@@ -83,7 +62,6 @@ async def test_inputs():
   }
 }
 """
-        )
 
         index = IndexType()
 
@@ -112,31 +90,24 @@ async def test_buttons():
         app.input_text_area.clear()
 
         await pilot.pause()
-        app.input_text_area.insert(
-            """
+        app.input_text_area.insert("""
         func.func @hello(%n : index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
         }
-        """
-        )
+        """)
 
         # assert that the Input and Output Text Area's have changed
         await pilot.pause()
-        assert (
-            app.input_text_area.text
-            == """
+        assert app.input_text_area.text == """
         func.func @hello(%n : index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
         }
         """
-        )
-        assert (
-            app.output_text_area.text
-            == """builtin.module {
+        assert app.output_text_area.text == """builtin.module {
   func.func @hello(%n : index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
@@ -144,7 +115,6 @@ async def test_buttons():
   }
 }
 """
-        )
 
         # Test clicking the "clear input" button
         await pilot.click("#clear_input_button")
@@ -153,15 +123,13 @@ async def test_buttons():
         await pilot.pause()
         assert app.input_text_area.text == ""
 
-        app.input_text_area.insert(
-            """
+        app.input_text_area.insert("""
         func.func @hello(%n : index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
         }
-        """
-        )
+        """)
 
         # Select two passes
         app.pass_pipeline = (
@@ -176,9 +144,7 @@ async def test_buttons():
 
         # assert that pass selection affected Output Text Area
         await pilot.pause()
-        assert (
-            app.output_text_area.text
-            == """\
+        assert app.output_text_area.text == """\
 builtin.module {
   riscv_func.func public @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
     %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
@@ -195,13 +161,10 @@ builtin.module {
   }
 }
 """
-        )
 
         # Test that the current pipeline command is correctly copied
         def callback(x: str):
-            assert (
-                x == "xdsl-opt -p 'convert-func-to-riscv-func,convert-arith-to-riscv'"
-            )
+            assert x == "xdsl-opt -p 'convert-func-to-riscv-func,convert-arith-to-riscv'"
 
         _pasteboard._test_pyclip_callback = callback  # pyright: ignore[reportPrivateUsage]
         await pilot.click("#copy_query_button")
@@ -213,9 +176,7 @@ builtin.module {
 
         assert app.pass_pipeline == current_pipeline[:-1]
 
-        assert (
-            app.output_text_area.text
-            == """\
+        assert app.output_text_area.text == """\
 builtin.module {
   riscv_func.func public @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
     %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
@@ -228,7 +189,6 @@ builtin.module {
   }
 }
 """
-        )
 
         # press "Clear Passes" button
         await pilot.click("#clear_passes_button")
@@ -236,9 +196,7 @@ builtin.module {
         # assert that the Output Text Area and current_module have the expected results
         await pilot.pause()
         assert app.pass_pipeline == ()
-        assert (
-            app.output_text_area.text
-            == """builtin.module {
+        assert app.output_text_area.text == """builtin.module {
   func.func @hello(%n : index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
@@ -246,7 +204,6 @@ builtin.module {
   }
 }
 """
-        )
 
         index = IndexType()
 
@@ -277,9 +234,7 @@ builtin.module {
             expected_module,
             individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
         )
-        assert app.available_pass_list == get_condensed_pass_list(
-            expected_module, app.all_passes
-        ) + tuple(rewrites)
+        assert app.available_pass_list == get_condensed_pass_list(expected_module, app.all_passes) + tuple(rewrites)
 
         # press "Uncondense" button
         await pilot.click("#uncondense_button")
@@ -302,55 +257,44 @@ async def test_rewrites():
 
         await pilot.pause()
         # Testing a pass
-        app.input_text_area.insert(
-            """
+        app.input_text_area.insert("""
         func.func @hello(%n : i32) -> i32 {
   %c0 = arith.constant 0 : i32
   %res = arith.addi %n, %c0 : i32
   func.return %res : i32
 }
-        """
-        )
+        """)
 
         # press "Condense" button
         await pilot.click("#condense_button")
 
         addi_pass = AvailablePass(
             display_name="AddiOp(%res = arith.addi %n, %c0 : i32):arith.addi:SignlessIntegerBinaryOperationZeroOrUnitRight",
-            module_pass=individual_rewrite.ApplyIndividualRewritePass(
-                3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
-            ),
+            module_pass=individual_rewrite.ApplyIndividualRewritePass(3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"),
         )
 
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and get_condensed_pass list change accordingly
         assert app.condense_mode is True
         assert isinstance(app.current_module, ModuleOp)
-        condensed_list = get_condensed_pass_list(app.current_module, app.all_passes) + (
-            addi_pass,
-        )
+        condensed_list = get_condensed_pass_list(app.current_module, app.all_passes) + (addi_pass,)
         assert app.available_pass_list == condensed_list
 
         # Select a rewrite
         app.pass_pipeline = (
             *app.pass_pipeline,
-            individual_rewrite.ApplyIndividualRewritePass(
-                3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
-            ),
+            individual_rewrite.ApplyIndividualRewritePass(3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"),
         )
 
         # assert that pass selection affected Output Text Area
         await pilot.pause()
-        assert (
-            app.output_text_area.text
-            == """builtin.module {
+        assert app.output_text_area.text == """builtin.module {
   func.func @hello(%n : i32) -> i32 {
     %c0 = arith.constant 0 : i32
     func.return %n : i32
   }
 }
 """
-        )
 
 
 @pytest.mark.asyncio
@@ -366,21 +310,17 @@ async def test_passes():
 
         await pilot.pause()
         # Testing a pass
-        app.input_text_area.insert(
-            """
+        app.input_text_area.insert("""
         func.func @hello(%n : index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
         }
-        """
-        )
+        """)
 
         # Await on test update to make sure we only update due to pass change later
         await pilot.pause()
-        assert (
-            app.output_text_area.text
-            == """builtin.module {
+        assert app.output_text_area.text == """builtin.module {
   func.func @hello(%n : index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
@@ -388,7 +328,6 @@ async def test_passes():
   }
 }
 """
-        )
 
         # Select a pass
         app.pass_pipeline = (
@@ -397,9 +336,7 @@ async def test_passes():
         )
         # assert that the Output Text Area has changed accordingly
         await pilot.pause()
-        assert (
-            app.output_text_area.text
-            == """builtin.module {
+        assert app.output_text_area.text == """builtin.module {
   riscv_func.func public @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
     %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
     %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
@@ -411,7 +348,6 @@ async def test_passes():
   }
 }
 """
-        )
 
         index = IndexType()
         expected_module = ModuleOp(Region([Block()]))
@@ -428,9 +364,7 @@ async def test_passes():
                 n_one = UnrealizedConversionCastOp.get([zero.rd], [index])
                 two = arith.ConstantOp(IntegerAttr(2, index)).result
                 res = arith.MuliOp(n_one, two)
-                one = UnrealizedConversionCastOp.get(
-                    [res.result], [riscv.Registers.UNALLOCATED_INT]
-                )
+                one = UnrealizedConversionCastOp.get([res.result], [riscv.Registers.UNALLOCATED_INT])
                 two_two = riscv.MVOp(one, rd=riscv.Registers.A0)
                 riscv_func.ReturnOp(two_two)
 
@@ -452,15 +386,13 @@ async def test_argument_pass_screen():
 
         await pilot.pause()
         # Testing a pass
-        app.input_text_area.insert(
-            """
+        app.input_text_area.insert("""
         func.func @hello(%n : i32) -> i32 {
   %two = arith.constant 0 : i32
   %res = arith.addi %two, %n : i32
   func.return %res : i32
 }
-        """
-        )
+        """)
         app.passes_tree.root.expand
         await pilot.pause()
 
@@ -514,23 +446,19 @@ async def test_apply_individual_rewrite():
 
         await pilot.pause()
         # Testing a pass
-        app.input_text_area.insert(
-            """
+        app.input_text_area.insert("""
         func.func @hello(%n : i32) -> i32 {
   %c0 = arith.constant 0 : i32
   %res = arith.addi %c0, %n : i32
   func.return %res : i32
 }
-        """
-        )
+        """)
         app.passes_tree.root.expand()
         await pilot.pause()
 
         node = None
         for n in app.passes_tree.root.children:
-            if n.data == individual_rewrite.ApplyIndividualRewritePass(
-                3, "arith.addi", "SignlessIntegerBinaryOperationConstantProp"
-            ):
+            if n.data == individual_rewrite.ApplyIndividualRewritePass(3, "arith.addi", "SignlessIntegerBinaryOperationConstantProp"):
                 node = n
 
         assert node is not None
@@ -540,9 +468,7 @@ async def test_apply_individual_rewrite():
 
         await pilot.pause()
 
-        assert (
-            app.output_text_area.text
-            == """builtin.module {
+        assert app.output_text_area.text == """builtin.module {
   func.func @hello(%n : i32) -> i32 {
     %c0 = arith.constant 0 : i32
     %res = arith.addi %n, %c0 : i32
@@ -550,14 +476,11 @@ async def test_apply_individual_rewrite():
   }
 }
 """
-        )
 
         # Apply second individual rewrite
         node = None
         for n in app.passes_tree.root.children:
-            if n.data == individual_rewrite.ApplyIndividualRewritePass(
-                3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
-            ):
+            if n.data == individual_rewrite.ApplyIndividualRewritePass(3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"):
                 node = n
 
         assert node is not None
@@ -567,13 +490,10 @@ async def test_apply_individual_rewrite():
 
         await pilot.pause()
 
-        assert (
-            app.output_text_area.text
-            == """builtin.module {
+        assert app.output_text_area.text == """builtin.module {
   func.func @hello(%n : i32) -> i32 {
     %c0 = arith.constant 0 : i32
     func.return %n : i32
   }
 }
 """
-        )

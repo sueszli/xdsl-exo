@@ -2,6 +2,7 @@
 """Benchmarks for the parser of the xDSL implementation."""
 
 from benchmarks.workloads import WorkloadBuilder
+
 from xdsl.context import Context
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin

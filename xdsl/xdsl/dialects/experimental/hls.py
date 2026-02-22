@@ -1,26 +1,8 @@
 from __future__ import annotations
 
-from xdsl.dialects.builtin import (
-    Attribute,
-    DenseArrayBase,
-    IntegerType,
-    ParametrizedAttribute,
-    StringAttr,
-)
+from xdsl.dialects.builtin import Attribute, DenseArrayBase, IntegerType, ParametrizedAttribute, StringAttr
 from xdsl.ir import Dialect, Operation, Region, SSAValue, TypeAttribute
-from xdsl.irdl import (
-    IRDLOperation,
-    ParameterDef,
-    attr_def,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_attr_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.irdl import IRDLOperation, ParameterDef, attr_def, irdl_attr_definition, irdl_op_definition, operand_def, opt_attr_def, region_def, result_def, traits_def, var_operand_def
 from xdsl.traits import IsTerminator
 
 
@@ -33,9 +15,7 @@ class HLSYieldOp(IRDLOperation):
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> HLSYieldOp:
-        return HLSYieldOp.create(
-            operands=[SSAValue.get(operand) for operand in operands]
-        )
+        return HLSYieldOp.create(operands=[SSAValue.get(operand) for operand in operands])
 
 
 @irdl_op_definition

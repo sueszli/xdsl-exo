@@ -1,7 +1,8 @@
 import pytest
 
-from xdsl.dialects import builtin, test
+from xdsl.dialects import builtin
 from xdsl.dialects import printf as print_dialect
+from xdsl.dialects import test
 from xdsl.transforms import printf_to_llvm
 
 
@@ -23,9 +24,7 @@ def test_format_str_from_op():
     a1, a2 = test.TestOp.create(result_types=[builtin.i32, builtin.f32]).results
     op = print_dialect.PrintFormatOp("test {} value {}", a1, a2)
 
-    parts = printf_to_llvm._format_string_spec_from_print_op(  # pyright: ignore[reportPrivateUsage]
-        op
-    )
+    parts = printf_to_llvm._format_string_spec_from_print_op(op)  # pyright: ignore[reportPrivateUsage]
 
     assert list(parts) == [
         "test ",
@@ -36,9 +35,7 @@ def test_format_str_from_op():
 
     op2 = print_dialect.PrintFormatOp("{}", a1)
 
-    parts2 = printf_to_llvm._format_string_spec_from_print_op(  # pyright: ignore[reportPrivateUsage]
-        op2
-    )
+    parts2 = printf_to_llvm._format_string_spec_from_print_op(op2)  # pyright: ignore[reportPrivateUsage]
 
     assert list(parts2) == [a1]
 

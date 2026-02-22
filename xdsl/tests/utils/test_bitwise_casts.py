@@ -2,11 +2,7 @@ import struct
 
 import pytest
 
-from xdsl.utils.bitwise_casts import (
-    convert_f32_to_u32,
-    convert_u32_to_f32,
-    is_power_of_two,
-)
+from xdsl.utils.bitwise_casts import convert_f32_to_u32, convert_u32_to_f32, is_power_of_two
 
 
 # http://bartaz.github.io/ieee754-visualization/

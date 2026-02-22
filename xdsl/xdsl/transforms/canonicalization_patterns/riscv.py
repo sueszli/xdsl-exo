@@ -4,11 +4,7 @@ from xdsl.dialects import riscv, riscv_snitch
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import OpResult, SSAValue
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 
 
 class RemoveRedundantMv(RewritePattern):
@@ -35,9 +31,7 @@ class RemoveRedundantFMvD(RewritePattern):
 class MultiplyImmediates(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
-        if (rs1 := get_constant_value(op.rs1)) is not None and (
-            rs2 := get_constant_value(op.rs2)
-        ) is not None:
+        if (rs1 := get_constant_value(op.rs1)) is not None and (rs2 := get_constant_value(op.rs2)) is not None:
             rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(
                 riscv.LiOp(
@@ -107,9 +101,7 @@ class AddImmediates(RewritePattern):
                     )
                 )
             case int(), int():
-                rewriter.replace_matched_op(
-                    riscv.LiOp(lhs + rhs, rd=rd, comment=op.comment)
-                )
+                rewriter.replace_matched_op(riscv.LiOp(lhs + rhs, rd=rd, comment=op.comment))
             case _:
                 pass
 
@@ -125,9 +117,7 @@ class AddImmediateZero(RewritePattern):
 class AddImmediateConstant(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.AddiOp, rewriter: PatternRewriter) -> None:
-        if (rs1 := get_constant_value(op.rs1)) is not None and isinstance(
-            op.immediate, IntegerAttr
-        ):
+        if (rs1 := get_constant_value(op.rs1)) is not None and isinstance(op.immediate, IntegerAttr):
             rd = op.rd.type
             rewriter.replace_matched_op(
                 riscv.LiOp(
@@ -165,9 +155,7 @@ class SubImmediates(RewritePattern):
                     )
                 )
             case int(), int():
-                rewriter.replace_matched_op(
-                    riscv.LiOp(lhs - rhs, rd=rd, comment=op.comment)
-                )
+                rewriter.replace_matched_op(riscv.LiOp(lhs - rhs, rd=rd, comment=op.comment))
             case _:
                 pass
 
@@ -179,33 +167,17 @@ class SubAddi(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.SubOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.AddiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-            and op.rs2 == op.rs1.op.rs1
-        ):
+        if isinstance(op.rs1, OpResult) and isinstance(op.rs1.op, riscv.AddiOp) and isinstance(op.rs1.op.immediate, IntegerAttr) and op.rs2 == op.rs1.op.rs1:
             rd = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_matched_op(
-                riscv.LiOp(op.rs1.op.immediate.value.data, rd=rd)
-            )
+            rewriter.replace_matched_op(riscv.LiOp(op.rs1.op.immediate.value.data, rd=rd))
 
 
 class ShiftLeftImmediate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.SlliOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.LiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-            and isinstance(op.immediate, IntegerAttr)
-        ):
+        if isinstance(op.rs1, OpResult) and isinstance(op.rs1.op, riscv.LiOp) and isinstance(op.rs1.op.immediate, IntegerAttr) and isinstance(op.immediate, IntegerAttr):
             rd = op.rd.type
-            rewriter.replace_matched_op(
-                riscv.LiOp(
-                    op.rs1.op.immediate.value.data << op.immediate.value.data, rd=rd
-                )
-            )
+            rewriter.replace_matched_op(riscv.LiOp(op.rs1.op.immediate.value.data << op.immediate.value.data, rd=rd))
 
 
 class ShiftLeftbyZero(RewritePattern):
@@ -223,12 +195,7 @@ class ShiftLeftbyZero(RewritePattern):
 class LoadWordWithKnownOffset(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.LwOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.AddiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-            and isinstance(op.immediate, IntegerAttr)
-        ):
+        if isinstance(op.rs1, OpResult) and isinstance(op.rs1.op, riscv.AddiOp) and isinstance(op.rs1.op.immediate, IntegerAttr) and isinstance(op.immediate, IntegerAttr):
             rd = op.rd.type
             rewriter.replace_matched_op(
                 riscv.LwOp(
@@ -243,11 +210,7 @@ class LoadWordWithKnownOffset(RewritePattern):
 class StoreWordWithKnownOffset(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.SwOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.AddiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-        ):
+        if isinstance(op.rs1, OpResult) and isinstance(op.rs1.op, riscv.AddiOp) and isinstance(op.rs1.op.immediate, IntegerAttr):
             rewriter.replace_matched_op(
                 riscv.SwOp(
                     op.rs1.op.rs1,
@@ -261,12 +224,7 @@ class StoreWordWithKnownOffset(RewritePattern):
 class LoadFloatWordWithKnownOffset(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.FLwOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.AddiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-            and isinstance(op.immediate, IntegerAttr)
-        ):
+        if isinstance(op.rs1, OpResult) and isinstance(op.rs1.op, riscv.AddiOp) and isinstance(op.rs1.op.immediate, IntegerAttr) and isinstance(op.immediate, IntegerAttr):
             rd = op.rd.type
             rewriter.replace_matched_op(
                 riscv.FLwOp(
@@ -281,11 +239,7 @@ class LoadFloatWordWithKnownOffset(RewritePattern):
 class StoreFloatWordWithKnownOffset(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.FSwOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.AddiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-        ):
+        if isinstance(op.rs1, OpResult) and isinstance(op.rs1.op, riscv.AddiOp) and isinstance(op.rs1.op.immediate, IntegerAttr):
             rewriter.replace_matched_op(
                 riscv.FSwOp(
                     op.rs1.op.rs1,
@@ -299,12 +253,7 @@ class StoreFloatWordWithKnownOffset(RewritePattern):
 class LoadDoubleWithKnownOffset(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.FLdOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.AddiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-            and isinstance(op.immediate, IntegerAttr)
-        ):
+        if isinstance(op.rs1, OpResult) and isinstance(op.rs1.op, riscv.AddiOp) and isinstance(op.rs1.op.immediate, IntegerAttr) and isinstance(op.immediate, IntegerAttr):
             rd = op.rd.type
             rewriter.replace_matched_op(
                 riscv.FLdOp(
@@ -319,11 +268,7 @@ class LoadDoubleWithKnownOffset(RewritePattern):
 class StoreDoubleWithKnownOffset(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.FSdOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.AddiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-        ):
+        if isinstance(op.rs1, OpResult) and isinstance(op.rs1.op, riscv.AddiOp) and isinstance(op.rs1.op.immediate, IntegerAttr):
             rewriter.replace_matched_op(
                 riscv.FSdOp(
                     op.rs1.op.rs1,
@@ -369,17 +314,9 @@ class FuseMultiplyAddD(RewritePattern):
             return
 
         addend = mul = None
-        if (
-            isinstance(mul := op.rs2.owner, riscv.FMulDOp)
-            and _has_contract_flag(mul)
-            and len(mul.rd.uses) == 1
-        ):
+        if isinstance(mul := op.rs2.owner, riscv.FMulDOp) and _has_contract_flag(mul) and len(mul.rd.uses) == 1:
             addend = op.rs1
-        elif (
-            isinstance(mul := op.rs1.owner, riscv.FMulDOp)
-            and _has_contract_flag(mul)
-            and len(mul.rd.uses) == 1
-        ):
+        elif isinstance(mul := op.rs1.owner, riscv.FMulDOp) and _has_contract_flag(mul) and len(mul.rd.uses) == 1:
             addend = op.rs2
         else:
             return
@@ -470,9 +407,7 @@ class BitwiseXorByZero(RewritePattern):
 
 class ScfgwOpUsingImmediate(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: riscv_snitch.ScfgwOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: riscv_snitch.ScfgwOp, rewriter: PatternRewriter) -> None:
         if (rs2 := get_constant_value(op.rs2)) is not None:
             rewriter.replace_matched_op(
                 riscv_snitch.ScfgwiOp(

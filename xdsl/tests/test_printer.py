@@ -8,39 +8,10 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
-from xdsl.dialects.builtin import (
-    AnyFloat,
-    Builtin,
-    ComplexType,
-    FloatAttr,
-    FunctionType,
-    IntAttr,
-    IntegerType,
-    ModuleOp,
-    SymbolRefAttr,
-    UnitAttr,
-    f32,
-    i32,
-)
+from xdsl.dialects.builtin import AnyFloat, Builtin, ComplexType, FloatAttr, FunctionType, IntAttr, IntegerType, ModuleOp, SymbolRefAttr, UnitAttr, f32, i32
 from xdsl.dialects.func import Func
-from xdsl.ir import (
-    Attribute,
-    Block,
-    Operation,
-    ParametrizedAttribute,
-    Region,
-)
-from xdsl.irdl import (
-    IRDLOperation,
-    ParameterDef,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_attr_def,
-    result_def,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.ir import Attribute, Block, Operation, ParametrizedAttribute, Region
+from xdsl.irdl import IRDLOperation, ParameterDef, irdl_attr_definition, irdl_op_definition, operand_def, opt_attr_def, result_def, var_operand_def, var_result_def
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
@@ -102,9 +73,7 @@ def test_added_unit_attr():
     expected = """
 "unit_attr_op"() {parallelize, vectorize} : () -> ()
 """
-    unitop = UnitAttrOp.build(
-        attributes={"parallelize": UnitAttr([]), "vectorize": UnitAttr([])}
-    )
+    unitop = UnitAttrOp.build(attributes={"parallelize": UnitAttr([]), "vectorize": UnitAttr([])})
 
     assert_print_op(unitop, expected)
 
@@ -421,9 +390,7 @@ def test_print_block():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block(block)
-    assert (
-        io.getvalue() == """\n^0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()"""
-    )
+    assert io.getvalue() == """\n^0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()"""
 
 
 def test_print_block_without_arguments():
@@ -449,13 +416,10 @@ def test_print_block_with_terminator():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block(block, print_block_terminator=True)
-    assert (
-        io.getvalue()
-        == """
+    assert io.getvalue() == """
 ^0:
   "test.op"() : () -> ()
   "test.termop"() : () -> ()"""
-    )
 
 
 def test_print_block_without_terminator():
@@ -467,12 +431,9 @@ def test_print_block_without_terminator():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block(block, print_block_terminator=False)
-    assert (
-        io.getvalue()
-        == """
+    assert io.getvalue() == """
 ^0:
   "test.op"() : () -> ()"""
-    )
 
 
 def test_print_region():
@@ -484,10 +445,7 @@ def test_print_region():
     io = StringIO()
     p = Printer(stream=io)
     p.print_region(region)
-    assert (
-        io.getvalue()
-        == """{\n^0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()\n}"""
-    )
+    assert io.getvalue() == """{\n^0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()\n}"""
 
 
 def test_print_region_without_arguments():
@@ -826,9 +784,7 @@ def test_complex_int(expected: str, value: tuple[int, int]):
         ("(3.000000e+00,3.000000e+00)", (3.0, 3.0), False),
     ],
 )
-def test_complex(
-    expected: str, value: tuple[int, int] | tuple[float, float], is_int: bool
-):
+def test_complex(expected: str, value: tuple[int, int] | tuple[float, float], is_int: bool):
     printer = Printer()
     io = StringIO()
     printer.stream = io

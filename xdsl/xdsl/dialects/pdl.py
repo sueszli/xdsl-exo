@@ -3,43 +3,9 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import Generic, TypeVar
 
-from xdsl.dialects.builtin import (
-    I16,
-    I32,
-    ArrayAttr,
-    IntegerAttr,
-    IntegerType,
-    StringAttr,
-)
-from xdsl.ir import (
-    Attribute,
-    Block,
-    Dialect,
-    Operation,
-    ParametrizedAttribute,
-    Region,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    ParameterDef,
-    base,
-    irdl_attr_definition,
-    irdl_op_definition,
-    lazy_traits_def,
-    operand_def,
-    opt_operand_def,
-    opt_prop_def,
-    opt_region_def,
-    prop_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.dialects.builtin import I16, I32, ArrayAttr, IntegerAttr, IntegerType, StringAttr
+from xdsl.ir import Attribute, Block, Dialect, Operation, ParametrizedAttribute, Region, SSAValue, TypeAttribute
+from xdsl.irdl import AttrSizedOperandSegments, IRDLOperation, ParameterDef, base, irdl_attr_definition, irdl_op_definition, lazy_traits_def, operand_def, opt_operand_def, opt_prop_def, opt_region_def, prop_def, region_def, result_def, traits_def, var_operand_def, var_result_def
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator, NoTerminator, OptionalSymbolOpInterface
@@ -54,23 +20,15 @@ def parse_operands_with_types(parser: Parser) -> list[SSAValue]:
     At least one operand is expected.
     """
     pos = parser.pos
-    operands = parser.parse_comma_separated_list(
-        Parser.Delimiter.NONE, parser.parse_operand
-    )
+    operands = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_operand)
     parser.parse_punctuation(":")
-    types = parser.parse_comma_separated_list(
-        Parser.Delimiter.NONE, parser.parse_attribute
-    )
+    types = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_attribute)
     end_pos = parser.pos
     if len(operands) != len(types):
-        parser.raise_error(
-            "Mismatched between the numbers of operands and types", pos, end_pos
-        )
+        parser.raise_error("Mismatched between the numbers of operands and types", pos, end_pos)
     for operand, type in zip(operands, types):
         if operand.type != type:
-            parser.raise_error(
-                "Mismatched between operands and their types", pos, end_pos
-            )
+            parser.raise_error("Mismatched between operands and their types", pos, end_pos)
 
     return operands
 
@@ -87,9 +45,7 @@ def has_binding_use(op: Operation) -> bool:
     """
     for result in op.results:
         for use in result.uses:
-            if not isinstance(use.operation, ResultOp | ResultsOp) or has_binding_use(
-                use.operation
-            ):
+            if not isinstance(use.operation, ResultOp | ResultsOp) or has_binding_use(use.operation):
                 return True
     return False
 
@@ -102,10 +58,7 @@ def verify_has_binding_use(op: Operation) -> None:
     if not isinstance(op.parent_op(), PatternOp):
         return
     if not has_binding_use(op):
-        raise VerifyException(
-            "expected a bindable user when defined in the matcher body of a "
-            "`pdl.pattern`"
-        )
+        raise VerifyException("expected a bindable user when defined in the matcher body of a " "`pdl.pattern`")
 
 
 @irdl_attr_definition
@@ -129,9 +82,7 @@ class ValueType(ParametrizedAttribute, TypeAttribute):
 
 
 AnyPDLType = AttributeType | OperationType | TypeType | ValueType
-AnyPDLTypeConstr = (
-    base(AttributeType) | base(OperationType) | base(TypeType) | base(ValueType)
-)
+AnyPDLTypeConstr = base(AttributeType) | base(OperationType) | base(TypeType) | base(ValueType)
 
 _RangeT = TypeVar(
     "_RangeT",
@@ -240,9 +191,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
         parser.parse_punctuation(")")
         result_types = []
         if parser.parse_optional_punctuation(":") is not None:
-            result_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_attribute
-            )
+            result_types = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_attribute)
         return ApplyNativeRewriteOp(name, operands, result_types)
 
     def print(self, printer: Printer) -> None:
@@ -271,14 +220,9 @@ class AttributeOp(IRDLOperation):
 
     def verify_(self):
         if self.value is not None and self.value_type is not None:
-            raise VerifyException(
-                f"{self.name} cannot both specify an expected attribute "
-                "via a constant value and an expected type."
-            )
+            raise VerifyException(f"{self.name} cannot both specify an expected attribute " "via a constant value and an expected type.")
         if self.value is None and isinstance(self.parent_op(), RewriteOp):
-            raise VerifyException(
-                "expected constant value when specified within a `pdl.rewrite`"
-            )
+            raise VerifyException("expected constant value when specified within a `pdl.rewrite`")
         verify_has_binding_use(self)
 
     def __init__(self, value: Attribute | SSAValue | None = None) -> None:
@@ -293,9 +237,7 @@ class AttributeOp(IRDLOperation):
         elif isinstance(value, SSAValue):
             operands = [value]
 
-        super().__init__(
-            operands=operands, properties=properties, result_types=[AttributeType()]
-        )
+        super().__init__(operands=operands, properties=properties, result_types=[AttributeType()])
 
 
 @irdl_op_definition
@@ -402,15 +344,9 @@ class OperationOp(IRDLOperation):
     def verify_(self):
         is_within_rewrite: bool = isinstance(self.parent_op(), RewriteOp)
         if is_within_rewrite and self.opName is None:
-            raise VerifyException(
-                "must have an operation name when nested within a `pdl.rewrite`"
-            )
+            raise VerifyException("must have an operation name when nested within a `pdl.rewrite`")
         if len(self.attributeValueNames) != len(self.attribute_values):
-            raise VerifyException(
-                "expected the same number of attribute values and attribute "
-                f"names, got {len(self.attributeValueNames)} names and "
-                f"{len(self.attribute_values)} values"
-            )
+            raise VerifyException("expected the same number of attribute values and attribute " f"names, got {len(self.attributeValueNames)} names and " f"{len(self.attribute_values)} values")
         verify_has_binding_use(self)
 
     @classmethod
@@ -427,9 +363,7 @@ class OperationOp(IRDLOperation):
             type = parser.parse_operand()
             return (name, type)
 
-        attributes = parser.parse_optional_comma_separated_list(
-            Parser.Delimiter.BRACES, parse_attribute_entry
-        )
+        attributes = parser.parse_optional_comma_separated_list(Parser.Delimiter.BRACES, parse_attribute_entry)
         if attributes is None:
             attributes = []
         attribute_names = [StringAttr(attr[0]) for attr in attributes]
@@ -548,9 +482,7 @@ class PatternOp(IRDLOperation):
 
         # Check that there is at least one `pdl.operation`.
         if not any(isinstance(op, OperationOp) for op in self.body.block.ops):
-            raise VerifyException(
-                "the pattern must contain at least one `pdl.operation`"
-            )
+            raise VerifyException("the pattern must contain at least one `pdl.operation`")
 
         # Get the connected component by traversing the graph in the first
         # PDL operation, operand, or result used in a `pdl.rewrite`. The other
@@ -559,9 +491,7 @@ class PatternOp(IRDLOperation):
         first = True
         visited: set[Operation] = set()
         for op in self.body.block.ops:
-            if not isinstance(
-                op, OperandOp | OperandsOp | ResultOp | ResultsOp | OperationOp
-            ):
+            if not isinstance(op, OperandOp | OperandsOp | ResultOp | ResultsOp | OperationOp):
                 continue
             if not _has_user_in_rewrite(op):
                 continue
@@ -570,9 +500,7 @@ class PatternOp(IRDLOperation):
                 first = False
                 _visit_pdl_ops(op, visited)
             if op not in visited:
-                raise VerifyException(
-                    "Operations in a `pdl.pattern` must form a connected component"
-                )
+                raise VerifyException("Operations in a `pdl.pattern` must form a connected component")
 
     @classmethod
     def parse(cls, parser: Parser) -> PatternOp:
@@ -615,11 +543,7 @@ class RangeOp(IRDLOperation):
 
             for arg in self.arguments:
                 if cur_elem_type := get_type_or_elem_type(arg) != elem_type:
-                    raise VerifyException(
-                        "All arguments must have the same type or be an array of the "
-                        f"corresponding element type. First element type: {elem_type}"
-                        f", current element type: {cur_elem_type}"
-                    )
+                    raise VerifyException("All arguments must have the same type or be an array of the " f"corresponding element type. First element type: {elem_type}" f", current element type: {cur_elem_type}")
 
     def __init__(
         self,
@@ -635,9 +559,7 @@ class RangeOp(IRDLOperation):
             elif AnyPDLTypeConstr.verifies(arguments[0].type):
                 result_type = RangeType(arguments[0].type)
             else:
-                raise ValueError(
-                    f"Arguments of {self.name} are expected to be PDL types"
-                )
+                raise ValueError(f"Arguments of {self.name} are expected to be PDL types")
 
         super().__init__(operands=[arguments], result_types=[result_type])
 
@@ -679,10 +601,7 @@ class ReplaceOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    assembly_format = (
-        "$op_value `with` ` ` "
-        "(`(` $repl_values^ `:` type($repl_values) `)`)? $repl_operation attr-dict"
-    )
+    assembly_format = "$op_value `with` ` ` " "(`(` $repl_values^ `:` type($repl_values) `)`)? $repl_operation attr-dict"
 
     def __init__(
         self,
@@ -703,16 +622,9 @@ class ReplaceOp(IRDLOperation):
     def verify_(self) -> None:
         if self.repl_operation is None:
             if not len(self.repl_values):
-                raise VerifyException(
-                    "Exactly one of `replOperation` or "
-                    "`replValues` must be set in `ReplaceOp`"
-                    ", both are empty"
-                )
+                raise VerifyException("Exactly one of `replOperation` or " "`replValues` must be set in `ReplaceOp`" ", both are empty")
         elif len(self.repl_values):
-            raise VerifyException(
-                "Exactly one of `replOperation` or `replValues` must be set in "
-                "`ReplaceOp`, both are set"
-            )
+            raise VerifyException("Exactly one of `replOperation` or `replValues` must be set in " "`ReplaceOp`, both are set")
 
 
 @irdl_op_definition
@@ -731,9 +643,7 @@ class ResultOp(IRDLOperation):
     def __init__(self, index: int | IntegerAttr[IntegerType], parent: SSAValue) -> None:
         if isinstance(index, int):
             index = IntegerAttr(index, 32)
-        super().__init__(
-            operands=[parent], properties={"index": index}, result_types=[ValueType()]
-        )
+        super().__init__(operands=[parent], properties={"index": index}, result_types=[ValueType()])
 
 
 @irdl_op_definition
@@ -755,9 +665,7 @@ class ResultsOp(IRDLOperation):
     ) -> None:
         if isinstance(index, int):
             index = IntegerAttr(index, 32)
-        super().__init__(
-            operands=[parent], result_types=[result_type], properties={"index": index}
-        )
+        super().__init__(operands=[parent], result_types=[result_type], properties={"index": index})
 
     @classmethod
     def parse(cls, parser: Parser) -> ResultsOp:
@@ -775,9 +683,7 @@ class ResultsOp(IRDLOperation):
         if self.index is None:
             printer.print(" of ", self.parent_)
             return
-        printer.print(
-            " ", self.index.value.data, " of ", self.parent_, " -> ", self.val.type
-        )
+        printer.print(" ", self.index.value.data, " of ", self.parent_, " -> ", self.val.type)
 
 
 @irdl_op_definition
@@ -799,11 +705,7 @@ class RewriteOp(IRDLOperation):
 
     traits = traits_def(HasParent(PatternOp), NoTerminator(), IsTerminator())
 
-    assembly_format = (
-        "($root^)? "
-        "(`with` $name^ (`(` $external_args^ `:` type($external_args) `)`)?)?"
-        "($body^)? attr-dict-with-keyword"
-    )
+    assembly_format = "($root^)? " "(`with` $name^ (`(` $external_args^ `:` type($external_args) `)`)?)?" "($body^)? attr-dict-with-keyword"
 
     def __init__(
         self,
@@ -855,9 +757,7 @@ class TypeOp(IRDLOperation):
     assembly_format = "attr-dict (`:` $constantType^)?"
 
     def __init__(self, constant_type: Attribute | None = None) -> None:
-        super().__init__(
-            properties={"constantType": constant_type}, result_types=[TypeType()]
-        )
+        super().__init__(properties={"constantType": constant_type}, result_types=[TypeType()])
 
     def verify_(self):
         verify_has_binding_use(self)

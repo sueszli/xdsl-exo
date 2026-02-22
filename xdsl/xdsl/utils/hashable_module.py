@@ -15,9 +15,7 @@ class HashableModule(Hashable):
     module: ModuleOp
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(
-            other, HashableModule
-        ) and self.module.is_structurally_equivalent(other.module)
+        return isinstance(other, HashableModule) and self.module.is_structurally_equivalent(other.module)
 
     def __hash__(self) -> int:
         """

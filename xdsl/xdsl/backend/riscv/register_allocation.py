@@ -73,9 +73,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         self.live_ins_per_block = {}
         self.new_value_by_old_value = {}
 
-    def _replace_value_with_new_type(
-        self, val: SSAValue, new_type: Attribute
-    ) -> SSAValue:
+    def _replace_value_with_new_type(self, val: SSAValue, new_type: Attribute) -> SSAValue:
         new_val = Rewriter.replace_value_with_new_type(val, new_type)
         self.new_value_by_old_value[val] = new_val
         return new_val
@@ -90,9 +88,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             if (val := get_constant_value(reg)) is not None and val.value.data == 0:
                 new_reg = self._replace_value_with_new_type(reg, Registers.ZERO)
             else:
-                new_reg = self._replace_value_with_new_type(
-                    reg, self.available_registers.pop(type(reg.type))
-                )
+                new_reg = self._replace_value_with_new_type(reg, self.available_registers.pop(type(reg.type)))
             return new_reg
 
     def allocate_same(self, vals: Sequence[SSAValue]) -> bool:
@@ -125,9 +121,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                     if reg_type_1.is_allocated:
                         reg_names = [f"{reg_type}" for reg_type in reg_types]
                         reg_names.sort()
-                        raise DiagnosticException(
-                            f"Cannot allocate registers to the same register {reg_names}"
-                        )
+                        raise DiagnosticException(f"Cannot allocate registers to the same register {reg_names}")
                     else:
                         reg_type = reg_type_0
                 else:
@@ -137,9 +131,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 # the same, error.
                 reg_names = [f"{reg_type}" for reg_type in reg_types]
                 reg_names.sort()
-                raise DiagnosticException(
-                    f"Cannot allocate registers to the same register {reg_names}"
-                )
+                raise DiagnosticException(f"Cannot allocate registers to the same register {reg_names}")
 
         did_allocate = False
 
@@ -205,16 +197,12 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             self.allocate(live_in)
 
         yield_op = loop.body.block.last_op
-        assert yield_op is not None, (
-            "last op of riscv_scf.ForOp is guaranteed to be riscv_scf.Yield"
-        )
+        assert yield_op is not None, "last op of riscv_scf.ForOp is guaranteed to be riscv_scf.Yield"
         block_args = loop.body.block.args
 
         # The loop-carried variables are trickier
         # The for op operand, block arg, and yield operand must have the same type
-        for block_arg, operand, yield_operand, op_result in zip(
-            block_args[1:], loop.iter_args, yield_op.operands, loop.results
-        ):
+        for block_arg, operand, yield_operand, op_result in zip(block_args[1:], loop.iter_args, yield_op.operands, loop.results):
             self.allocate_same((block_arg, operand, yield_operand, op_result))
 
         # Induction variable
@@ -249,17 +237,12 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             self.allocate(live_in)
 
         yield_op = loop.body.block.last_op
-        assert yield_op is not None, (
-            "last op of riscv_snitch.frep_outer and riscv_snitch.frep_inner is guaranteed"
-            " to be riscv_scf.Yield"
-        )
+        assert yield_op is not None, "last op of riscv_snitch.frep_outer and riscv_snitch.frep_inner is guaranteed" " to be riscv_scf.Yield"
         block_args = loop.body.block.args
 
         # The loop-carried variables are trickier
         # The for op operand, block arg, and yield operand must have the same type
-        for block_arg, operand, yield_operand, op_result in zip(
-            block_args, loop.iter_args, yield_op.operands, loop.results
-        ):
+        for block_arg, operand, yield_operand, op_result in zip(block_args, loop.iter_args, yield_op.operands, loop.results):
             self.allocate_same((block_arg, operand, yield_operand, op_result))
 
         self.allocate(loop.max_rep)
@@ -272,9 +255,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             for op in reversed(loop.body.block.ops):
                 self.process_operation(op)
 
-    def allocate_func(
-        self, func: riscv_func.FuncOp, *, add_regalloc_stats: bool = False
-    ) -> None:
+    def allocate_func(self, func: riscv_func.FuncOp, *, add_regalloc_stats: bool = False) -> None:
         """
         Allocates values in function passed in to registers.
         The whole function must have been lowered to the relevant riscv dialects
@@ -287,15 +268,9 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             return
 
         if len(func.body.blocks) != 1:
-            raise NotImplementedError(
-                f"Cannot register allocate func with {len(func.body.blocks)} blocks."
-            )
+            raise NotImplementedError(f"Cannot register allocate func with {len(func.body.blocks)} blocks.")
 
-        preallocated = {
-            reg
-            for reg in RegisterAllocatableOperation.iter_all_used_registers(func.body)
-            if isinstance(reg, RISCVRegisterType)
-        }
+        preallocated = {reg for reg in RegisterAllocatableOperation.iter_all_used_registers(func.body) if isinstance(reg, RISCVRegisterType)}
 
         for pa_reg in preallocated:
             self.available_registers.reserve_register(pa_reg)
@@ -310,13 +285,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
         if add_regalloc_stats:
             preallocated_stats = reg_types_by_name(preallocated)
-            allocated_stats = reg_types_by_name(
-                val.type
-                for op in block.walk()
-                for vals in (op.results, op.operands)
-                for val in vals
-                if isinstance(val.type, RISCVRegisterType)
-            )
+            allocated_stats = reg_types_by_name(val.type for op in block.walk() for vals in (op.results, op.operands) for val in vals if isinstance(val.type, RISCVRegisterType))
             stats = {
                 "preallocated_float": sorted(preallocated_stats["riscv.freg"]),
                 "preallocated_int": sorted(preallocated_stats["riscv.reg"]),
@@ -332,9 +301,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             )
 
 
-def _live_ins_per_block(
-    block: Block, acc: dict[Block, OrderedSet[SSAValue]]
-) -> OrderedSet[SSAValue]:
+def _live_ins_per_block(block: Block, acc: dict[Block, OrderedSet[SSAValue]]) -> OrderedSet[SSAValue]:
     res = OrderedSet[SSAValue]([])
 
     for op in reversed(block.ops):

@@ -214,11 +214,7 @@ def test_rrr_vops(
     ],
 )
 def test_mr_vops(
-    OpClass: type[
-        x86.ops.M_MR_Operation[
-            x86.register.GeneralRegisterType, x86.register.X86VectorRegisterType
-        ]
-    ],
+    OpClass: type[x86.ops.M_MR_Operation[x86.register.GeneralRegisterType, x86.register.X86VectorRegisterType]],
     dest: x86.register.GeneralRegisterType,
     src: x86.register.X86VectorRegisterType,
 ):
@@ -250,11 +246,7 @@ def test_mr_vops(
     ],
 )
 def test_rm_vops(
-    OpClass: type[
-        x86.ops.R_M_Operation[
-            x86.register.GeneralRegisterType, x86.register.X86VectorRegisterType
-        ]
-    ],
+    OpClass: type[x86.ops.R_M_Operation[x86.register.GeneralRegisterType, x86.register.X86VectorRegisterType]],
     dest: x86.register.X86VectorRegisterType,
     src: x86.register.GeneralRegisterType,
 ):

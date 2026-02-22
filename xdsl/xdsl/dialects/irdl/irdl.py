@@ -6,46 +6,12 @@ from collections.abc import Mapping, Sequence
 from types import NoneType
 from typing import ClassVar
 
-from xdsl.dialects.builtin import (
-    I32,
-    ArrayAttr,
-    IntegerAttr,
-    StringAttr,
-    SymbolRefAttr,
-    UnitAttr,
-)
-from xdsl.ir import (
-    Attribute,
-    Block,
-    Dialect,
-    EnumAttribute,
-    ParametrizedAttribute,
-    Region,
-    SpacedOpaqueSyntaxAttribute,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    IRDLOperation,
-    ParameterDef,
-    attr_def,
-    irdl_attr_definition,
-    irdl_op_definition,
-    opt_attr_def,
-    prop_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.dialects.builtin import I32, ArrayAttr, IntegerAttr, StringAttr, SymbolRefAttr, UnitAttr
+from xdsl.ir import Attribute, Block, Dialect, EnumAttribute, ParametrizedAttribute, Region, SpacedOpaqueSyntaxAttribute, SSAValue, TypeAttribute
+from xdsl.irdl import IRDLOperation, ParameterDef, attr_def, irdl_attr_definition, irdl_op_definition, opt_attr_def, prop_def, region_def, result_def, traits_def, var_operand_def
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import (
-    HasParent,
-    NoTerminator,
-    SymbolOpInterface,
-    SymbolTable,
-)
+from xdsl.traits import HasParent, NoTerminator, SymbolOpInterface, SymbolTable
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
@@ -85,9 +51,7 @@ class VariadicityArrayAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> tuple[ArrayAttr[VariadicityAttr]]:
-        data = parser.parse_comma_separated_list(
-            AttrParser.Delimiter.SQUARE, lambda: VariadicityAttr.parse_parameter(parser)
-        )
+        data = parser.parse_comma_separated_list(AttrParser.Delimiter.SQUARE, lambda: VariadicityAttr.parse_parameter(parser))
         return (ArrayAttr(VariadicityAttr(x) for x in data),)
 
     def print_parameters(self, printer: Printer) -> None:
@@ -264,9 +228,7 @@ class ParametersOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> ParametersOp:
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_argument(parser)
-        )
+        args = parser.parse_comma_separated_list(parser.Delimiter.PAREN, lambda: _parse_argument(parser))
         return ParametersOp(
             tuple(x[1] for x in args),
             ArrayAttr(x[0] for x in args),
@@ -274,9 +236,7 @@ class ParametersOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         printer.print("(")
-        printer.print_list(
-            zip(self.names, self.args), lambda x: _print_argument(printer, x)
-        )
+        printer.print_list(zip(self.names, self.args), lambda x: _print_argument(printer, x))
         printer.print(")")
 
 
@@ -317,14 +277,7 @@ class OperationOp(IRDLOperation):
         return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
 
     def get_py_class_name(self) -> str:
-        return (
-            "".join(
-                y[:1].upper() + y[1:]
-                for x in self.sym_name.data.split(".")
-                for y in x.split("_")
-            )
-            + "Op"
-        )
+        return "".join(y[:1].upper() + y[1:] for x in self.sym_name.data.split(".") for y in x.split("_")) + "Op"
 
 
 def _parse_argument_with_var(
@@ -341,9 +294,7 @@ def _parse_argument_with_var(
     return (name, VariadicityAttr(variadicity), arg)
 
 
-def _print_argument_with_var(
-    printer: Printer, data: tuple[StringAttr, VariadicityAttr, SSAValue]
-) -> None:
+def _print_argument_with_var(printer: Printer, data: tuple[StringAttr, VariadicityAttr, SSAValue]) -> None:
     printer.print_string(data[0].data)
     printer.print_string(": ")
     variadicity = data[1].data
@@ -380,9 +331,7 @@ class OperandsOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> OperandsOp:
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_argument_with_var(parser)
-        )
+        args = parser.parse_comma_separated_list(parser.Delimiter.PAREN, lambda: _parse_argument_with_var(parser))
         return OperandsOp(
             tuple(x[2] for x in args),
             VariadicityArrayAttr(ArrayAttr(x[1] for x in args)),
@@ -427,9 +376,7 @@ class ResultsOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> ResultsOp:
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_argument_with_var(parser)
-        )
+        args = parser.parse_comma_separated_list(parser.Delimiter.PAREN, lambda: _parse_argument_with_var(parser))
         return ResultsOp(
             tuple(x[2] for x in args),
             VariadicityArrayAttr(ArrayAttr(x[1] for x in args)),
@@ -488,9 +435,7 @@ class AttributesOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> AttributesOp:
-        tuples = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.BRACES, lambda: _parse_attribute(parser)
-        )
+        tuples = parser.parse_optional_comma_separated_list(parser.Delimiter.BRACES, lambda: _parse_attribute(parser))
         if tuples is None:
             return AttributesOp.get(dict())
         return AttributesOp.get(dict(tuples))
@@ -532,9 +477,7 @@ class RegionsOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> RegionsOp:
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, lambda: _parse_argument(parser)
-        )
+        args = parser.parse_comma_separated_list(parser.Delimiter.PAREN, lambda: _parse_argument(parser))
         return RegionsOp(
             tuple(x[1] for x in args),
             ArrayAttr(x[0] for x in args),
@@ -542,9 +485,7 @@ class RegionsOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         printer.print("(")
-        printer.print_list(
-            zip(self.names, self.args), lambda x: _print_argument(printer, x)
-        )
+        printer.print_list(zip(self.names, self.args), lambda x: _print_argument(printer, x))
         printer.print(")")
 
 
@@ -563,9 +504,7 @@ class IsOp(IRDLOperation):
     output = result_def(AttributeType)
 
     def __init__(self, expected: Attribute):
-        super().__init__(
-            attributes={"expected": expected}, result_types=[AttributeType()]
-        )
+        super().__init__(attributes={"expected": expected}, result_types=[AttributeType()])
 
     @classmethod
     def parse(cls, parser: Parser) -> IsOp:
@@ -638,9 +577,7 @@ class ParametricOp(IRDLOperation):
     args = var_operand_def(AttributeType)
     output = result_def(AttributeType)
 
-    def __init__(
-        self, base_type: str | StringAttr | SymbolRefAttr, args: Sequence[SSAValue]
-    ):
+    def __init__(self, base_type: str | StringAttr | SymbolRefAttr, args: Sequence[SSAValue]):
         if isinstance(base_type, str | StringAttr):
             base_type = SymbolRefAttr(base_type)
         super().__init__(
@@ -654,9 +591,7 @@ class ParametricOp(IRDLOperation):
         base_type = parser.parse_attribute()
         if not isinstance(base_type, SymbolRefAttr):
             parser.raise_error("expected symbol reference")
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.ANGLE, parser.parse_operand
-        )
+        args = parser.parse_comma_separated_list(parser.Delimiter.ANGLE, parser.parse_operand)
         return ParametricOp(base_type, args)
 
     def print(self, printer: Printer) -> None:
@@ -681,10 +616,7 @@ class RegionOp(IRDLOperation):
 
     output = result_def(RegionType())
 
-    assembly_format = (
-        "(```(` $entry_block_args $constrained_arguments^ `)`)?"
-        "(` ` `with` `size` $number_of_blocks^)? attr-dict"
-    )
+    assembly_format = "(```(` $entry_block_args $constrained_arguments^ `)`)?" "(` ` `with` `size` $number_of_blocks^)? attr-dict"
 
     def __init__(
         self,
@@ -701,9 +633,7 @@ class RegionOp(IRDLOperation):
 
     def verify_(self) -> None:
         if len(self.entry_block_args) > 0 and not self.constrained_arguments:
-            raise VerifyException(
-                "constrained_arguments must be set when specifying arguments"
-            )
+            raise VerifyException("constrained_arguments must be set when specifying arguments")
 
 
 @irdl_op_definition
@@ -739,9 +669,7 @@ class AnyOfOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> AnyOfOp:
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_operand
-        )
+        args = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parser.parse_operand)
         return AnyOfOp(args)
 
     def print(self, printer: Printer) -> None:
@@ -764,9 +692,7 @@ class AllOfOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> AllOfOp:
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_operand
-        )
+        args = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parser.parse_operand)
         return AllOfOp(args)
 
     def print(self, printer: Printer) -> None:

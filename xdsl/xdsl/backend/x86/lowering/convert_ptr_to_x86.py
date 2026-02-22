@@ -3,20 +3,10 @@ from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, ptr, x86
-from xdsl.dialects.builtin import (
-    FixedBitwidthType,
-    UnrealizedConversionCastOp,
-    VectorType,
-)
+from xdsl.dialects.builtin import FixedBitwidthType, UnrealizedConversionCastOp, VectorType
 from xdsl.dialects.x86.register import X86VectorRegisterType
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.utils.exceptions import DiagnosticException
 
 
@@ -37,9 +27,7 @@ def vector_type_to_register_type(
     elif vector_size == 512 and arch == "avx512":
         vect_reg_type = x86.register.UNALLOCATED_AVX512
     else:
-        raise DiagnosticException(
-            "The vector size and target architecture are inconsistent."
-        )
+        raise DiagnosticException("The vector size and target architecture are inconsistent.")
     return vect_reg_type
 
 
@@ -62,9 +50,7 @@ class PtrStoreToX86(RewritePattern):
     def match_and_rewrite(self, op: ptr.StoreOp, rewriter: PatternRewriter):
         value_type = op.value.type
         if not isinstance(value_type, VectorType):
-            raise DiagnosticException(
-                "The lowering of ptr.store is not yet implemented for non-vector types."
-            )
+            raise DiagnosticException("The lowering of ptr.store is not yet implemented for non-vector types.")
         value_type = cast(VectorType, value_type)
         # Pointer casts
         x86_reg_type = x86.register.UNALLOCATED_GENERAL
@@ -76,17 +62,13 @@ class PtrStoreToX86(RewritePattern):
         element_size = cast(FixedBitwidthType, value_type.get_element_type()).bitwidth
         match element_size:
             case 16:
-                raise DiagnosticException(
-                    "Half-precision vector load is not implemented yet."
-                )
+                raise DiagnosticException("Half-precision vector load is not implemented yet.")
             case 32:
                 mov = x86.ops.MR_VmovupsOp
             case 64:
                 mov = x86.ops.MR_VmovapdOp
             case _:
-                raise DiagnosticException(
-                    "Float precision must be half, single or double."
-                )
+                raise DiagnosticException("Float precision must be half, single or double.")
 
         mov_op = mov(addr_cast_op, vect_cast_op, offset=0)
         rewriter.replace_matched_op([addr_cast_op, vect_cast_op, mov_op])
@@ -100,9 +82,7 @@ class PtrLoadToX86(RewritePattern):
     def match_and_rewrite(self, op: ptr.LoadOp, rewriter: PatternRewriter):
         value_type = op.res.type
         if not isinstance(value_type, VectorType):
-            raise DiagnosticException(
-                "The lowering of ptr.load is not yet implemented for non-vector types."
-            )
+            raise DiagnosticException("The lowering of ptr.load is not yet implemented for non-vector types.")
         value_type = cast(VectorType, value_type)
         # Pointer cast
         x86_reg_type = x86.register.UNALLOCATED_GENERAL
@@ -112,19 +92,13 @@ class PtrLoadToX86(RewritePattern):
         element_size = cast(FixedBitwidthType, value_type.get_element_type()).bitwidth
         match element_size:
             case 16:
-                raise DiagnosticException(
-                    "Half-precision vector load is not implemented yet."
-                )
+                raise DiagnosticException("Half-precision vector load is not implemented yet.")
             case 32:
                 mov = x86.ops.RM_VmovupsOp
             case 64:
-                raise DiagnosticException(
-                    "Double precision vector load is not implemented yet."
-                )
+                raise DiagnosticException("Double precision vector load is not implemented yet.")
             case _:
-                raise DiagnosticException(
-                    "Float precision must be half, single or double."
-                )
+                raise DiagnosticException("Float precision must be half, single or double.")
 
         mov_op = mov(
             cast_op,

@@ -7,13 +7,7 @@ from typing import Generic, Literal, TypeVar
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import (
-    Float32Type,
-    Float64Type,
-    PackableType,
-    i32,
-    i64,
-)
+from xdsl.dialects.builtin import Float32Type, Float64Type, PackableType, i32, i64
 
 _T = TypeVar("_T")
 _TCov = TypeVar("_TCov", covariant=True)
@@ -59,9 +53,7 @@ class RawPtr:
 
     def index(self, index_bitwidth: int) -> TypedPtr[int]:
         if index_bitwidth != 32 and index_bitwidth != 64:
-            raise ValueError(
-                f"Invalid index bitwidth {index_bitwidth} monly 32 or 64 allowed"
-            )
+            raise ValueError(f"Invalid index bitwidth {index_bitwidth} monly 32 or 64 allowed")
         return TypedPtr(self, xtype=index(index_bitwidth))
 
     @property
@@ -155,7 +147,5 @@ class TypedPtr(Generic[_T]):
     @staticmethod
     def new_index(els: Sequence[int], index_bitwidth: int) -> TypedPtr[int]:
         if index_bitwidth != 32 and index_bitwidth != 64:
-            raise ValueError(
-                f"Invalid index bitwidth {index_bitwidth} monly 32 or 64 allowed"
-            )
+            raise ValueError(f"Invalid index bitwidth {index_bitwidth} monly 32 or 64 allowed")
         return TypedPtr[int].new(els, xtype=index(index_bitwidth))

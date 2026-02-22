@@ -9,52 +9,11 @@ from typing_extensions import Self
 
 from xdsl.builder import Builder
 from xdsl.dialects import arith
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    AnyFloat,
-    AnyTensorType,
-    ArrayAttr,
-    DenseArrayBase,
-    DenseIntElementsAttr,
-    IndexType,
-    IndexTypeConstr,
-    IntegerAttr,
-    IntegerType,
-    MemRefType,
-    ShapedType,
-    StringAttr,
-    TensorType,
-    i64,
-)
-from xdsl.dialects.utils import (
-    AbstractYieldOperation,
-)
-from xdsl.ir import (
-    Attribute,
-    BlockArgument,
-    Dialect,
-    EnumAttribute,
-    Region,
-    SSAValue,
-)
+from xdsl.dialects.builtin import AffineMapAttr, AnyFloat, AnyTensorType, ArrayAttr, DenseArrayBase, DenseIntElementsAttr, IndexType, IndexTypeConstr, IntegerAttr, IntegerType, MemRefType, ShapedType, StringAttr, TensorType, i64
+from xdsl.dialects.utils import AbstractYieldOperation
+from xdsl.ir import Attribute, BlockArgument, Dialect, EnumAttribute, Region, SSAValue
 from xdsl.ir.affine import AffineMap
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    ParsePropInAttrDict,
-    attr_def,
-    base,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_prop_def,
-    prop_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.irdl import AttrSizedOperandSegments, IRDLOperation, ParsePropInAttrDict, attr_def, base, irdl_attr_definition, irdl_op_definition, operand_def, opt_prop_def, prop_def, region_def, result_def, traits_def, var_operand_def, var_result_def
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator
@@ -152,18 +111,14 @@ class GenericOp(IRDLOperation):
         computation".
         The default behavior is to just concatenate all the indexing maps.
         """
-        result_exprs = tuple(
-            res for map in self.get_indexing_maps() for res in map.results
-        )
+        result_exprs = tuple(res for map in self.get_indexing_maps() for res in map.results)
 
         dims = self.get_num_loops()
 
         # FIXME: Support symbols.
         for map in self.get_indexing_maps():
             if map.num_symbols != 0:
-                raise NotImplementedError(
-                    "Indexing maps with symbols not supported for now."
-                )
+                raise NotImplementedError("Indexing maps with symbols not supported for now.")
 
         syms = 0
         return AffineMap(dims, syms, result_exprs)
@@ -183,18 +138,11 @@ class GenericOp(IRDLOperation):
         loops_to_shapes = self.get_loops_to_shapes_map()
         inverse = loops_to_shapes.inverse_permutation()
         if not inverse:
-            raise NotImplementedError(
-                "Non-invertible maps need dynamic shapes, which are not implemented."
-            )
+            raise NotImplementedError("Non-invertible maps need dynamic shapes, which are not implemented.")
         return inverse
 
     def get_static_shapes(self) -> list[int]:
-        return [
-            dim
-            for operand in self.operands
-            if isinstance(operand.type, ShapedType)
-            for dim in operand.type.get_shape()
-        ]
+        return [dim for operand in self.operands if isinstance(operand.type, ShapedType) for dim in operand.type.get_shape()]
 
     def get_static_loop_ranges(self) -> tuple[int, ...]:
         shapes_to_loops = self.get_shapes_to_loops_map()
@@ -255,9 +203,7 @@ class GenericOp(IRDLOperation):
                 printer.print_attribute(self.res[0].type)
             else:
                 printer.print("(")
-                printer.print_list(
-                    self.res, lambda res: printer.print_attribute(res.type)
-                )
+                printer.print_list(self.res, lambda res: printer.print_attribute(res.type))
                 printer.print(")")
 
     @classmethod
@@ -292,9 +238,7 @@ class GenericOp(IRDLOperation):
                     case IteratorTypeAttr():
                         iterator_types.append(iterator_type)
                     case StringAttr():
-                        iterator_type = IteratorTypeAttr(
-                            IteratorType(iterator_type.data)
-                        )
+                        iterator_type = IteratorTypeAttr(IteratorType(iterator_type.data))
                         iterator_types.append(iterator_type)
                     case _:
                         parser.raise_error(
@@ -326,13 +270,9 @@ class GenericOp(IRDLOperation):
         pos = parser.pos
         if parser.parse_optional_characters("ins"):
             parser.parse_punctuation("(")
-            unresolved_ins = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
-            )
+            unresolved_ins = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_unresolved_operand)
             parser.parse_punctuation(":")
-            ins_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
-            )
+            ins_types = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
             parser.parse_punctuation(")")
             ins = parser.resolve_operands(unresolved_ins, ins_types, pos)
         else:
@@ -341,13 +281,9 @@ class GenericOp(IRDLOperation):
         pos = parser.pos
         if parser.parse_optional_characters("outs"):
             parser.parse_punctuation("(")
-            unresolved_outs = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
-            )
+            unresolved_outs = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_unresolved_operand)
             parser.parse_punctuation(":")
-            outs_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
-            )
+            outs_types = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
             parser.parse_punctuation(")")
             outs = parser.resolve_operands(unresolved_outs, outs_types, pos)
         else:
@@ -355,18 +291,14 @@ class GenericOp(IRDLOperation):
 
         if parser.parse_optional_keyword("attrs"):
             parser.parse_punctuation("=")
-            extra_attrs = parser.expect(
-                parser.parse_optional_attr_dict, "expect extra attributes"
-            )
+            extra_attrs = parser.expect(parser.parse_optional_attr_dict, "expect extra attributes")
         else:
             extra_attrs = {}
 
         body = parser.parse_region()
 
         if parser.parse_optional_punctuation("->"):
-            res_types = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE, parser.parse_attribute
-            )
+            res_types = parser.parse_comma_separated_list(parser.Delimiter.NONE, parser.parse_attribute)
         else:
             res_types = ()
 
@@ -439,11 +371,7 @@ class NamedOpBase(IRDLOperation, ABC):
     ):
         super().__init__(
             operands=[ins, outs],
-            result_types=(
-                result_types
-                if result_types is not None and len(result_types) > 0
-                else [[]]
-            ),
+            result_types=(result_types if result_types is not None and len(result_types) > 0 else [[]]),
             properties=properties,
             attributes=attributes,
             regions=[hidden_region],
@@ -458,13 +386,9 @@ class NamedOpBase(IRDLOperation, ABC):
             attrs = {}
         if parser.parse_optional_characters("ins"):
             parser.parse_punctuation("(")
-            unresolved_ins = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
-            )
+            unresolved_ins = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_unresolved_operand)
             parser.parse_punctuation(":")
-            ins_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
-            )
+            ins_types = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
             parser.parse_punctuation(")")
             ins = parser.resolve_operands(unresolved_ins, ins_types, pos)
         else:
@@ -473,13 +397,9 @@ class NamedOpBase(IRDLOperation, ABC):
         pos = parser.pos
         if parser.parse_optional_characters("outs"):
             parser.parse_punctuation("(")
-            unresolved_outs = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
-            )
+            unresolved_outs = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_unresolved_operand)
             parser.parse_punctuation(":")
-            outs_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
-            )
+            outs_types = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
             parser.parse_punctuation(")")
             outs = parser.resolve_operands(unresolved_outs, outs_types, pos)
         else:
@@ -488,16 +408,12 @@ class NamedOpBase(IRDLOperation, ABC):
         if not cls.PRINT_ATTRS_IN_FRONT:
             if parser.parse_optional_keyword("attrs"):
                 parser.parse_punctuation("=")
-                attrs = parser.expect(
-                    parser.parse_optional_attr_dict, "expect extra attributes"
-                )
+                attrs = parser.expect(parser.parse_optional_attr_dict, "expect extra attributes")
             else:
                 attrs = {}
 
         if parser.parse_optional_punctuation("->"):
-            res_types = parser.parse_optional_comma_separated_list(
-                parser.Delimiter.PAREN, parser.parse_attribute
-            )
+            res_types = parser.parse_optional_comma_separated_list(parser.Delimiter.PAREN, parser.parse_attribute)
             if res_types is None:
                 res_types = [[parser.parse_attribute()]]
         else:
@@ -544,9 +460,7 @@ class NamedOpBase(IRDLOperation, ABC):
                 printer.print_attribute(self.res[0].type)
             else:
                 printer.print("(")
-                printer.print_list(
-                    self.res, lambda res: printer.print_attribute(res.type)
-                )
+                printer.print_list(self.res, lambda res: printer.print_attribute(res.type))
                 printer.print(")")
 
     @staticmethod
@@ -734,9 +648,7 @@ class FillOp(NamedOpBase):
         # Check the that the inputs are of scalar type (f32, f64, etc)
         for value in self.inputs:
             if not isinstance(value.type, AnyFloat | IntegerType):
-                raise VerifyException(
-                    f"Input type is {value.type} but must be an instance of AnyFloat or IntegerType."
-                )
+                raise VerifyException(f"Input type is {value.type} but must be an instance of AnyFloat or IntegerType.")
 
 
 @irdl_op_definition
@@ -762,9 +674,7 @@ class MaxOp(NamedOpBase):
             result_types = res
 
         arg_types = self.body_arg_types((*inputs, *outputs))
-        maxop = (
-            arith.MaximumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MaxSIOp
-        )
+        maxop = arith.MaximumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MaxSIOp
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -803,9 +713,7 @@ class MinOp(NamedOpBase):
             result_types = res
 
         arg_types = self.body_arg_types((*inputs, *outputs))
-        minop = (
-            arith.MinimumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MinSIOp
-        )
+        minop = arith.MinimumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MinSIOp
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -908,15 +816,9 @@ class TransposeOp(IRDLOperation):
         init_shape = init_type.get_shape()
 
         if (input_rank := len(input_shape)) != (init_rank := len(init_shape)):
-            raise VerifyException(
-                f"Input rank ({input_rank}) does not match output rank ({init_rank})"
-            )
-        if (input_rank := len(input_shape)) != (
-            permutation_size := len(self.permutation)
-        ):
-            raise VerifyException(
-                f"Input rank ({input_rank}) does not match size of permutation ({permutation_size})"
-            )
+            raise VerifyException(f"Input rank ({input_rank}) does not match output rank ({init_rank})")
+        if (input_rank := len(input_shape)) != (permutation_size := len(self.permutation)):
+            raise VerifyException(f"Input rank ({input_rank}) does not match size of permutation ({permutation_size})")
 
         permutation_shape = cast(list[int], self.permutation.get_values())
 
@@ -925,10 +827,7 @@ class TransposeOp(IRDLOperation):
             init_dimension = init_shape[i]
 
             if input_dimension != init_dimension:
-                raise VerifyException(
-                    f"dim(result, {i}) = {init_dimension} "
-                    f"doesn't match dim(input, permutation[{i}]) = {input_dimension}"
-                )
+                raise VerifyException(f"dim(result, {i}) = {init_dimension} " f"doesn't match dim(input, permutation[{i}]) = {input_dimension}")
 
     def print(self, printer: Printer):
         printer.print_string(" ins(")
@@ -961,9 +860,7 @@ class TransposeOp(IRDLOperation):
         parser.parse_punctuation(")")
         parser.parse_keyword("permutation")
         parser.parse_punctuation("=")
-        permutation = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_integer
-        )
+        permutation = parser.parse_comma_separated_list(parser.Delimiter.SQUARE, parser.parse_integer)
         transpose = cls(
             input,
             init,
@@ -995,20 +892,12 @@ class MatmulOp(NamedOpBase):
         attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
-            result_types = tuple(
-                cast(AnyTensorType, output_type)
-                for output in outputs
-                if isinstance(output_type := output.type, TensorType)
-            )
+            result_types = tuple(cast(AnyTensorType, output_type) for output in outputs if isinstance(output_type := output.type, TensorType))
         else:
             result_types = res
 
         arg_types = self.body_arg_types((*inputs, *outputs))
-        add, mul = (
-            (arith.AddfOp, arith.MulfOp)
-            if isinstance(arg_types[-1], AnyFloat)
-            else (arith.AddiOp, arith.MuliOp)
-        )
+        add, mul = (arith.AddfOp, arith.MulfOp) if isinstance(arg_types[-1], AnyFloat) else (arith.AddiOp, arith.MuliOp)
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -1057,11 +946,7 @@ class QuantizedMatmulOp(NamedOpBase):
         attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
-            result_types = tuple(
-                cast(AnyTensorType, output_type)
-                for output in outputs
-                if isinstance(output_type := output.type, TensorType)
-            )
+            result_types = tuple(cast(AnyTensorType, output_type) for output in outputs if isinstance(output_type := output.type, TensorType))
         else:
             result_types = res
 
@@ -1128,9 +1013,7 @@ class PoolingNchwMaxOp(PoolingOpsBase):
     ):
         arg_types = self.body_arg_types((*inputs, *outputs))
 
-        max_op = (
-            arith.MaximumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MaxSIOp
-        )
+        max_op = arith.MaximumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MaxSIOp
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -1162,11 +1045,7 @@ class ConvOpsBase(NamedOpBase, ABC):
         attributes: dict[str, Attribute] | None = None,
     ):
         arg_types = self.body_arg_types((*inputs, *outputs))
-        add, mul = (
-            (arith.AddfOp, arith.MulfOp)
-            if isinstance(arg_types[-1], AnyFloat)
-            else (arith.AddiOp, arith.MuliOp)
-        )
+        add, mul = (arith.AddfOp, arith.MulfOp) if isinstance(arg_types[-1], AnyFloat) else (arith.AddiOp, arith.MuliOp)
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -1275,18 +1154,12 @@ class BroadcastOp(IRDLOperation):
         input_shape = input_type.get_shape()
         init_shape = init_type.get_shape()
 
-        if (input_and_dims_rank := (len(input_shape) + len(dimensions_shape))) != (
-            init_rank := len(init_shape)
-        ):
-            raise VerifyException(
-                f"Input rank plus added dimensions ({input_and_dims_rank}) does not match output rank ({init_rank})"
-            )
+        if (input_and_dims_rank := (len(input_shape) + len(dimensions_shape))) != (init_rank := len(init_shape)):
+            raise VerifyException(f"Input rank plus added dimensions ({input_and_dims_rank}) does not match output rank ({init_rank})")
 
         for index, dim in enumerate(dimensions_shape):
             if dim < 0 or dim >= init_rank:
-                raise VerifyException(
-                    f"Dimension {index} is out of range.  Expected range: [0, {init_rank - 1}], got: {dim}"
-                )
+                raise VerifyException(f"Dimension {index} is out of range.  Expected range: [0, {init_rank - 1}], got: {dim}")
 
         # intialise an array to store the dimensions being mapped
         dimensions_map: list[int] = []
@@ -1296,10 +1169,7 @@ class BroadcastOp(IRDLOperation):
 
         for input_dim_index, init_dim_index in enumerate(dimensions_map):
             if input_shape[input_dim_index] != init_shape[init_dim_index]:
-                raise VerifyException(
-                    f"input dimension {input_dim_index} should match output dimension {init_dim_index}. "
-                    f"input: {input_shape[input_dim_index]}, output: {init_shape[init_dim_index]}"
-                )
+                raise VerifyException(f"input dimension {input_dim_index} should match output dimension {init_dim_index}. " f"input: {input_shape[input_dim_index]}, output: {init_shape[init_dim_index]}")
 
     def print(self, printer: Printer):
         printer.print_string(" ins(")
@@ -1332,9 +1202,7 @@ class BroadcastOp(IRDLOperation):
         parser.parse_punctuation(")")
         parser.parse_keyword("dimensions")
         parser.parse_punctuation("=")
-        dimensions = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_integer
-        )
+        dimensions = parser.parse_comma_separated_list(parser.Delimiter.SQUARE, parser.parse_integer)
         broadcast = cls(
             input,
             init,

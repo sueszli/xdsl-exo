@@ -5,10 +5,10 @@ from exo.API import proc
 from exo.core.LoopIR import LoopIR, T
 from exo.core.memory import DRAM
 from exo.core.prelude import SrcInfo, Sym
+
 from xdsl.dialects.builtin import i32
 from xdsl.utils.scoped_dict import ScopedDict
 from xdsl.utils.test_value import create_ssa_value
-
 from xdsl_exo import compile_one
 from xdsl_exo.generator import IRGenerator, IRGeneratorError
 

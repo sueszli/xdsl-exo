@@ -2,35 +2,8 @@ import pytest
 
 from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, func, memref, scf
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    ArrayAttr,
-    FloatAttr,
-    IndexType,
-    IntAttr,
-    IntegerType,
-    MemRefType,
-    NoneAttr,
-    StridedLayoutAttr,
-    UnrankedMemRefType,
-    i32,
-    i64,
-)
-from xdsl.dialects.memref import (
-    AllocaOp,
-    AllocOp,
-    CastOp,
-    CopyOp,
-    DeallocOp,
-    DmaStartOp,
-    DmaWaitOp,
-    ExtractAlignedPointerAsIndexOp,
-    ExtractStridedMetaDataOp,
-    LoadOp,
-    MemorySpaceCastOp,
-    StoreOp,
-    SubviewOp,
-)
+from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr, FloatAttr, IndexType, IntAttr, IntegerType, MemRefType, NoneAttr, StridedLayoutAttr, UnrankedMemRefType, i32, i64
+from xdsl.dialects.memref import AllocaOp, AllocOp, CastOp, CopyOp, DeallocOp, DmaStartOp, DmaWaitOp, ExtractAlignedPointerAsIndexOp, ExtractStridedMetaDataOp, LoadOp, MemorySpaceCastOp, StoreOp, SubviewOp
 from xdsl.ir import Attribute, BlockArgument, OpResult
 from xdsl.ir.affine import AffineMap
 from xdsl.utils.exceptions import VerifyException
@@ -106,9 +79,7 @@ def test_memref_alloc():
     my_memspace = builtin.IntegerAttr(0, i32)
     alloc0 = AllocOp.get(my_i32, 64, [3, 1, 2])
     alloc1 = AllocOp.get(my_i32, 64)
-    alloc2 = AllocOp.get(
-        my_i32, 64, [3, 1, 2], layout=my_layout, memory_space=my_memspace
-    )
+    alloc2 = AllocOp.get(my_i32, 64, [3, 1, 2], layout=my_layout, memory_space=my_memspace)
 
     assert alloc0.dynamic_sizes == ()
     assert type(alloc0.results[0]) is OpResult
@@ -150,9 +121,7 @@ def test_memref_alloca():
     my_memspace = builtin.IntegerAttr(0, i32)
     alloc0 = AllocaOp.get(my_i32, 64, [3, 1, 2])
     alloc1 = AllocaOp.get(my_i32, 64)
-    alloc2 = AllocaOp.get(
-        my_i32, 64, [3, 1, 2], layout=my_layout, memory_space=my_memspace
-    )
+    alloc2 = AllocaOp.get(my_i32, 64, [3, 1, 2], layout=my_layout, memory_space=my_memspace)
 
     assert type(alloc0.results[0]) is OpResult
     assert type(alloc0.results[0].type) is MemRefType
@@ -294,9 +263,7 @@ def test_memref_extract_strided_metadata():
     offset = None  # Dynamic offset
     layout = StridedLayoutAttr(strides, offset)
     memory_space = IntAttr(1)
-    alloc = AllocOp.get(
-        el_type, alignment, shape, layout=layout, memory_space=memory_space
-    )
+    alloc = AllocOp.get(el_type, alignment, shape, layout=layout, memory_space=memory_space)
     assert isa(alloc.memref.type, MemRefType[Attribute])
 
     extract_op = ExtractStridedMetaDataOp(alloc)
@@ -309,9 +276,7 @@ def test_memref_subview_constant_parameters():
     alloc = AllocOp.get(i32, 8, [10, 10, 10])
     assert isa(alloc.memref.type, MemRefType[Attribute])
 
-    subview = SubviewOp.from_static_parameters(
-        alloc, alloc.memref.type, [2, 2, 2], [2, 2, 2], [3, 3, 3]
-    )
+    subview = SubviewOp.from_static_parameters(alloc, alloc.memref.type, [2, 2, 2], [2, 2, 2], [3, 3, 3])
 
     assert isinstance(subview, SubviewOp)
     assert isinstance(subview.result.type, MemRefType)
@@ -340,12 +305,8 @@ def test_memref_memory_space_cast():
     memref_ssa_value = create_ssa_value(i32_memref_type)
 
     res_type = MemRefType(i32, [10, 2], memory_space=builtin.IntegerAttr(2, i32))
-    res_type_wrong_type = MemRefType(
-        i64, [10, 2], memory_space=builtin.IntegerAttr(2, i32)
-    )
-    res_type_wrong_shape = MemRefType(
-        i32, [10, 4], memory_space=builtin.IntegerAttr(2, i32)
-    )
+    res_type_wrong_type = MemRefType(i64, [10, 2], memory_space=builtin.IntegerAttr(2, i32))
+    res_type_wrong_shape = MemRefType(i32, [10, 4], memory_space=builtin.IntegerAttr(2, i32))
 
     memory_space_cast = MemorySpaceCastOp(memref_ssa_value, res_type)
 
@@ -358,16 +319,12 @@ def test_memref_memory_space_cast():
     ):
         MemorySpaceCastOp(memref_ssa_value, res_type_wrong_type).verify()
 
-    with pytest.raises(
-        VerifyException, match="Expected source and destination to have the same shape."
-    ):
+    with pytest.raises(VerifyException, match="Expected source and destination to have the same shape."):
         MemorySpaceCastOp(memref_ssa_value, res_type_wrong_shape).verify()
 
     # Test helper function
     dest_memory_space = builtin.IntegerAttr(2, i32)
-    memory_space_cast = MemorySpaceCastOp.from_type_and_target_space(
-        memref_ssa_value, i32_memref_type, dest_memory_space
-    )
+    memory_space_cast = MemorySpaceCastOp.from_type_and_target_space(memref_ssa_value, i32_memref_type, dest_memory_space)
 
     assert memory_space_cast.source is memref_ssa_value
     assert isinstance(memory_space_cast.dest.type, MemRefType)
@@ -387,35 +344,25 @@ def test_dma_start():
     index = create_ssa_value(IndexType())
     num_elements = create_ssa_value(IndexType())
 
-    dma_start = DmaStartOp.get(
-        src, [index, index], dest, [index], num_elements, tag, [index]
-    )
+    dma_start = DmaStartOp.get(src, [index, index], dest, [index], num_elements, tag, [index])
 
     dma_start.verify()
 
     # check that src index count is verified
     with pytest.raises(VerifyException, match="Expected 2 source indices"):
-        DmaStartOp.get(
-            src, [index, index, index], dest, [index], num_elements, tag, [index]
-        ).verify()
+        DmaStartOp.get(src, [index, index, index], dest, [index], num_elements, tag, [index]).verify()
 
     # check that dest index count is verified
     with pytest.raises(VerifyException, match="Expected 1 dest indices"):
-        DmaStartOp.get(
-            src, [index, index], dest, [], num_elements, tag, [index]
-        ).verify()
+        DmaStartOp.get(src, [index, index], dest, [], num_elements, tag, [index]).verify()
 
     # check that tag index count is verified
     with pytest.raises(VerifyException, match="Expected 1 tag indices"):
-        DmaStartOp.get(
-            src, [index, index], dest, [index], num_elements, tag, [index, index]
-        ).verify()
+        DmaStartOp.get(src, [index, index], dest, [index], num_elements, tag, [index, index]).verify()
 
     # check that tag index count is verified
     with pytest.raises(VerifyException, match="different memory spaces"):
-        DmaStartOp.get(
-            src, [index, index], src, [index, index], num_elements, tag, [index]
-        ).verify()
+        DmaStartOp.get(src, [index, index], src, [index, index], num_elements, tag, [index]).verify()
 
     # check that tag element type is verified
     with pytest.raises(VerifyException, match="Expected tag to be a memref of i32"):
@@ -443,9 +390,7 @@ def test_memref_dma_wait():
     dma_wait.verify()
 
     # check that tag index count is verified
-    with pytest.raises(
-        VerifyException, match="Expected 1 tag indices because of shape of tag memref"
-    ):
+    with pytest.raises(VerifyException, match="Expected 1 tag indices because of shape of tag memref"):
         DmaWaitOp.get(tag, [index, index], num_elements).verify()
 
     # check that tag element type is verified
@@ -474,9 +419,7 @@ def test_memref_copy():
 
     copy = CopyOp(source, destination)
 
-    with pytest.raises(
-        VerifyException, match="Expected source and destination to have the same shape."
-    ):
+    with pytest.raises(VerifyException, match="Expected source and destination to have the same shape."):
         copy.verify()
 
     destination = create_ssa_value(i64type4)

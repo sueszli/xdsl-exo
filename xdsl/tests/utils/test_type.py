@@ -1,16 +1,6 @@
 from xdsl.dialects import test
-from xdsl.dialects.builtin import (
-    DYNAMIC_INDEX,
-    MemRefType,
-    NoneAttr,
-    TensorType,
-    UnrankedTensorType,
-)
-from xdsl.utils.type import (
-    get_element_type_or_self,
-    get_encoding,
-    have_compatible_shape,
-)
+from xdsl.dialects.builtin import DYNAMIC_INDEX, MemRefType, NoneAttr, TensorType, UnrankedTensorType
+from xdsl.utils.type import get_element_type_or_self, get_encoding, have_compatible_shape
 
 
 def test_get_element_type_or_self():

@@ -3,15 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 
-from xdsl.ir import (
-    Attribute,
-    Block,
-    BlockArgument,
-    Operation,
-    OpResult,
-    Region,
-    SSAValue,
-)
+from xdsl.ir import Attribute, Block, BlockArgument, Operation, OpResult, Region, SSAValue
 
 
 @dataclass(frozen=True)
@@ -156,9 +148,7 @@ class Rewriter:
             new_results = [] if len(new_ops) == 0 else new_ops[-1].results
 
         if len(op.results) != len(new_results):
-            raise ValueError(
-                f"Expected {len(op.results)} new results, but got {len(new_results)}"
-            )
+            raise ValueError(f"Expected {len(op.results)} new results, but got {len(new_results)}")
 
         for old_result, new_result in zip(op.results, new_results):
             if new_result is None:
@@ -199,28 +189,21 @@ class Rewriter:
                 *args[index + 1 :],
             )
         else:
-            raise ValueError(
-                f"Expected OpResult or BlockArgument, got {type(val).__name__}"
-            )
+            raise ValueError(f"Expected OpResult or BlockArgument, got {type(val).__name__}")
 
         new_value.name_hint = val.name_hint
         val.replace_by(new_value)
         return new_value
 
     @staticmethod
-    def inline_block(
-        source: Block, insertion_point: InsertPoint, arg_values: Sequence[SSAValue] = ()
-    ):
+    def inline_block(source: Block, insertion_point: InsertPoint, arg_values: Sequence[SSAValue] = ()):
         """
         Move the block operations before another operation.
         The block should not be a parent of the operation.
         """
         # MLIR equivalent:
         # https://github.com/llvm/llvm-project/blob/96a3d05ed923d2abd51acb52984b83b9e8044924/mlir/lib/IR/PatternMatch.cpp#L290
-        assert arg_values == () or len(arg_values) == len(source.args), (
-            f"Expected {len(source.args)} replacement argument values, got "
-            f"{len(arg_values)}"
-        )
+        assert arg_values == () or len(arg_values) == len(source.args), f"Expected {len(source.args)} replacement argument values, got " f"{len(arg_values)}"
 
         # The source block will be deleted, so it should not have any users (i.e.,
         # there should be no predecessors).
@@ -281,9 +264,7 @@ class Rewriter:
             region.add_block(block)
 
     @staticmethod
-    def insert_op(
-        op_or_ops: Operation | Sequence[Operation], insertion_point: InsertPoint
-    ):
+    def insert_op(op_or_ops: Operation | Sequence[Operation], insertion_point: InsertPoint):
         """Insert operations at a certain location in a block."""
         ops = (op_or_ops,) if isinstance(op_or_ops, Operation) else op_or_ops
         if insertion_point.insert_before is not None:

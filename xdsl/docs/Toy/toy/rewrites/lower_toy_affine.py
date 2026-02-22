@@ -11,26 +11,11 @@ from typing import TypeAlias, TypeVar, cast
 from xdsl.builder import Builder, InsertPoint
 from xdsl.context import Context
 from xdsl.dialects import affine, arith, func, memref, printf
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    Float64Type,
-    FloatAttr,
-    IndexType,
-    IntegerAttr,
-    ModuleOp,
-    ShapedType,
-    f64,
-)
+from xdsl.dialects.builtin import AffineMapAttr, Float64Type, FloatAttr, IndexType, IntegerAttr, ModuleOp, ShapedType, f64
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 from ..dialects import toy
 
@@ -46,9 +31,7 @@ def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemRefTypeF64:
     return memref.MemRefType(f64, type.shape)
 
 
-def insert_alloc_and_dealloc(
-    type: MemRefTypeF64, op: Operation, rewriter: PatternRewriter
-) -> memref.AllocOp:
+def insert_alloc_and_dealloc(type: MemRefTypeF64, op: Operation, rewriter: PatternRewriter) -> memref.AllocOp:
     """
     Insert an allocation and deallocation for the given MemRefType.
     """
@@ -87,12 +70,8 @@ def build_affine_for(
     `body_builder_fn` is used to build the body of affine.for.
     """
 
-    assert len(lb_operands) == lb_map.num_dims, (
-        "lower bound operand count does not match the affine map"
-    )
-    assert len(ub_operands) == ub_map.num_dims, (
-        "upper bound operand count does not match the affine map"
-    )
+    assert len(lb_operands) == lb_map.num_dims, "lower bound operand count does not match the affine map"
+    assert len(ub_operands) == ub_map.num_dims, "upper bound operand count does not match the affine map"
     assert step > 0, "step has to be a positive integer constant"
 
     # Create a region and a block for the body.
@@ -227,17 +206,10 @@ def build_affine_loop_from_values(
     lb_const = lb.owner
     ub_const = ub.owner
 
-    if (
-        isinstance(lb_const, arith.ConstantOp)
-        and isinstance(lb_const_value := lb_const.value, IntegerAttr)
-        and isinstance(ub_const, arith.ConstantOp)
-        and isinstance(ub_const_value := ub_const.value, IntegerAttr)
-    ):
+    if isinstance(lb_const, arith.ConstantOp) and isinstance(lb_const_value := lb_const.value, IntegerAttr) and isinstance(ub_const, arith.ConstantOp) and isinstance(ub_const_value := ub_const.value, IntegerAttr):
         lb_val = lb_const_value.value.data
         ub_val = ub_const_value.value.data
-        return build_affine_loop_from_constants(
-            builder, lb_val, ub_val, step, body_builder_fn
-        )
+        return build_affine_loop_from_constants(builder, lb_val, ub_val, step, body_builder_fn)
     return build_affine_for(
         builder,
         (lb,),
@@ -257,9 +229,7 @@ def build_affine_loop_nest_const(
     steps: Sequence[int],
     body_builder_fn: _BodyBuilderFn,
 ) -> None:
-    build_affine_loop_nest_impl(
-        builder, lbs, ubs, steps, body_builder_fn, build_affine_loop_from_constants
-    )
+    build_affine_loop_nest_impl(builder, lbs, ubs, steps, body_builder_fn, build_affine_loop_from_constants)
 
 
 def build_affine_loop_nest(
@@ -269,9 +239,7 @@ def build_affine_loop_nest(
     steps: Sequence[int],
     body_builder_fn: _BodyBuilderFn,
 ) -> None:
-    build_affine_loop_nest_impl(
-        builder, lbs, ubs, steps, body_builder_fn, build_affine_loop_from_values
-    )
+    build_affine_loop_nest_impl(builder, lbs, ubs, steps, body_builder_fn, build_affine_loop_from_values)
 
 
 def lower_op_to_loops(
@@ -304,9 +272,7 @@ def lower_op_to_loops(
         nested_builder.insert(store_op)
 
     builder = Builder(InsertPoint.before(op))
-    build_affine_loop_nest_const(
-        builder, lower_bounds, tensor_type.get_shape(), steps, impl_loop
-    )
+    build_affine_loop_nest_const(builder, lower_bounds, tensor_type.get_shape(), steps, impl_loop)
     # Replace this operation with the generated alloc.
 
     op.res.replace_by(alloc.memref)
@@ -321,9 +287,7 @@ def lower_op_to_loops(
 class AddOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.AddOp, rewriter: PatternRewriter):
-        def body(
-            builder: Builder, memref_operands: _ValueRange, loop_ivs: _ValueRange
-        ) -> SSAValue:
+        def body(builder: Builder, memref_operands: _ValueRange, loop_ivs: _ValueRange) -> SSAValue:
             # Generate loads for the element of 'lhs' and 'rhs' at the inner loop.
             loaded_lhs = builder.insert(affine.LoadOp(op.lhs, loop_ivs))
             loaded_rhs = builder.insert(affine.LoadOp(op.rhs, loop_ivs))
@@ -336,9 +300,7 @@ class AddOpLowering(RewritePattern):
 class MulOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.MulOp, rewriter: PatternRewriter):
-        def body(
-            builder: Builder, memref_operands: _ValueRange, loop_ivs: _ValueRange
-        ) -> SSAValue:
+        def body(builder: Builder, memref_operands: _ValueRange, loop_ivs: _ValueRange) -> SSAValue:
             # Generate loads for the element of 'lhs' and 'rhs' at the inner loop.
             loaded_lhs = builder.insert(affine.LoadOp(op.lhs, loop_ivs))
             loaded_rhs = builder.insert(affine.LoadOp(op.rhs, loop_ivs))
@@ -363,10 +325,7 @@ class ConstantOpLowering(RewritePattern):
         value_shape = memref_type.get_shape()
 
         # Scalar constant values for elements of the tensor
-        constants: list[arith.ConstantOp] = [
-            arith.ConstantOp(FloatAttr(i, f64))
-            for i in constant_value.get_float_values()
-        ]
+        constants: list[arith.ConstantOp] = [arith.ConstantOp(FloatAttr(i, f64)) for i in constant_value.get_float_values()]
 
         # n-d indices of elements
         _indices = product(*(range(d) for d in value_shape))
@@ -405,9 +364,7 @@ class FuncOpLowering(RewritePattern):
         # Create a new non-toy function, with the same region.
         region = op.regions[0]
 
-        new_op = func.FuncOp(
-            name, op.function_type, rewriter.move_region_contents_to_new_regions(region)
-        )
+        new_op = func.FuncOp(name, op.function_type, rewriter.move_region_contents_to_new_regions(region))
 
         rewriter.replace_matched_op(new_op)
 
@@ -441,9 +398,7 @@ class PrintOpLowering(RewritePattern):
 class ReturnOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.ReturnOp, rewriter: PatternRewriter):
-        assert op.input is None, (
-            "During this lowering, we expect that all function calls have been inlined."
-        )
+        assert op.input is None, "During this lowering, we expect that all function calls have been inlined."
 
         rewriter.replace_matched_op(func.ReturnOp())
 
@@ -451,9 +406,7 @@ class ReturnOpLowering(RewritePattern):
 class TransposeOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.TransposeOp, rewriter: PatternRewriter):
-        def body(
-            builder: Builder, mem_ref_operands: _ValueRange, loop_ivs: _ValueRange
-        ) -> SSAValue:
+        def body(builder: Builder, mem_ref_operands: _ValueRange, loop_ivs: _ValueRange) -> SSAValue:
             # Transpose the elements by generating a load from the reverse indices.
             load_op = affine.LoadOp(op.arg, tuple(reversed(loop_ivs)))
             builder.insert(load_op)

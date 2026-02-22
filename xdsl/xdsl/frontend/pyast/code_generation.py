@@ -9,10 +9,7 @@ import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
 import xdsl.dialects.scf as scf
 import xdsl.frontend.pyast.symref as symref
-from xdsl.frontend.pyast.exception import (
-    CodeGenerationException,
-    FrontendProgramException,
-)
+from xdsl.frontend.pyast.exception import CodeGenerationException, FrontendProgramException
 from xdsl.frontend.pyast.op_inserter import OpInserter
 from xdsl.frontend.pyast.op_resolver import OpResolver
 from xdsl.frontend.pyast.python_code_check import FunctionMap
@@ -99,15 +96,12 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         if node.msg is None:
             msg = ""
         else:
-            if not isinstance(node.msg, ast.Constant) or not isinstance(
-                node.msg.value, str
-            ):
+            if not isinstance(node.msg, ast.Constant) or not isinstance(node.msg.value, str):
                 raise CodeGenerationException(
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    "Expected a string constant for assertion message, found "
-                    f"'ast.{type(node.msg).__qualname__}'",
+                    "Expected a string constant for assertion message, found " f"'ast.{type(node.msg).__qualname__}'",
                 )
             msg = str(node.msg.value)
         op = cf.AssertOp(self.inserter.get_operand(), msg)
@@ -158,8 +152,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Expected the same types for binary operation '{op_name}', "
-                f"but got {lhs.type} and {rhs.type}.",
+                f"Expected the same types for binary operation '{op_name}', " f"but got {lhs.type} and {rhs.type}.",
             )
 
         ir_type = cast(TypeAttribute, lhs.type)
@@ -167,9 +160,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         if source_type is not None:  # NOTE: To support old codebase
             method_name = python_AST_operator_to_python_overload[op_name]
             function_name = f"{source_type.__qualname__}.{method_name}"
-            function = self.type_converter.resolve_function(
-                module_name=source_type.__module__, function_name=function_name
-            )
+            function = self.type_converter.resolve_function(module_name=source_type.__module__, function_name=function_name)
             op = self.type_converter.get_operation(
                 method=function,
                 args=(lhs, rhs),
@@ -180,9 +171,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         # Look-up what is the frontend type we deal with to resolve the binary
         # operation.
-        frontend_type = self.type_converter.xdsl_to_frontend_type_map[
-            lhs.type.__class__
-        ]
+        frontend_type = self.type_converter.xdsl_to_frontend_type_map[lhs.type.__class__]
 
         overload_name = python_AST_operator_to_python_overload[op_name]
         try:
@@ -193,9 +182,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Binary operation '{op_name}' "
-                f"is not supported by type '{frontend_type.__qualname__}' "
-                f"which does not overload '{overload_name}'.",
+                f"Binary operation '{op_name}' " f"is not supported by type '{frontend_type.__qualname__}' " f"which does not overload '{overload_name}'.",
             )
 
     def visit_Compare(self, node: ast.Compare):
@@ -251,8 +238,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Expected the same types for comparison operator '{op_name}',"
-                f" but got {lhs.type} and {rhs.type}.",
+                f"Expected the same types for comparison operator '{op_name}'," f" but got {lhs.type} and {rhs.type}.",
             )
 
         ir_type = cast(TypeAttribute, lhs.type)
@@ -260,9 +246,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         if source_type is not None:  # NOTE: To support old codebase
             method_name = python_AST_cmpop_to_python_overload[op_name]
             function_name = f"{source_type.__qualname__}.{method_name}"
-            function = self.type_converter.resolve_function(
-                module_name=source_type.__module__, function_name=function_name
-            )
+            function = self.type_converter.resolve_function(module_name=source_type.__module__, function_name=function_name)
             op = self.type_converter.get_operation(
                 method=function,
                 args=(lhs, rhs),
@@ -273,9 +257,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         # Resolve the comparison operation to an xdsl operation class
         python_op = python_AST_cmpop_to_python_overload[op_name]
-        frontend_type = self.type_converter.xdsl_to_frontend_type_map[
-            lhs.type.__class__
-        ]
+        frontend_type = self.type_converter.xdsl_to_frontend_type_map[lhs.type.__class__]
 
         try:
             op = OpResolver.resolve_op_overload(python_op, frontend_type)
@@ -284,9 +266,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Comparison operation '{op_name}' "
-                f"is not supported by type '{frontend_type.__qualname__}' "
-                f"which does not overload '{python_op}'.",
+                f"Comparison operation '{op_name}' " f"is not supported by type '{frontend_type.__qualname__}' " f"which does not overload '{python_op}'.",
             )
 
         # Create the comparison operation (including any potential negations)
@@ -308,9 +288,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         self.inserter.insert_op(op)
 
-    def _generate_affine_loop_bounds(
-        self, args: list[ast.expr]
-    ) -> tuple[int, int, int]:
+    def _generate_affine_loop_bounds(self, args: list[ast.expr]) -> tuple[int, int, int]:
         # Process loop start.
         if len(args) <= 1:
             start = 0
@@ -356,9 +334,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         return start, end, step
 
-    def _generate_loop_bounds(
-        self, args: list[ast.expr]
-    ) -> tuple[SSAValue, SSAValue, SSAValue]:
+    def _generate_loop_bounds(self, args: list[ast.expr]) -> tuple[SSAValue, SSAValue, SSAValue]:
         # Process loop start.
         if len(args) <= 1:
             start = arith.ConstantOp.from_int_and_width(0, builtin.IndexType())
@@ -420,11 +396,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # zip, range, and other builtin features. Since we cannot support
         # everything immediately, the general idea is to support basic
         # range-based loops only.
-        if not (
-            isinstance(node.iter, ast.Call)
-            and isinstance(node.iter.func, ast.Name)
-            and node.iter.func.id == "range"
-        ):
+        if not (isinstance(node.iter, ast.Call) and isinstance(node.iter.func, ast.Name) and node.iter.func.id == "range"):
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
@@ -437,16 +409,14 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 self.file,
                 node.lineno,
                 node.col_offset,
-                "Range-based loop expected between 1 and 3 arguments, but got "
-                f"{len(node.iter.args)}.",
+                "Range-based loop expected between 1 and 3 arguments, but got " f"{len(node.iter.args)}.",
             )
         if not isinstance(node.target, ast.Name):
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
-                "Range-based loop must take a single target variable, e.g. `for"
-                " i in range(10)`.",
+                "Range-based loop must take a single target variable, e.g. `for" " i in range(10)`.",
             )
 
         # Now that all checks passed, we can proceed with code generation.
@@ -534,9 +504,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # Create a function operation.
         entry_block = Block()
         body_region = Region(entry_block)
-        func_op = func.FuncOp.from_region(
-            node.name, argument_types, return_types, body_region
-        )
+        func_op = func.FuncOp.from_region(node.name, argument_types, return_types, body_region)
 
         self.inserter.insert_op(func_op)
         self.inserter.set_insertion_point_from_block(entry_block)
@@ -612,8 +580,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Expected the same types for if expression,"
-                f" but got {true_type} and {false_type}.",
+                f"Expected the same types for if expression," f" but got {true_type} and {false_type}.",
             )
         op = scf.IfOp(cond, [true_type], true_region, false_region)
 
@@ -660,8 +627,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 self.file,
                 node.lineno,
                 node.col_offset,
-                "Return statement should be placed only at the end of the "
-                "function body.",
+                "Return statement should be placed only at the end of the " "function body.",
             )
 
         callee = parent_op.sym_name.data
@@ -674,8 +640,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    f"Expected non-zero number of return types in function "
-                    f"'{callee}', but got 0.",
+                    f"Expected non-zero number of return types in function " f"'{callee}', but got 0.",
                 )
             self.inserter.insert_op(func.ReturnOp())
         else:
@@ -698,9 +663,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                         self.file,
                         node.lineno,
                         node.col_offset,
-                        f"Type signature and the type of the return value do "
-                        f"not match at position {i}: expected {func_return_types[i]},"
-                        f" got {operands[i].type}.",
+                        f"Type signature and the type of the return value do " f"not match at position {i}: expected {func_return_types[i]}," f" got {operands[i].type}.",
                     )
 
             self.inserter.insert_op(func.ReturnOp(*operands))

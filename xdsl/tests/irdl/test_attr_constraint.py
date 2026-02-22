@@ -4,19 +4,7 @@ import pytest
 
 from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
-from xdsl.irdl import (
-    AllOf,
-    AnyAttr,
-    AttrConstraint,
-    BaseAttr,
-    ConstraintContext,
-    EqAttrConstraint,
-    ParamAttrConstraint,
-    ParameterDef,
-    VarConstraint,
-    eq,
-    irdl_attr_definition,
-)
+from xdsl.irdl import AllOf, AnyAttr, AttrConstraint, BaseAttr, ConstraintContext, EqAttrConstraint, ParamAttrConstraint, ParameterDef, VarConstraint, eq, irdl_attr_definition
 
 
 class Base(ParametrizedAttribute, ABC):
@@ -53,9 +41,7 @@ class AttrB(Base):
         (VarConstraint("T", BaseAttr(AttrA)), AttrA),
     ],
 )
-def test_attr_constraint_get_unique_base(
-    constraint: AttrConstraint, expected: type[Attribute] | None
-):
+def test_attr_constraint_get_unique_base(constraint: AttrConstraint, expected: type[Attribute] | None):
     assert constraint.get_unique_base() == expected
 
 
@@ -93,9 +79,7 @@ def test_param_attr_constraint_inference():
     )
 
     assert var_constr.can_infer({"T"})
-    assert var_constr.infer(ConstraintContext({"T": StringAttr("Hello")})) == WrapAttr(
-        (StringAttr("Hello"),)
-    )
+    assert var_constr.infer(ConstraintContext({"T": StringAttr("Hello")})) == WrapAttr((StringAttr("Hello"),))
 
     base_constr = ParamAttrConstraint(
         BaseWrapAttr,

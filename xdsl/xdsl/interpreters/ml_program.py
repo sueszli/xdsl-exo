@@ -2,12 +2,7 @@ from typing import Any
 
 from xdsl.dialects import ml_program
 from xdsl.dialects.builtin import DenseIntOrFPElementsAttr
-from xdsl.interpreter import (
-    Interpreter,
-    InterpreterFunctions,
-    impl,
-    register_impls,
-)
+from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.interpreters.builtin import xtype_for_el_type
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
@@ -29,9 +24,7 @@ class MLProgramFunctions(InterpreterFunctions):
         global_value = global_op.value
         assert isa(global_value, DenseIntOrFPElementsAttr)
         shape = global_value.get_shape()
-        xtype = xtype_for_el_type(
-            global_value.get_element_type(), interpreter.index_bitwidth
-        )
+        xtype = xtype_for_el_type(global_value.get_element_type(), interpreter.index_bitwidth)
         data = TypedPtr[Any].new(global_value.get_values(), xtype=xtype)
         shaped_array = ShapedArray(data, list(shape))
         return (shaped_array,)

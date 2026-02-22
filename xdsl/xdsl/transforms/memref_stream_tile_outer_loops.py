@@ -4,25 +4,11 @@ from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import affine, arith, memref, memref_stream, scf
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    ArrayAttr,
-    IndexType,
-    IntegerAttr,
-    MemRefType,
-    ModuleOp,
-    NoneAttr,
-    StridedLayoutAttr,
-)
+from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr, IndexType, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StridedLayoutAttr
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.utils.exceptions import DiagnosticException
 
@@ -41,15 +27,11 @@ def insert_subview(
     `upper_bounds` the new shape.
     Any new operations should be inserted at `location`.
     """
-    name_hint_prefix = (
-        memref_val.name_hint + "_" if memref_val.name_hint is not None else ""
-    )
+    name_hint_prefix = memref_val.name_hint + "_" if memref_val.name_hint is not None else ""
     apply_ops = tuple(
         affine.ApplyOp(
             dim_offsets,
-            AffineMapAttr(
-                AffineMap(affine_map.num_dims, affine_map.num_symbols, (res,))
-            ),
+            AffineMapAttr(AffineMap(affine_map.num_dims, affine_map.num_symbols, (res,))),
         )
         for res in affine_map.results
     )
@@ -81,18 +63,12 @@ def insert_subview(
         case StridedLayoutAttr():
             # We currently only support subviews from memref with statically known strides and dynamic offsets
             if any(stride is None for stride in layout_attr.get_strides()):
-                raise DiagnosticException(
-                    f"Layout attr for tiling {layout_attr} not yet supported"
-                )
+                raise DiagnosticException(f"Layout attr for tiling {layout_attr} not yet supported")
             if layout_attr.get_offset() is not None:
-                raise DiagnosticException(
-                    f"Layout attr for tiling {layout_attr} not yet supported"
-                )
+                raise DiagnosticException(f"Layout attr for tiling {layout_attr} not yet supported")
             dest_type = source_type
         case _:
-            raise DiagnosticException(
-                f"Unsupported layout attr for tiling {layout_attr}"
-            )
+            raise DiagnosticException(f"Unsupported layout attr for tiling {layout_attr}")
 
     subview_op = memref.SubviewOp.get(
         memref_val,
@@ -106,20 +82,13 @@ def insert_subview(
     return subview_op.result
 
 
-def materialize_loop(
-    rewriter: PatternRewriter, generic_op: memref_stream.GenericOp, index: int
-) -> Sequence[Operation]:
+def materialize_loop(rewriter: PatternRewriter, generic_op: memref_stream.GenericOp, index: int) -> Sequence[Operation]:
     """
     Replaces a given generic op with a for loop containing an op with the upper bound at
     the specified index set to 1.
     """
-    if (
-        generic_op.iterator_types.data[index].data
-        != memref_stream.IteratorType.PARALLEL
-    ):
-        raise DiagnosticException(
-            "Cannot materialize a loop for a non-parallel iterator"
-        )
+    if generic_op.iterator_types.data[index].data != memref_stream.IteratorType.PARALLEL:
+        raise DiagnosticException("Cannot materialize a loop for a non-parallel iterator")
 
     ops: list[Operation] = [
         zero_op := arith.ConstantOp(IntegerAttr.from_index_int_value(0)),
@@ -142,40 +111,18 @@ def materialize_loop(
 
     input_apply_operands: list[SSAValue] = [zero_val] * len(generic_op.iterator_types)
     input_apply_operands[index] = index_val
-    output_apply_operands: list[SSAValue] = [zero_val] * (
-        len(generic_op.iterator_types)
-        - sum(
-            it.data == memref_stream.IteratorType.REDUCTION
-            for it in generic_op.iterator_types
-        )
-    )
+    output_apply_operands: list[SSAValue] = [zero_val] * (len(generic_op.iterator_types) - sum(it.data == memref_stream.IteratorType.REDUCTION for it in generic_op.iterator_types))
     output_apply_operands[index] = index_val
 
     input_upper_bounds = list(ub.value.data for ub in generic_op.bounds)
     input_upper_bounds[index] = 1
-    output_upper_bounds = list(
-        ub.value.data
-        for (it, ub) in zip(generic_op.iterator_types, generic_op.bounds)
-        if it.data != memref_stream.IteratorType.REDUCTION
-    )
+    output_upper_bounds = list(ub.value.data for (it, ub) in zip(generic_op.iterator_types, generic_op.bounds) if it.data != memref_stream.IteratorType.REDUCTION)
     output_upper_bounds[index] = 1
 
     num_inputs = len(generic_op.inputs)
 
-    new_inputs = tuple(
-        insert_subview(input_val, m.data, input_apply_operands, input_upper_bounds, loc)
-        for input_val, m in zip(
-            generic_op.inputs, generic_op.indexing_maps.data[:num_inputs], strict=True
-        )
-    )
-    new_outputs = tuple(
-        insert_subview(
-            output_val, m.data, output_apply_operands, output_upper_bounds, loc
-        )
-        for output_val, m in zip(
-            generic_op.outputs, generic_op.indexing_maps.data[num_inputs:], strict=True
-        )
-    )
+    new_inputs = tuple(insert_subview(input_val, m.data, input_apply_operands, input_upper_bounds, loc) for input_val, m in zip(generic_op.inputs, generic_op.indexing_maps.data[:num_inputs], strict=True))
+    new_outputs = tuple(insert_subview(output_val, m.data, output_apply_operands, output_upper_bounds, loc) for output_val, m in zip(generic_op.outputs, generic_op.indexing_maps.data[num_inputs:], strict=True))
 
     new_bounds = list(generic_op.bounds)
     new_bounds[index] = IntegerAttr.from_index_int_value(1)
@@ -205,9 +152,7 @@ class TileGenericPattern(RewritePattern):
     target_rank: int = field()
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: memref_stream.GenericOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: memref_stream.GenericOp, rewriter: PatternRewriter) -> None:
         ubs = tuple(bound.value.data for bound in op.bounds)
         effective_rank = sum(ub > 1 for ub in ubs)
         if effective_rank <= self.target_rank:

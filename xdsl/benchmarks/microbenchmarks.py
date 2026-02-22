@@ -4,11 +4,7 @@
 from __future__ import annotations
 
 from xdsl.ir import Block
-from xdsl.irdl import (
-    IRDLOperation,
-    irdl_op_definition,
-    traits_def,
-)
+from xdsl.irdl import IRDLOperation, irdl_op_definition, traits_def
 from xdsl.traits import OpTrait
 
 
@@ -47,9 +43,7 @@ def get_optrait_subclass() -> type[OpTrait]:
     return Trait
 
 
-optrait_subclasses: dict[int, type[OpTrait]] = {
-    i + 1: get_optrait_subclass() for i in range(NUM_CONSTRUCTED_TRAITS)
-}
+optrait_subclasses: dict[int, type[OpTrait]] = {i + 1: get_optrait_subclass() for i in range(NUM_CONSTRUCTED_TRAITS)}
 
 
 @irdl_op_definition
@@ -312,26 +306,14 @@ if __name__ == "__main__":
     profile(
         {
             "IRTraversal.iterate_ops": Benchmark(IR_TRAVERSAL.time_iterate_ops),
-            "IRTraversal.iterate_block_ops": Benchmark(
-                IR_TRAVERSAL.time_iterate_block_ops
-            ),
+            "IRTraversal.iterate_block_ops": Benchmark(IR_TRAVERSAL.time_iterate_block_ops),
             "IRTraversal.walk_block_ops": Benchmark(IR_TRAVERSAL.time_walk_block_ops),
-            "Extensibility.interface_check_trait": Benchmark(
-                EXTENSIBILITY.time_interface_check_trait
-            ),
-            "Extensibility.interface_check": Benchmark(
-                EXTENSIBILITY.time_interface_check
-            ),
+            "Extensibility.interface_check_trait": Benchmark(EXTENSIBILITY.time_interface_check_trait),
+            "Extensibility.interface_check": Benchmark(EXTENSIBILITY.time_interface_check),
             "Extensibility.trait_check": Benchmark(EXTENSIBILITY.time_trait_check),
-            "Extensibility.trait_check_optimised": Benchmark(
-                EXTENSIBILITY.time_trait_check_optimised
-            ),
-            "Extensibility.trait_check_single": Benchmark(
-                EXTENSIBILITY.time_trait_check_single
-            ),
-            "Extensibility.trait_check_neg": Benchmark(
-                EXTENSIBILITY.time_trait_check_neg
-            ),
+            "Extensibility.trait_check_optimised": Benchmark(EXTENSIBILITY.time_trait_check_optimised),
+            "Extensibility.trait_check_single": Benchmark(EXTENSIBILITY.time_trait_check_single),
+            "Extensibility.trait_check_neg": Benchmark(EXTENSIBILITY.time_trait_check_neg),
             "OpCreation.operation_create": Benchmark(OP_CREATION.time_operation_create),
             "OpCreation.operation_build": Benchmark(OP_CREATION.time_operation_build),
             "OpCreation.operation_clone": Benchmark(OP_CREATION.time_operation_clone),

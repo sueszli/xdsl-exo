@@ -91,9 +91,7 @@ def test_multiply_add():
             ((riscv.Registers.A0, riscv.Registers.A1), (riscv.Registers.A0,)),
         )
 
-        @Builder.implicit_region(
-            (riscv.Registers.A0, riscv.Registers.A1, riscv.Registers.A2)
-        )
+        @Builder.implicit_region((riscv.Registers.A0, riscv.Registers.A1, riscv.Registers.A2))
         def muladd(args: tuple[BlockArgument, ...]):
             riscv.CommentOp("a0 <- a0 * a1 + a2")
             riscv.CommentOp("prologue")
@@ -104,9 +102,7 @@ def test_multiply_add():
             sp_muladd = riscv.GetRegisterOp(riscv.Registers.SP)
             s0_muladd_0 = riscv.GetRegisterOp(riscv.Registers.S0)
             ra_muladd = riscv.GetRegisterOp(riscv.Registers.RA)
-            riscv.CommentOp(
-                "decrement stack pointer by number of register values we need to store for later"
-            )
+            riscv.CommentOp("decrement stack pointer by number of register values we need to store for later")
             riscv.AddiOp(sp_muladd, -8, rd=riscv.Registers.SP)
             riscv.CommentOp("save the s registers we'll use on the stack")
             riscv.SwOp(sp_muladd, s0_muladd_0, 0)
@@ -132,9 +128,7 @@ def test_multiply_add():
             riscv.CommentOp("store the return address back into the ra register")
             riscv.LwOp(sp_muladd, 4, rd=riscv.Registers.RA)
 
-            riscv.CommentOp(
-                "set the sp back to what it was at the start of the function call"
-            )
+            riscv.CommentOp("set the sp back to what it was at the start of the function call")
             riscv.AddiOp(sp_muladd, 8, rd=riscv.Registers.SP)
 
             riscv.CommentOp("jump back to caller")

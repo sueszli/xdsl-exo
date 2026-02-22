@@ -2,32 +2,16 @@ from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects import arith, linalg
-from xdsl.dialects.builtin import (
-    DenseIntOrFPElementsAttr,
-    Float16Type,
-    Float32Type,
-    FloatAttr,
-    IntegerAttr,
-    MemRefType,
-    ModuleOp,
-)
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, Float16Type, Float32Type, FloatAttr, IntegerAttr, MemRefType, ModuleOp
 from xdsl.dialects.csl import csl
 from xdsl.ir import Attribute, OpResult, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
-def match_op_for_precision(
-    prec: Attribute, f16: type[csl.BuiltinDsdOp], f32: type[csl.BuiltinDsdOp]
-) -> type[csl.BuiltinDsdOp]:
+def match_op_for_precision(prec: Attribute, f16: type[csl.BuiltinDsdOp], f32: type[csl.BuiltinDsdOp]) -> type[csl.BuiltinDsdOp]:
     """Returns the op type matching a given precision."""
     # todo support mixed-precision
     match prec:
@@ -41,12 +25,7 @@ def match_op_for_precision(
 
 def get_scalar_const(op: SSAValue) -> FloatAttr | IntegerAttr | None:
     """Returns the value of a scalar arith.constant, or None if not a constant or not scalar)."""
-    if (
-        isinstance(op, OpResult)
-        and isinstance(op.op, arith.ConstantOp)
-        and isa(val := op.op.value, DenseIntOrFPElementsAttr)
-        and val.is_splat()
-    ):
+    if isinstance(op, OpResult) and isinstance(op.op, arith.ConstantOp) and isa(val := op.op.value, DenseIntOrFPElementsAttr) and val.is_splat():
         return val.get_attrs()[0]
 
 
@@ -67,14 +46,10 @@ def transform_op(
     # binary functions translated here support mixing scalar and collection operands
     # may need revisiting if more functions are translated
     if scalar_const := get_scalar_const(lhs):
-        rewriter.insert_op(
-            const_op := arith.ConstantOp(scalar_const), InsertPoint.before(op)
-        )
+        rewriter.insert_op(const_op := arith.ConstantOp(scalar_const), InsertPoint.before(op))
         lhs = const_op.result
     elif scalar_const := get_scalar_const(rhs):
-        rewriter.insert_op(
-            const_op := arith.ConstantOp(scalar_const), InsertPoint.before(op)
-        )
+        rewriter.insert_op(const_op := arith.ConstantOp(scalar_const), InsertPoint.before(op))
         rhs = const_op.result
 
     rewriter.replace_matched_op(builtin(operands=[[op.outputs[0], lhs, rhs]]))
@@ -90,23 +65,17 @@ class ConvertLinalgGenericFMAPass(RewritePattern):
 
         # one of the factors must be a scalar const, which the csl function signatures require
         if scalar_const := get_scalar_const(op.inputs[0]):
-            rewriter.insert_op(
-                a := arith.ConstantOp(scalar_const), InsertPoint.before(op)
-            )
+            rewriter.insert_op(a := arith.ConstantOp(scalar_const), InsertPoint.before(op))
             x = op.inputs[1]
         elif scalar_const := get_scalar_const(op.inputs[1]):
-            rewriter.insert_op(
-                a := arith.ConstantOp(scalar_const), InsertPoint.before(op)
-            )
+            rewriter.insert_op(a := arith.ConstantOp(scalar_const), InsertPoint.before(op))
             x = op.inputs[0]
         else:
             # if neither factor is a scalar, return
             return
 
         # fetch the csl op to build depending on the precision
-        csl_op = match_op_for_precision(
-            op.outputs.types[0].get_element_type(), f16=csl.FmachOp, f32=csl.FmacsOp
-        )
+        csl_op = match_op_for_precision(op.outputs.types[0].get_element_type(), f16=csl.FmachOp, f32=csl.FmacsOp)
 
         r = op.outputs[0]
         y = op.inputs[2]
@@ -117,20 +86,7 @@ class ConvertLinalgGenericFMAPass(RewritePattern):
     @staticmethod
     def is_fma(op: linalg.GenericOp) -> bool:
         """Returns if a given `generic` op is a fused multiply-add"""
-        return (
-            len(op.inputs) == 3
-            and len(op.outputs) == 1
-            and len((block := op.body.block).args) == 4
-            and len(block.ops) == 3
-            and isinstance(mul := block.first_op, arith.MulfOp)
-            and mul.lhs == block.args[0]
-            and mul.rhs == block.args[1]
-            and isinstance(add := mul.next_op, arith.AddfOp)
-            and add.lhs == mul.result
-            and add.rhs == block.args[2]
-            and isinstance(yld := add.next_op, linalg.YieldOp)
-            and yld.operands[0] == add.result
-        )
+        return len(op.inputs) == 3 and len(op.outputs) == 1 and len((block := op.body.block).args) == 4 and len(block.ops) == 3 and isinstance(mul := block.first_op, arith.MulfOp) and mul.lhs == block.args[0] and mul.rhs == block.args[1] and isinstance(add := mul.next_op, arith.AddfOp) and add.lhs == mul.result and add.rhs == block.args[2] and isinstance(yld := add.next_op, linalg.YieldOp) and yld.operands[0] == add.result
 
 
 class ConvertLinalgMinPass(RewritePattern):
@@ -151,9 +107,7 @@ class ConvertLinalgMinPass(RewritePattern):
         negate_after = negate_before | set(op.outputs)
 
         # builtin op for negating
-        neg_op = match_op_for_precision(
-            op.outputs.types[0].get_element_type(), f16=csl.FneghOp, f32=csl.FnegsOp
-        )
+        neg_op = match_op_for_precision(op.outputs.types[0].get_element_type(), f16=csl.FneghOp, f32=csl.FnegsOp)
 
         # constructing in-place negate ops before and after
         before_ops = [neg_op(operands=[(o, o)]) for o in negate_before]

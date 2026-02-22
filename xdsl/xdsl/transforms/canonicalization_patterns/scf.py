@@ -2,16 +2,10 @@ from collections.abc import Sequence
 
 from xdsl.dialects import scf
 from xdsl.ir import Operation, Region, SSAValue
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import ConstantLike
-from xdsl.transforms.canonicalization_patterns.utils import (
-    const_evaluate_operand,
-)
+from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
 
 
 class RehoistConstInLoops(RewritePattern):

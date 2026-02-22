@@ -4,38 +4,9 @@ from collections.abc import Iterable, Sequence
 from enum import Enum
 from typing import cast
 
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    DictionaryAttr,
-    IntegerAttr,
-    IntegerType,
-    StringAttr,
-    SymbolRefAttr,
-    i32,
-)
-from xdsl.ir import (
-    Attribute,
-    Data,
-    Dialect,
-    Operation,
-    ParametrizedAttribute,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    ParameterDef,
-    VerifyException,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_operand_def,
-    prop_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, IntegerAttr, IntegerType, StringAttr, SymbolRefAttr, i32
+from xdsl.ir import Attribute, Data, Dialect, Operation, ParametrizedAttribute, SSAValue, TypeAttribute
+from xdsl.irdl import AttrSizedOperandSegments, IRDLOperation, ParameterDef, VerifyException, irdl_attr_definition, irdl_op_definition, operand_def, opt_operand_def, prop_def, result_def, traits_def, var_operand_def
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import SymbolOpInterface
@@ -142,9 +113,7 @@ class LaunchOp(IRDLOperation):
         if not isinstance(state_val.type, StateType):
             raise ValueError("`state` SSA Value must be of type `accfg.state`!")
 
-        param_names_tuple: tuple[StringAttr, ...] = tuple(
-            StringAttr(name) if isinstance(name, str) else name for name in param_names
-        )
+        param_names_tuple: tuple[StringAttr, ...] = tuple(StringAttr(name) if isinstance(name, str) else name for name in param_names)
         super().__init__(
             operands=[vals, state],
             properties={
@@ -161,27 +130,19 @@ class LaunchOp(IRDLOperation):
         # that the state and my accelerator match
         assert isinstance(self.state.type, StateType)
         if self.state.type.accelerator != self.accelerator:
-            raise VerifyException(
-                "The state's accelerator does not match the launch accelerator!"
-            )
+            raise VerifyException("The state's accelerator does not match the launch accelerator!")
         # that the token and my accelerator match
         assert isinstance(self.token.type, TokenType)
         if self.token.type.accelerator != self.accelerator:
-            raise VerifyException(
-                "The token's accelerator does not match the launch accelerator!"
-            )
+            raise VerifyException("The token's accelerator does not match the launch accelerator!")
 
         # that the token is used
-        if len(self.token.uses) != 1 or not isinstance(
-            next(iter(self.token.uses)).operation, AwaitOp
-        ):
+        if len(self.token.uses) != 1 or not isinstance(next(iter(self.token.uses)).operation, AwaitOp):
             raise VerifyException("Launch token must be used by exactly one await op")
 
         # that len(values) == len(param_names)
         if len(self.values) != len(self.param_names):
-            raise ValueError(
-                "Must have received same number of values as parameter names"
-            )
+            raise ValueError("Must have received same number of values as parameter names")
         # TODO: allow use in control flow
 
 
@@ -248,9 +209,7 @@ class SetupOp(IRDLOperation):
         if not isinstance(accelerator, StringAttr):
             accelerator = StringAttr(accelerator)
 
-        param_names_tuple: tuple[StringAttr, ...] = tuple(
-            StringAttr(name) if isinstance(name, str) else name for name in param_names
-        )
+        param_names_tuple: tuple[StringAttr, ...] = tuple(StringAttr(name) if isinstance(name, str) else name for name in param_names)
 
         super().__init__(
             operands=[vals, in_state],
@@ -271,16 +230,11 @@ class SetupOp(IRDLOperation):
                 raise VerifyException("Input and output state accelerators must match")
         assert isinstance(self.out_state.type, StateType)
         if self.accelerator != self.out_state.type.accelerator:
-            raise VerifyException(
-                "Output state accelerator and accelerator the "
-                "operations property must match"
-            )
+            raise VerifyException("Output state accelerator and accelerator the " "operations property must match")
 
         # that len(values) == len(param_names)
         if len(self.values) != len(self.param_names):
-            raise ValueError(
-                "Must have received same number of values as parameter names"
-            )
+            raise ValueError("Must have received same number of values as parameter names")
 
     def print(self, printer: Printer):
         printer.print(" ")
@@ -327,14 +281,10 @@ class SetupOp(IRDLOperation):
             val = parser.parse_operand(f'expected value for field "{name}"')
             parser.parse_punctuation(":")
             typ = parser.parse_type()
-            assert val.type == typ, (
-                f"ssa value type mismatch! Expected {typ}, got {val.type}"
-            )
+            assert val.type == typ, f"ssa value type mismatch! Expected {typ}, got {val.type}"
             return name, val
 
-        args: Sequence[tuple[str, SSAValue]] = parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, parse_itm
-        )
+        args: Sequence[tuple[str, SSAValue]] = parser.parse_comma_separated_list(Parser.Delimiter.PAREN, parse_itm)
 
         attributes = {}
         if parser.parse_optional_keyword("attrs"):
@@ -344,9 +294,7 @@ class SetupOp(IRDLOperation):
         pos = parser.pos
         res_typ = parser.parse_type()
         if res_typ != StateType(accelerator):
-            parser.raise_error(
-                f"expected {StateType(accelerator)}, but got {res_typ}", pos
-            )
+            parser.raise_error(f"expected {StateType(accelerator)}, but got {res_typ}", pos)
 
         setup_op = cls(
             [val for _, val in args],
@@ -382,9 +330,7 @@ class AcceleratorOp(IRDLOperation):
 
     launch_fields = prop_def(DictionaryAttr)
 
-    barrier = prop_def(
-        IntegerAttr[IntegerType]
-    )  # TODO: this will be reworked in a later version
+    barrier = prop_def(IntegerAttr[IntegerType])  # TODO: this will be reworked in a later version
 
     def __init__(
         self,
@@ -394,27 +340,17 @@ class AcceleratorOp(IRDLOperation):
         barrier: int | IntegerAttr[IntegerType],
     ):
         if not isinstance(fields, DictionaryAttr):
-            fields = DictionaryAttr(
-                {name: IntegerAttr(val, i32) for name, val in fields.items()}
-            )
+            fields = DictionaryAttr({name: IntegerAttr(val, i32) for name, val in fields.items()})
 
         if not isinstance(launch_fields, DictionaryAttr):
-            launch_fields = DictionaryAttr(
-                {name: IntegerAttr(val, i32) for name, val in launch_fields.items()}
-            )
+            launch_fields = DictionaryAttr({name: IntegerAttr(val, i32) for name, val in launch_fields.items()})
 
         super().__init__(
             properties={
-                "name": (
-                    SymbolRefAttr(name) if not isinstance(name, SymbolRefAttr) else name
-                ),
+                "name": (SymbolRefAttr(name) if not isinstance(name, SymbolRefAttr) else name),
                 "fields": fields,
                 "launch_fields": launch_fields,
-                "barrier": (
-                    IntegerAttr(barrier, i32)
-                    if not isinstance(barrier, IntegerAttr)
-                    else barrier
-                ),
+                "barrier": (IntegerAttr(barrier, i32) if not isinstance(barrier, IntegerAttr) else barrier),
             }
         )
 

@@ -52,9 +52,7 @@ def test_reserve_register():
     j0 = riscv.IntRegisterType.infinite_register(0)
     assert isinstance(j0.index, IntAttr)
 
-    reserved_int_registers = register_queue.reserved_registers[
-        riscv.IntRegisterType.name
-    ]
+    reserved_int_registers = register_queue.reserved_registers[riscv.IntRegisterType.name]
 
     register_queue.reserve_register(j0)
     assert reserved_int_registers[j0.index.data] == 1
@@ -75,9 +73,7 @@ def test_reserve_register():
     register_queue.reserve_register(reg)
     with pytest.raises(
         AssertionError,
-        match=re.escape(
-            f"Cannot pop a reserved register ({reg.register_name.data}), it must have been reserved while available."
-        ),
+        match=re.escape(f"Cannot pop a reserved register ({reg.register_name.data}), it must have been reserved while available."),
     ):
         register_queue.pop(riscv.IntRegisterType)
 
@@ -86,14 +82,8 @@ def test_limit():
     register_queue = RiscvRegisterQueue.default()
     register_queue.limit_registers(1)
 
-    assert not register_queue.pop(riscv.IntRegisterType).register_name.data.startswith(
-        "j"
-    )
+    assert not register_queue.pop(riscv.IntRegisterType).register_name.data.startswith("j")
     assert register_queue.pop(riscv.IntRegisterType).register_name.data.startswith("j")
 
-    assert not register_queue.pop(
-        riscv.FloatRegisterType
-    ).register_name.data.startswith("fj")
-    assert register_queue.pop(riscv.FloatRegisterType).register_name.data.startswith(
-        "fj"
-    )
+    assert not register_queue.pop(riscv.FloatRegisterType).register_name.data.startswith("fj")
+    assert register_queue.pop(riscv.FloatRegisterType).register_name.data.startswith("fj")

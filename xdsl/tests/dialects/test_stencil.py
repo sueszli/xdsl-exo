@@ -2,42 +2,8 @@ import pytest
 
 from xdsl.builder import Builder
 from xdsl.dialects import builtin
-from xdsl.dialects.builtin import (
-    AnyFloat,
-    ArrayAttr,
-    FloatAttr,
-    IndexType,
-    IntAttr,
-    IntegerType,
-    MemRefType,
-    bf16,
-    f16,
-    f32,
-    f64,
-    f80,
-    f128,
-    i32,
-    i64,
-)
-from xdsl.dialects.stencil import (
-    AccessOp,
-    ApplyOp,
-    BufferOp,
-    CastOp,
-    DynAccessOp,
-    ExternalLoadOp,
-    ExternalStoreOp,
-    FieldType,
-    IndexAttr,
-    IndexOp,
-    LoadOp,
-    ResultType,
-    ReturnOp,
-    StencilBoundsAttr,
-    StoreOp,
-    StoreResultOp,
-    TempType,
-)
+from xdsl.dialects.builtin import AnyFloat, ArrayAttr, FloatAttr, IndexType, IntAttr, IntegerType, MemRefType, bf16, f16, f32, f64, f80, f128, i32, i64
+from xdsl.dialects.stencil import AccessOp, ApplyOp, BufferOp, CastOp, DynAccessOp, ExternalLoadOp, ExternalStoreOp, FieldType, IndexAttr, IndexOp, LoadOp, ResultType, ReturnOp, StencilBoundsAttr, StoreOp, StoreResultOp, TempType
 from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -47,18 +13,10 @@ from xdsl.utils.test_value import create_ssa_value
 def test_stencilboundsattr_verify():
     with pytest.raises(VerifyException) as e:
         StencilBoundsAttr.new([IndexAttr.get(1), IndexAttr.get(2, 2)])
-    assert (
-        str(e.value)
-        == "Incoherent stencil bounds: lower and upper bounds must have the same"
-        " dimensionality."
-    )
+    assert str(e.value) == "Incoherent stencil bounds: lower and upper bounds must have the same" " dimensionality."
     with pytest.raises(VerifyException) as e:
         StencilBoundsAttr.new([IndexAttr.get(2, 2), IndexAttr.get(2, 2)])
-    assert (
-        str(e.value)
-        == "Incoherent stencil bounds: upper bound must be strictly greater than"
-        " lower bound."
-    )
+    assert str(e.value) == "Incoherent stencil bounds: upper bound must be strictly greater than" " lower bound."
 
 
 def test_stencil_return_single_float():
@@ -108,9 +66,7 @@ def test_stencil_cast_op_verifier():
     cast.verify()
 
     # check that output has same dims as input and lb, ub
-    with pytest.raises(
-        VerifyException, match="Input and output types must have the same rank"
-    ):
+    with pytest.raises(VerifyException, match="Input and output types must have the same rank"):
         cast = CastOp.get(
             field,
             StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))),
@@ -207,9 +163,7 @@ def test_stencil_apply_no_results():
 )
 def test_create_index_attr_from_int_list(indices: list[int | IntAttr]):
     stencil_index_attr = IndexAttr.get(*indices)
-    expected_array_attr = ArrayAttr(
-        [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
-    )
+    expected_array_attr = ArrayAttr([(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices])
 
     assert stencil_index_attr.array == expected_array_attr
 
@@ -247,9 +201,7 @@ def test_index_attr_add(indices1: list[int], indices2: list[int]):
     stencil_index_attr2 = IndexAttr.get(*indices2)
 
     stencil_index_attr_add = stencil_index_attr1 + stencil_index_attr2
-    expected_array_attr = ArrayAttr(
-        [(IntAttr(idx1 + idx2)) for idx1, idx2 in zip(indices1, indices2)]
-    )
+    expected_array_attr = ArrayAttr([(IntAttr(idx1 + idx2)) for idx1, idx2 in zip(indices1, indices2)])
 
     assert stencil_index_attr_add.array == expected_array_attr
 
@@ -263,9 +215,7 @@ def test_index_attr_sub(indices1: list[int], indices2: list[int]):
     stencil_index_attr2 = IndexAttr.get(*indices2)
 
     stencil_index_attr_sub = stencil_index_attr1 - stencil_index_attr2
-    expected_array_attr = ArrayAttr(
-        [(IntAttr(idx1 - idx2)) for idx1, idx2 in zip(indices1, indices2)]
-    )
+    expected_array_attr = ArrayAttr([(IntAttr(idx1 - idx2)) for idx1, idx2 in zip(indices1, indices2)])
 
     assert stencil_index_attr_sub.array == expected_array_attr
 
@@ -279,9 +229,7 @@ def test_index_attr_min(indices1: list[int], indices2: list[int]):
     stencil_index_attr2 = IndexAttr.get(*indices2)
 
     stencil_index_attr_min = IndexAttr.min(stencil_index_attr1, stencil_index_attr2)
-    expected_array_attr = ArrayAttr(
-        [(IntAttr(min(idx1, idx2))) for idx1, idx2 in zip(indices1, indices2)]
-    )
+    expected_array_attr = ArrayAttr([(IntAttr(min(idx1, idx2))) for idx1, idx2 in zip(indices1, indices2)])
 
     assert stencil_index_attr_min.array == expected_array_attr
 
@@ -295,9 +243,7 @@ def test_index_attr_max(indices1: list[int], indices2: list[int]):
     stencil_index_attr2 = IndexAttr.get(*indices2)
 
     stencil_index_attr_max = IndexAttr.max(stencil_index_attr1, stencil_index_attr2)
-    expected_array_attr = ArrayAttr(
-        [(IntAttr(max(idx1, idx2))) for idx1, idx2 in zip(indices1, indices2)]
-    )
+    expected_array_attr = ArrayAttr([(IntAttr(max(idx1, idx2))) for idx1, idx2 in zip(indices1, indices2)])
 
     assert stencil_index_attr_max.array == expected_array_attr
 
@@ -331,17 +277,13 @@ def test_index_attr_indices_length(indices: list[int]):
         ),
     ],
 )
-def test_stencil_fieldtype_constructor_with_ArrayAttr(
-    attr: IntegerType, bounds: tuple[tuple[int, int], ...]
-):
+def test_stencil_fieldtype_constructor_with_ArrayAttr(attr: IntegerType, bounds: tuple[tuple[int, int], ...]):
     stencil_fieldtype = FieldType(bounds, attr)
 
     assert stencil_fieldtype.element_type == attr
     assert stencil_fieldtype.get_num_dims() == len(bounds)
     assert isinstance(stencil_fieldtype.bounds, StencilBoundsAttr)
-    assert (
-        tuple(zip(stencil_fieldtype.bounds.lb, stencil_fieldtype.bounds.ub)) == bounds
-    )
+    assert tuple(zip(stencil_fieldtype.bounds.lb, stencil_fieldtype.bounds.ub)) == bounds
 
 
 @pytest.mark.parametrize(
@@ -352,17 +294,13 @@ def test_stencil_fieldtype_constructor_with_ArrayAttr(
         (i64, ((0, 1), (0, 1), (0, 3))),
     ],
 )
-def test_stencil_fieldtype_constructor(
-    attr: IntegerType, bounds: tuple[tuple[int, int], ...]
-):
+def test_stencil_fieldtype_constructor(attr: IntegerType, bounds: tuple[tuple[int, int], ...]):
     stencil_fieldtype = FieldType(bounds, attr)
 
     assert stencil_fieldtype.element_type == attr
     assert stencil_fieldtype.get_num_dims() == len(bounds)
     assert isinstance(stencil_fieldtype.bounds, StencilBoundsAttr)
-    assert (
-        tuple(zip(stencil_fieldtype.bounds.lb, stencil_fieldtype.bounds.ub)) == bounds
-    )
+    assert tuple(zip(stencil_fieldtype.bounds.lb, stencil_fieldtype.bounds.ub)) == bounds
 
 
 @pytest.mark.parametrize(
@@ -372,9 +310,7 @@ def test_stencil_fieldtype_constructor(
         (i64, []),
     ],
 )
-def test_stencil_fieldtype_constructor_empty_list(
-    attr: IntegerType, bounds: list[tuple[int, int]]
-):
+def test_stencil_fieldtype_constructor_empty_list(attr: IntegerType, bounds: list[tuple[int, int]]):
     with pytest.raises(VerifyException) as exc_info:
         FieldType(bounds, attr)
     assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
@@ -424,9 +360,7 @@ def test_stencil_load_bounds():
         ),
     ],
 )
-def test_stencil_temptype_constructor_with_ArrayAttr(
-    attr: IntegerType, dims: tuple[tuple[int, int], ...]
-):
+def test_stencil_temptype_constructor_with_ArrayAttr(attr: IntegerType, dims: tuple[tuple[int, int], ...]):
     stencil_temptype = TempType(dims, attr)
 
     assert isinstance(stencil_temptype, TempType)
@@ -444,9 +378,7 @@ def test_stencil_temptype_constructor_with_ArrayAttr(
         (i64, ((0, 1), (0, 1), (0, 3))),
     ],
 )
-def test_stencil_temptype_constructor(
-    attr: IntegerType, dims: tuple[tuple[int, int], ...]
-):
+def test_stencil_temptype_constructor(attr: IntegerType, dims: tuple[tuple[int, int], ...]):
     stencil_temptype = TempType(dims, attr)
 
     assert isinstance(stencil_temptype, TempType)
@@ -463,9 +395,7 @@ def test_stencil_temptype_constructor(
         (i64, []),
     ],
 )
-def test_stencil_temptype_constructor_empty_list(
-    attr: IntegerType, dims: list[tuple[int, int]]
-):
+def test_stencil_temptype_constructor_empty_list(attr: IntegerType, dims: list[tuple[int, int]]):
     with pytest.raises(VerifyException) as exc_info:
         TempType(dims, attr)
     assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
@@ -579,9 +509,7 @@ def test_store_result():
     elem_ssa_val = create_ssa_value(elem)
     result_type = ResultType(f32)
 
-    store_result = StoreResultOp.build(
-        operands=[elem_ssa_val], result_types=[result_type]
-    )
+    store_result = StoreResultOp.build(operands=[elem_ssa_val], result_types=[result_type])
 
     assert isinstance(store_result, StoreResultOp)
     assert store_result.arg == elem_ssa_val

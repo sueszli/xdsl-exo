@@ -4,10 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from xdsl.ir import Attribute, Dialect, Operation, TypeAttribute
-from xdsl.utils.exceptions import (
-    AlreadyRegisteredConstructException,
-    UnregisteredConstructException,
-)
+from xdsl.utils.exceptions import AlreadyRegisteredConstructException, UnregisteredConstructException
 
 
 @dataclass
@@ -17,18 +14,10 @@ class Context:
     allow_unregistered: bool = field(default=False)
 
     _loaded_dialects: dict[str, Dialect] = field(default_factory=dict[str, Dialect])
-    _loaded_ops: dict[str, type[Operation]] = field(
-        default_factory=dict[str, type[Operation]]
-    )
-    _loaded_attrs: dict[str, type[Attribute]] = field(
-        default_factory=dict[str, type[Attribute]]
-    )
-    _loaded_types: dict[str, type[TypeAttribute]] = field(
-        default_factory=dict[str, type[TypeAttribute]]
-    )
-    _registered_dialects: dict[str, Callable[[], Dialect]] = field(
-        default_factory=dict[str, Callable[[], Dialect]]
-    )
+    _loaded_ops: dict[str, type[Operation]] = field(default_factory=dict[str, type[Operation]])
+    _loaded_attrs: dict[str, type[Attribute]] = field(default_factory=dict[str, type[Attribute]])
+    _loaded_types: dict[str, type[TypeAttribute]] = field(default_factory=dict[str, type[TypeAttribute]])
+    _registered_dialects: dict[str, Callable[[], Dialect]] = field(default_factory=dict[str, Callable[[], Dialect]])
     """
     A dictionary of all registered dialects that are not yet loaded. This is used to
     only load the respective Python files when the dialect is actually used.
@@ -79,18 +68,14 @@ class Context:
         """
         return self._registered_dialects.keys()
 
-    def register_dialect(
-        self, name: str, dialect_factory: "Callable[[], Dialect]"
-    ) -> None:
+    def register_dialect(self, name: str, dialect_factory: "Callable[[], Dialect]") -> None:
         """
         Register a dialect without loading it. The dialect is only loaded in the context
         when an operation or attribute of that dialect is parsed, or when explicitely
         requested with `load_registered_dialect`.
         """
         if name in self._registered_dialects:
-            raise AlreadyRegisteredConstructException(
-                f"'{name}' dialect is already registered"
-            )
+            raise AlreadyRegisteredConstructException(f"'{name}' dialect is already registered")
         self._registered_dialects[name] = dialect_factory
 
     def load_registered_dialect(self, name: str) -> None:
@@ -113,18 +98,14 @@ class Context:
         `load_registered_dialect` instead.
         """
         if dialect.name in self._registered_dialects:
-            raise AlreadyRegisteredConstructException(
-                f"'{dialect.name}' dialect is already registered, use 'load_registered_dialect' instead"
-            )
+            raise AlreadyRegisteredConstructException(f"'{dialect.name}' dialect is already registered, use 'load_registered_dialect' instead")
         self.register_dialect(dialect.name, lambda: dialect)
         self.load_registered_dialect(dialect.name)
 
     def load_op(self, op: "type[Operation]") -> None:
         """Load an operation definition. Operation names should be unique."""
         if op.name in self._loaded_ops:
-            raise AlreadyRegisteredConstructException(
-                f"Operation {op.name} has already been loaded"
-            )
+            raise AlreadyRegisteredConstructException(f"Operation {op.name} has already been loaded")
         self._loaded_ops[op.name] = op
 
     def load_attr_or_type(self, attr: type[Attribute]) -> None:
@@ -135,15 +116,11 @@ class Context:
         """
         if issubclass(attr, TypeAttribute):
             if attr.name in self._loaded_types:
-                raise AlreadyRegisteredConstructException(
-                    f"Type {attr.name} has already been loaded"
-                )
+                raise AlreadyRegisteredConstructException(f"Type {attr.name} has already been loaded")
             self._loaded_types[attr.name] = attr
         else:
             if attr.name in self._loaded_attrs:
-                raise AlreadyRegisteredConstructException(
-                    f"Attribute {attr.name} has already been loaded"
-                )
+                raise AlreadyRegisteredConstructException(f"Attribute {attr.name} has already been loaded")
             self._loaded_attrs[attr.name] = attr
 
     def _get_known_op(self, name: str) -> "type[Operation] | None":
@@ -151,16 +128,11 @@ class Context:
             return self._loaded_ops[name]
         if "." in name:
             dialect_name, _ = Dialect.split_name(name)
-            if (
-                dialect_name in self._registered_dialects
-                and dialect_name not in self._loaded_dialects
-            ):
+            if dialect_name in self._registered_dialects and dialect_name not in self._loaded_dialects:
                 self.load_registered_dialect(dialect_name)
                 return self._get_known_op(name)
 
-    def get_optional_op(
-        self, name: str, *, dialect_stack: Sequence[str] = ()
-    ) -> "type[Operation] | None":
+    def get_optional_op(self, name: str, *, dialect_stack: Sequence[str] = ()) -> "type[Operation] | None":
         """
         Get an operation class from its name if it exists or is contained in one of the
         dialects in the dialect stack.
@@ -185,9 +157,7 @@ class Context:
             self._loaded_ops[name] = op_type
             return op_type
 
-    def get_op(
-        self, name: str, *, dialect_stack: Sequence[str] = ()
-    ) -> "type[Operation]":
+    def get_op(self, name: str, *, dialect_stack: Sequence[str] = ()) -> "type[Operation]":
         """
         Get an operation class from its name if it exists or is contained in one of the
         dialects in the dialect stack.
@@ -210,9 +180,7 @@ class Context:
 
         # Otherwise, check if the type dialect is registered.
         dialect_name, _ = Dialect.split_name(name)
-        if (dialect_name in self._registered_dialects) and (
-            dialect_name not in self._loaded_dialects
-        ):
+        if (dialect_name in self._registered_dialects) and (dialect_name not in self._loaded_dialects):
             self.load_registered_dialect(dialect_name)
             return self.get_optional_type(name)
 
@@ -251,10 +219,7 @@ class Context:
 
         # Otherwise, check if the attribute dialect is registered.
         dialect_name, _ = Dialect.split_name(name)
-        if (
-            dialect_name in self._registered_dialects
-            and dialect_name not in self._loaded_dialects
-        ):
+        if dialect_name in self._registered_dialects and dialect_name not in self._loaded_dialects:
             self.load_registered_dialect(dialect_name)
             return self.get_optional_attr(name)
 

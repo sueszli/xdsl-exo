@@ -9,24 +9,10 @@ from collections.abc import Iterable
 from typing import TextIO
 
 from xdsl.ir import Attribute, ParametrizedAttribute, TypeAttribute
-from xdsl.irdl import (
-    AnyInt,
-    OpDef,
-    OperandDef,
-    OptOperandDef,
-    OptResultDef,
-    ParamAttrDef,
-    RangeOf,
-    ResultDef,
-    SingleOf,
-    VarOperandDef,
-    VarResultDef,
-)
+from xdsl.irdl import AnyInt, OpDef, OperandDef, OptOperandDef, OptResultDef, ParamAttrDef, RangeOf, ResultDef, SingleOf, VarOperandDef, VarResultDef
 
 
-def generate_dynamic_attr_class(
-    class_name: str, attr: ParamAttrDef, is_type: bool = True
-) -> type[Attribute]:
+def generate_dynamic_attr_class(class_name: str, attr: ParamAttrDef, is_type: bool = True) -> type[Attribute]:
     """
     Dynamically define a type based on ParamAttrDef.
     This is needed to reference dynamically created attributes in operations.
@@ -38,9 +24,7 @@ def generate_dynamic_attr_class(
     )
 
 
-def get_str_from_operand_or_result(
-    name: str, operand_or_result: OperandDef | ResultDef
-) -> str:
+def get_str_from_operand_or_result(name: str, operand_or_result: OperandDef | ResultDef) -> str:
     """
     Get a constraint from the GenericRangeConstraint wrapper.
     Build the correct definition function based on the wrapper's type.
@@ -51,9 +35,7 @@ def get_str_from_operand_or_result(
         case RangeOf(length=AnyInt()):
             inner_constr = operand_or_result.constr.constr
         case _:
-            raise NotImplementedError(
-                f"Constraint type {operand_or_result.constr} not yet implemented"
-            )
+            raise NotImplementedError(f"Constraint type {operand_or_result.constr} not yet implemented")
 
     match operand_or_result:
         case OptOperandDef():
@@ -103,56 +85,21 @@ def opdef_to_class_string(class_name: str, op: OpDef) -> str:
     """
     Generate class definition for an operation.
     """
-    field_name_mapping = {
-        ir_name: field_name for (field_name, (ir_name, _)) in op.accessor_names.items()
-    }
+    field_name_mapping = {ir_name: field_name for (field_name, (ir_name, _)) in op.accessor_names.items()}
 
     fields_description = ""
 
-    fields_description += (
-        "\n\t".join(
-            [
-                get_str_from_operand_or_result(name, operand_or_result)
-                for name, operand_or_result in itertools.chain(op.operands, op.results)
-            ]
-        )
-        + "\n\t"
-    )
+    fields_description += "\n\t".join([get_str_from_operand_or_result(name, operand_or_result) for name, operand_or_result in itertools.chain(op.operands, op.results)]) + "\n\t"
 
-    fields_description += (
-        "\n\t".join(
-            [
-                f"{field_name_mapping.get(name, name)} = prop_def({prop.constr}"
-                + (f', prop_name="{name}"' if name in field_name_mapping else "")
-                + ")"
-                for name, prop in op.properties.items()
-            ]
-        )
-        + "\n\t"
-    )
+    fields_description += "\n\t".join([f"{field_name_mapping.get(name, name)} = prop_def({prop.constr}" + (f', prop_name="{name}"' if name in field_name_mapping else "") + ")" for name, prop in op.properties.items()]) + "\n\t"
 
-    fields_description += (
-        "\n\t".join(
-            [
-                f"{field_name_mapping.get(name, name)} = attr_def({attr.constr}"
-                + (f', attr_name="{name}"' if name in field_name_mapping else "")
-                + ")"
-                for name, attr in op.attributes.items()
-            ]
-        )
-        + "\n\t"
-    )
+    fields_description += "\n\t".join([f"{field_name_mapping.get(name, name)} = attr_def({attr.constr}" + (f', attr_name="{name}"' if name in field_name_mapping else "") + ")" for name, attr in op.attributes.items()]) + "\n\t"
 
     if op.traits.traits:
-        fields_description += (
-            f"traits = traits_def({','.join([str(t) for t in op.traits.traits])})"
-            + "\n\t"
-        )
+        fields_description += f"traits = traits_def({','.join([str(t) for t in op.traits.traits])})" + "\n\t"
 
     if op.options:
-        fields_description += (
-            f"irdl_options = [{','.join([str(opt) for opt in op.options])}]" + "\n\t"
-        )
+        fields_description += f"irdl_options = [{','.join([str(opt) for opt in op.options])}]" + "\n\t"
 
     if op.regions:
         raise NotImplementedError("Operation regions not yet implemented")
@@ -192,24 +139,16 @@ from xdsl.traits import *
 # ruff: noqa: F403, F405
     """
 
-    types_class_defs = "\n".join(
-        typedef_to_class_string(class_name, attr) for class_name, attr in types
-    )
+    types_class_defs = "\n".join(typedef_to_class_string(class_name, attr) for class_name, attr in types)
 
-    attr_class_defs = "\n".join(
-        attrdef_to_class_string(class_name, attr) for class_name, attr in attributes
-    )
+    attr_class_defs = "\n".join(attrdef_to_class_string(class_name, attr) for class_name, attr in attributes)
 
-    op_class_defs = "\n".join(
-        opdef_to_class_string(class_name, op) for class_name, op in ops
-    )
+    op_class_defs = "\n".join(opdef_to_class_string(class_name, op) for class_name, op in ops)
 
     op_list = ",".join(name for name, _ in ops)
     attr_list = ",".join(name for name, _ in itertools.chain(attributes, types))
 
-    dialect_def = (
-        f'{dialect_obj_name} = Dialect("{dialect_name}", [{op_list}], [{attr_list}])'
-    )
+    dialect_def = f'{dialect_obj_name} = Dialect("{dialect_name}", [{op_list}], [{attr_list}])'
 
     content = "\n".join(
         (

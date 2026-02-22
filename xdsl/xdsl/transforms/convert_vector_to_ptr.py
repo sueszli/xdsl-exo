@@ -3,13 +3,7 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects import builtin, memref, ptr, vector
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.transforms.convert_memref_to_ptr import get_target_ptr
 from xdsl.utils.hints import isa
 

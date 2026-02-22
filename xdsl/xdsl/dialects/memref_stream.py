@@ -15,59 +15,18 @@ from typing import Any, ClassVar, Generic, cast
 from typing_extensions import Self, TypeVar
 
 from xdsl.dialects import memref
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    ArrayAttr,
-    ContainerType,
-    IndexType,
-    IntAttr,
-    IntegerAttr,
-    IntegerType,
-    MemRefType,
-    StringAttr,
-)
+from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr, ContainerType, IndexType, IntAttr, IntegerAttr, IntegerType, MemRefType, StringAttr
 from xdsl.dialects.utils import AbstractYieldOperation
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    EnumAttribute,
-    ParametrizedAttribute,
-    Region,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    AnyAttr,
-    AttrSizedOperandSegments,
-    GenericAttrConstraint,
-    IRDLOperation,
-    ParamAttrConstraint,
-    ParameterDef,
-    VarConstraint,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_prop_def,
-    prop_def,
-    region_def,
-    result_def,
-    traits_def,
-    var_operand_def,
-)
+from xdsl.ir import Attribute, Dialect, EnumAttribute, ParametrizedAttribute, Region, SSAValue, TypeAttribute
+from xdsl.irdl import AnyAttr, AttrSizedOperandSegments, GenericAttrConstraint, IRDLOperation, ParamAttrConstraint, ParameterDef, VarConstraint, irdl_attr_definition, irdl_op_definition, operand_def, opt_prop_def, prop_def, region_def, result_def, traits_def, var_operand_def
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import (
-    HasCanonicalizationPatternsTrait,
-    IsTerminator,
-    NoTerminator,
-)
+from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 
-_StreamTypeElement = TypeVar(
-    "_StreamTypeElement", bound=Attribute, covariant=True, default=Attribute
-)
+_StreamTypeElement = TypeVar("_StreamTypeElement", bound=Attribute, covariant=True, default=Attribute)
 
 
 @irdl_attr_definition
@@ -92,9 +51,7 @@ class ReadableStreamType(
         cls,
         element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]]:
-        return ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]](
-            ReadableStreamType, (element_type,)
-        )
+        return ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]](ReadableStreamType, (element_type,))
 
 
 @irdl_attr_definition
@@ -119,9 +76,7 @@ class WritableStreamType(
         cls,
         element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]:
-        return ParamAttrConstraint[WritableStreamType[_StreamTypeElement]](
-            WritableStreamType, (element_type,)
-        )
+        return ParamAttrConstraint[WritableStreamType[_StreamTypeElement]](WritableStreamType, (element_type,))
 
 
 class IteratorType(StrEnum):
@@ -209,12 +164,7 @@ class StridePattern(ParametrizedAttribute):
             parser.parse_identifier("ub")
             parser.parse_punctuation("=")
             index = IndexType()
-            ub = ArrayAttr(
-                IntegerAttr(i, index)
-                for i in parser.parse_comma_separated_list(
-                    parser.Delimiter.SQUARE, parser.parse_integer
-                )
-            )
+            ub = ArrayAttr(IntegerAttr(i, index) for i in parser.parse_comma_separated_list(parser.Delimiter.SQUARE, parser.parse_integer))
             parser.parse_punctuation(",")
             parser.parse_identifier("index_map")
             parser.parse_punctuation("=")
@@ -232,13 +182,9 @@ class StridePattern(ParametrizedAttribute):
 
     def verify(self) -> None:
         if len(self.ub) != self.index_map.data.num_dims:
-            raise VerifyException(
-                f"Expect stride pattern upper bounds {self.ub} to be equal in length to dimensions of {self.index_map}"
-            )
+            raise VerifyException(f"Expect stride pattern upper bounds {self.ub} to be equal in length to dimensions of {self.index_map}")
         if self.index_map.data.num_symbols:
-            raise VerifyException(
-                f"Expect stride pattern map to not contain symbols: {self.index_map}"
-            )
+            raise VerifyException(f"Expect stride pattern map to not contain symbols: {self.index_map}")
 
     def index_iter(self) -> Iterator[tuple[int, ...]]:
         for indices in product(*(range(bound.value.data) for bound in self.ub.data)):
@@ -396,13 +342,9 @@ class StreamingRegionOp(IRDLOperation):
         pos = parser.pos
         if parser.parse_optional_characters("ins"):
             parser.parse_punctuation("(")
-            unresolved_ins = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
-            )
+            unresolved_ins = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_unresolved_operand)
             parser.parse_punctuation(":")
-            ins_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
-            )
+            ins_types = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
             parser.parse_punctuation(")")
             ins = parser.resolve_operands(unresolved_ins, ins_types, pos)
         else:
@@ -411,13 +353,9 @@ class StreamingRegionOp(IRDLOperation):
         pos = parser.pos
         if parser.parse_optional_characters("outs"):
             parser.parse_punctuation("(")
-            unresolved_outs = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
-            )
+            unresolved_outs = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_unresolved_operand)
             parser.parse_punctuation(":")
-            outs_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
-            )
+            outs_types = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
             parser.parse_punctuation(")")
             outs = parser.resolve_operands(unresolved_outs, outs_types, pos)
         else:
@@ -425,9 +363,7 @@ class StreamingRegionOp(IRDLOperation):
 
         if parser.parse_optional_keyword("attrs"):
             parser.parse_punctuation("=")
-            extra_attrs = parser.expect(
-                parser.parse_optional_attr_dict, "expect extra attributes"
-            )
+            extra_attrs = parser.expect(parser.parse_optional_attr_dict, "expect extra attributes")
         else:
             extra_attrs = {}
 
@@ -447,9 +383,7 @@ class StreamingRegionOp(IRDLOperation):
 class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls):
-        from xdsl.transforms.canonicalization_patterns.memref_stream import (
-            RemoveUnusedInitOperandPattern,
-        )
+        from xdsl.transforms.canonicalization_patterns.memref_stream import RemoveUnusedInitOperandPattern
 
         return (RemoveUnusedInitOperandPattern(),)
 
@@ -516,9 +450,7 @@ class GenericOp(IRDLOperation):
     ) -> None:
         for m in indexing_maps:
             if m.data.num_symbols:
-                raise NotImplementedError(
-                    f"Symbols currently not implemented in {self.name} indexing maps"
-                )
+                raise NotImplementedError(f"Symbols currently not implemented in {self.name} indexing maps")
         super().__init__(
             operands=[inputs, outputs, inits],
             properties={
@@ -546,29 +478,16 @@ class GenericOp(IRDLOperation):
         output_maps = self.indexing_maps.data[len(self.inputs) :]
         # min_dims will equal len(self.iterator_types) in the perfect nest case
         min_dims = min(m.data.num_dims for m in output_maps)
-        num_interleaved = sum(
-            it.data == IteratorType.INTERLEAVED for it in self.iterator_types
-        )
+        num_interleaved = sum(it.data == IteratorType.INTERLEAVED for it in self.iterator_types)
         if num_interleaved:
             res = (
-                tuple(
-                    bound.value.data
-                    for bound in self.bounds.data[: min_dims - num_interleaved]
-                ),
-                tuple(
-                    bound.value.data
-                    for bound in self.bounds.data[
-                        min_dims - num_interleaved : -num_interleaved
-                    ]
-                ),
+                tuple(bound.value.data for bound in self.bounds.data[: min_dims - num_interleaved]),
+                tuple(bound.value.data for bound in self.bounds.data[min_dims - num_interleaved : -num_interleaved]),
             )
         else:
             res = (
                 tuple(bound.value.data for bound in self.bounds.data[:min_dims]),
-                tuple(
-                    bound.value.data
-                    for bound in self.bounds.data[min_dims - num_interleaved :]
-                ),
+                tuple(bound.value.data for bound in self.bounds.data[min_dims - num_interleaved :]),
             )
         return res
 
@@ -675,20 +594,14 @@ class GenericOp(IRDLOperation):
         return parser.resolve_operand(unresolved, type)
 
     @classmethod
-    def _parse_inits(
-        cls, parser: Parser
-    ) -> tuple[tuple[SSAValue, ...], tuple[int, ...]]:
+    def _parse_inits(cls, parser: Parser) -> tuple[tuple[SSAValue, ...], tuple[int, ...]]:
         if not parser.parse_optional_characters("inits"):
             return ((), ())
 
         parser.parse_punctuation("(")
-        optional_inits = parser.parse_comma_separated_list(
-            Parser.Delimiter.NONE, lambda: cls._parse_init(parser)
-        )
+        optional_inits = parser.parse_comma_separated_list(Parser.Delimiter.NONE, lambda: cls._parse_init(parser))
         parser.parse_punctuation(")")
-        enumerated_inits = tuple(
-            (i, val) for i, val in enumerate(optional_inits) if val is not None
-        )
+        enumerated_inits = tuple((i, val) for i, val in enumerate(optional_inits) if val is not None)
         inits = tuple(init for _, init in enumerated_inits)
         init_indices = tuple(i for i, _ in enumerated_inits)
 
@@ -704,9 +617,7 @@ class GenericOp(IRDLOperation):
             bounds = attrs["bounds"]
             assert isa(bounds, ArrayAttr[IntegerAttr[IntegerType | IndexType]]), bounds
             index = IndexType()
-            bounds = ArrayAttr(
-                tuple(IntegerAttr(attr.value, index) for attr in bounds.data)
-            )
+            bounds = ArrayAttr(tuple(IntegerAttr(attr.value, index) for attr in bounds.data))
             del attrs["bounds"]
         else:
             parser.raise_error(
@@ -741,9 +652,7 @@ class GenericOp(IRDLOperation):
                     case IteratorTypeAttr():
                         iterator_types.append(iterator_type)
                     case StringAttr():
-                        iterator_type = IteratorTypeAttr(
-                            IteratorType(iterator_type.data)
-                        )
+                        iterator_type = IteratorTypeAttr(IteratorType(iterator_type.data))
                         iterator_types.append(iterator_type)
                     case _:
                         parser.raise_error(
@@ -775,13 +684,9 @@ class GenericOp(IRDLOperation):
         pos = parser.pos
         if parser.parse_optional_characters("ins"):
             parser.parse_punctuation("(")
-            unresolved_ins = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
-            )
+            unresolved_ins = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_unresolved_operand)
             parser.parse_punctuation(":")
-            ins_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
-            )
+            ins_types = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
             parser.parse_punctuation(")")
             ins = parser.resolve_operands(unresolved_ins, ins_types, pos)
         else:
@@ -790,13 +695,9 @@ class GenericOp(IRDLOperation):
         pos = parser.pos
         if parser.parse_optional_characters("outs"):
             parser.parse_punctuation("(")
-            unresolved_outs = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_unresolved_operand
-            )
+            unresolved_outs = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_unresolved_operand)
             parser.parse_punctuation(":")
-            outs_types = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parser.parse_type
-            )
+            outs_types = parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
             parser.parse_punctuation(")")
             outs = parser.resolve_operands(unresolved_outs, outs_types, pos)
         else:
@@ -807,9 +708,7 @@ class GenericOp(IRDLOperation):
 
         if parser.parse_optional_keyword("attrs"):
             parser.parse_punctuation("=")
-            extra_attrs = parser.expect(
-                parser.parse_optional_attr_dict, "expect extra attributes"
-            )
+            extra_attrs = parser.expect(parser.parse_optional_attr_dict, "expect extra attributes")
         else:
             extra_attrs = {}
 
@@ -834,9 +733,7 @@ class GenericOp(IRDLOperation):
 
     def verify_(self) -> None:
         if len(self.inits) != len(self.init_indices):
-            raise VerifyException(
-                f"Mismatching number of inits and init indices: {len(self.inits)} != {self.init_indices}"
-            )
+            raise VerifyException(f"Mismatching number of inits and init indices: {len(self.inits)} != {self.init_indices}")
 
         # Parallel iterator types must preceed reduction iterators
         iterator_types = self.iterator_types.data
@@ -845,24 +742,15 @@ class GenericOp(IRDLOperation):
         num_interleaved = iterator_types.count(IteratorTypeAttr.interleaved())
 
         if IteratorTypeAttr.parallel() in iterator_types[num_parallel:]:
-            raise VerifyException(
-                f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}"
-            )
-        if (
-            IteratorTypeAttr.reduction()
-            in iterator_types[num_parallel + num_reduction :]
-        ):
-            raise VerifyException(
-                f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}"
-            )
+            raise VerifyException(f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}")
+        if IteratorTypeAttr.reduction() in iterator_types[num_parallel + num_reduction :]:
+            raise VerifyException(f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}")
         if num_interleaved > 1:
             raise VerifyException(f"Too many interleaved bounds: {num_interleaved}")
         assert num_parallel + num_reduction + num_interleaved == len(iterator_types)
 
         if len(self.inputs) + len(self.outputs) != len(self.indexing_maps):
-            raise VerifyException(
-                "The number of affine maps must match the number of inputs and outputs"
-            )
+            raise VerifyException("The number of affine maps must match the number of inputs and outputs")
 
         # Whether or not the operation represents an imperfect loop nest, verify that the
         # bounds of the outer + inner nests match the domain of the input affine maps
@@ -883,23 +771,16 @@ class GenericOp(IRDLOperation):
         max_dims = max(m.data.num_dims for m in output_maps)
 
         if min_dims != max_dims:
-            raise VerifyException(
-                "The number of dims in output indexing maps must all be the same"
-            )
+            raise VerifyException("The number of dims in output indexing maps must all be the same")
 
         if min_dims not in (len(iterator_types), num_parallel + num_interleaved):
             # To signify that the output is imperfectly nested, the output affine map has
             # as many dims as parallel iterators. Otherwise, it has as many dims as
             # the total number of iterators.
-            raise VerifyException(
-                "The number of dims in output indexing maps must be "
-                f"{len(iterator_types)} or {num_parallel + num_interleaved}"
-            )
+            raise VerifyException("The number of dims in output indexing maps must be " f"{len(iterator_types)} or {num_parallel + num_interleaved}")
 
         if len(self.init_indices) != len(self.inits):
-            raise VerifyException(
-                "The number of inits and init_indices must be the same"
-            )
+            raise VerifyException("The number of inits and init_indices must be the same")
 
         # The values of the inits must correspond to outputs where the domain of the
         # affine map has the same number of dimensions as the number of parallel
@@ -911,10 +792,7 @@ class GenericOp(IRDLOperation):
                 raise VerifyException(f"Init index out of bounds: {index.data}")
             m = output_maps[index.data]
             if m.data.num_dims != (num_parallel + num_interleaved):
-                raise VerifyException(
-                    "Incompatible affine map and initial value for output at index "
-                    f"{index}"
-                )
+                raise VerifyException("Incompatible affine map and initial value for output at index " f"{index}")
 
         interleave_factor = self.bounds.data[-1].value.data if num_interleaved else 1
 
@@ -927,9 +805,7 @@ class GenericOp(IRDLOperation):
         expected_block_arg_count = (input_count + acc_count) * interleave_factor
 
         if expected_block_arg_count != len(self.body.block.args):
-            raise VerifyException(
-                f"Invalid number of arguments in block ({len(self.body.block.args)}), expected {expected_block_arg_count}"
-            )
+            raise VerifyException(f"Invalid number of arguments in block ({len(self.body.block.args)}), expected {expected_block_arg_count}")
 
 
 @irdl_op_definition

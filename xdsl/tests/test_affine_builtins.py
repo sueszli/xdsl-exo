@@ -2,12 +2,7 @@ import re
 
 import pytest
 
-from xdsl.ir.affine import (
-    AffineBinaryOpExpr,
-    AffineBinaryOpKind,
-    AffineExpr,
-    AffineMap,
-)
+from xdsl.ir.affine import AffineBinaryOpExpr, AffineBinaryOpKind, AffineExpr, AffineMap
 
 
 def test_simple_map():
@@ -126,23 +121,15 @@ def test_compose_expr_recursive_simplification():
 
     # Tests simplifications that require recursion
     add1 = (d[0] + d[1]) + (d[2] + d[3])
-    assert add1.compose(
-        AffineMap.from_callable(lambda d0, d1: (1, 2, 3, 4))
-    ) == AffineExpr.constant(10)
+    assert add1.compose(AffineMap.from_callable(lambda d0, d1: (1, 2, 3, 4))) == AffineExpr.constant(10)
 
     add2 = d[0] + d[1] + d[2] + d[3]
-    assert add2.compose(
-        AffineMap.from_callable(lambda d0, d1: (1, 2, 3, 4))
-    ) == AffineExpr.constant(10)
+    assert add2.compose(AffineMap.from_callable(lambda d0, d1: (1, 2, 3, 4))) == AffineExpr.constant(10)
 
 
 def test_compose_map():
-    map1 = AffineMap.from_callable(
-        lambda d0, d1, s0, s1: (d0 + 1 + s1, d1 - 1 - s0), dim_symbol_split=(2, 2)
-    )
-    map2 = AffineMap.from_callable(
-        lambda d0, s0: (d0 + s0, d0 - s0), dim_symbol_split=(1, 1)
-    )
+    map1 = AffineMap.from_callable(lambda d0, d1, s0, s1: (d0 + 1 + s1, d1 - 1 - s0), dim_symbol_split=(2, 2))
+    map2 = AffineMap.from_callable(lambda d0, s0: (d0 + s0, d0 - s0), dim_symbol_split=(1, 1))
     map3 = AffineMap.from_callable(
         lambda d0, s0, s1, s2: ((d0 + s2) + 1 + s1, (d0 - s2) - 1 - s0),
         dim_symbol_split=(1, 3),
@@ -184,18 +171,12 @@ def test_from_callable():
     assert AffineMap.from_callable(lambda i, j: (j, i)) == AffineMap.transpose_map()
     assert AffineMap.from_callable(lambda: ()) == AffineMap.empty()
 
-    assert AffineMap.from_callable(
-        lambda i, j, p, q: (p + i, q + j), dim_symbol_split=(2, 2)
-    ) == AffineMap(
+    assert AffineMap.from_callable(lambda i, j, p, q: (p + i, q + j), dim_symbol_split=(2, 2)) == AffineMap(
         2,
         2,
         (
-            AffineBinaryOpExpr(
-                AffineBinaryOpKind.Add, AffineExpr.symbol(0), AffineExpr.dimension(0)
-            ),
-            AffineBinaryOpExpr(
-                AffineBinaryOpKind.Add, AffineExpr.symbol(1), AffineExpr.dimension(1)
-            ),
+            AffineBinaryOpExpr(AffineBinaryOpKind.Add, AffineExpr.symbol(0), AffineExpr.dimension(0)),
+            AffineBinaryOpExpr(AffineBinaryOpKind.Add, AffineExpr.symbol(1), AffineExpr.dimension(1)),
         ),
     )
 
@@ -203,20 +184,14 @@ def test_from_callable():
 def test_from_callable_fail():
     with pytest.raises(
         ValueError,
-        match=re.escape(
-            "Argument count mismatch in AffineMap.from_callable: 1 != 1 + 1"
-        ),
+        match=re.escape("Argument count mismatch in AffineMap.from_callable: 1 != 1 + 1"),
     ):
         AffineMap.from_callable(lambda i: (i,), dim_symbol_split=(1, 1))
 
 
 def test_inverse_permutation():
     assert AffineMap.empty().inverse_permutation() == AffineMap.empty()
-    assert AffineMap.from_callable(
-        lambda d0, d1, d2: (d1, d1, d0, d2, d1, d2, d1, d0)
-    ).inverse_permutation() == AffineMap(
-        8, 0, tuple(AffineExpr.dimension(d) for d in (2, 0, 3))
-    )
+    assert AffineMap.from_callable(lambda d0, d1, d2: (d1, d1, d0, d2, d1, d2, d1, d0)).inverse_permutation() == AffineMap(8, 0, tuple(AffineExpr.dimension(d) for d in (2, 0, 3)))
 
 
 def test_drop_dims():
@@ -224,12 +199,8 @@ def test_drop_dims():
     # (d0, d1, d2) -> (d2, d2) with [1,0,1] gives (d0, d1) -> (d1, d1)
     t = True
     f = False
-    assert AffineMap.from_callable(lambda d0, d1, d2: (d1, d2)).drop_dims(
-        [t, f, f]
-    ) == AffineMap.from_callable(lambda d0, d1: (d0, d1))
-    assert AffineMap.from_callable(lambda d0, d1, d2: (d2, d2)).drop_dims(
-        [f, t, f]
-    ) == AffineMap.from_callable(lambda d0, d1: (d1, d1))
+    assert AffineMap.from_callable(lambda d0, d1, d2: (d1, d2)).drop_dims([t, f, f]) == AffineMap.from_callable(lambda d0, d1: (d0, d1))
+    assert AffineMap.from_callable(lambda d0, d1, d2: (d2, d2)).drop_dims([f, t, f]) == AffineMap.from_callable(lambda d0, d1: (d1, d1))
 
 
 def test_affine_expr_affine_expr_binary_simplification():
@@ -288,29 +259,22 @@ def test_minor_identity():
     assert minor_id_3_2 == AffineMap.from_callable(lambda _, d1, d2: (d1, d2))
 
     minor_id_5_3 = AffineMap.minor_identity(5, 3)
-    assert minor_id_5_3 == AffineMap.from_callable(
-        lambda _d0, _d1, d2, d3, d4: (d2, d3, d4)
-    )
+    assert minor_id_5_3 == AffineMap.from_callable(lambda _d0, _d1, d2, d3, d4: (d2, d3, d4))
     # Test non-minor identity maps
     non_minor_id = AffineMap(2, 0, (AffineExpr.dimension(0), AffineExpr.dimension(0)))
     assert not non_minor_id.is_minor_identity()
 
     # Map with symbols is not a minor identity
-    map_with_symbols = AffineMap(
-        2, 1, (AffineExpr.dimension(0), AffineExpr.dimension(1))
-    )
+    map_with_symbols = AffineMap(2, 1, (AffineExpr.dimension(0), AffineExpr.dimension(1)))
     assert not map_with_symbols.is_minor_identity()
 
     # Map with non-consecutive dimensions is not a minor identity
-    non_consecutive = AffineMap(
-        3, 0, (AffineExpr.dimension(0), AffineExpr.dimension(2))
-    )
+    non_consecutive = AffineMap(3, 0, (AffineExpr.dimension(0), AffineExpr.dimension(2)))
     assert not non_consecutive.is_minor_identity()
 
     with pytest.raises(
         ValueError,
-        match="Dimension mismatch, expected dims 2 to be greater than or equal to "
-        "results 3",
+        match="Dimension mismatch, expected dims 2 to be greater than or equal to " "results 3",
     ):
         AffineMap.minor_identity(2, 3)
 
@@ -320,17 +284,9 @@ def test_is_projected_permutation():
     assert not AffineMap(0, 1, ()).is_projected_permutation()
 
     assert AffineMap.from_callable(lambda d0, d1: (d0, d1)).is_projected_permutation()
-    assert not AffineMap.from_callable(
-        lambda d0, d1: (d0, d0)
-    ).is_projected_permutation()
+    assert not AffineMap.from_callable(lambda d0, d1: (d0, d0)).is_projected_permutation()
     assert not AffineMap.from_callable(lambda d0: (d0, d0)).is_projected_permutation()
 
-    assert AffineMap.from_callable(
-        lambda d0, d1, d2: (d1, d0)
-    ).is_projected_permutation()
-    assert not AffineMap.from_callable(
-        lambda d0, d1, d2: (d1, 0, d0)
-    ).is_projected_permutation()
-    assert AffineMap.from_callable(
-        lambda d0, d1, d2: (d1, 0, d0)
-    ).is_projected_permutation(allow_zero_in_results=True)
+    assert AffineMap.from_callable(lambda d0, d1, d2: (d1, d0)).is_projected_permutation()
+    assert not AffineMap.from_callable(lambda d0, d1, d2: (d1, 0, d0)).is_projected_permutation()
+    assert AffineMap.from_callable(lambda d0, d1, d2: (d1, 0, d0)).is_projected_permutation(allow_zero_in_results=True)

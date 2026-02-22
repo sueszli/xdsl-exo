@@ -5,46 +5,7 @@ from collections.abc import Sequence
 import pytest
 
 from xdsl.dialects.arith import ConstantOp
-from xdsl.dialects.builtin import (
-    AnyFloat,
-    ArrayAttr,
-    BFloat16Type,
-    BoolAttr,
-    BytesAttr,
-    ComplexType,
-    DenseArrayBase,
-    DenseIntOrFPElementsAttr,
-    Float16Type,
-    Float32Type,
-    Float64Type,
-    Float80Type,
-    Float128Type,
-    FloatAttr,
-    IndexType,
-    IntAttr,
-    IntegerAttr,
-    IntegerType,
-    MemRefType,
-    NoneAttr,
-    ShapedType,
-    Signedness,
-    StridedLayoutAttr,
-    SymbolRefAttr,
-    TensorType,
-    UnrealizedConversionCastOp,
-    VectorBaseTypeAndRankConstraint,
-    VectorBaseTypeConstraint,
-    VectorRankConstraint,
-    VectorType,
-    f16,
-    f32,
-    f64,
-    i1,
-    i8,
-    i16,
-    i32,
-    i64,
-)
+from xdsl.dialects.builtin import AnyFloat, ArrayAttr, BFloat16Type, BoolAttr, BytesAttr, ComplexType, DenseArrayBase, DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, Float80Type, Float128Type, FloatAttr, IndexType, IntAttr, IntegerAttr, IntegerType, MemRefType, NoneAttr, ShapedType, Signedness, StridedLayoutAttr, SymbolRefAttr, TensorType, UnrealizedConversionCastOp, VectorBaseTypeAndRankConstraint, VectorBaseTypeConstraint, VectorRankConstraint, VectorType, f16, f32, f64, i1, i8, i16, i32, i64
 from xdsl.ir import Attribute
 from xdsl.irdl import ConstraintContext
 from xdsl.utils.exceptions import VerifyException
@@ -131,9 +92,7 @@ def test_IntegerType_size():
     assert IntegerType(64).size == 8
 
 
-@pytest.mark.parametrize(
-    "elem_ty", [IntegerType(1), IntegerType(32), Float16Type(), Float32Type()]
-)
+@pytest.mark.parametrize("elem_ty", [IntegerType(1), IntegerType(32), Float16Type(), Float32Type()])
 def test_ComplexType_size(elem_ty: AnyFloat | IntegerType):
     assert ComplexType(elem_ty).size == elem_ty.size * 2
 
@@ -205,19 +164,13 @@ def test_IntegerAttr_normalize():
 
     with pytest.raises(
         VerifyException,
-        match=re.escape(
-            "Integer value -129 is out of range for type i8 which supports "
-            "values in the range [-128, 256)"
-        ),
+        match=re.escape("Integer value -129 is out of range for type i8 which supports " "values in the range [-128, 256)"),
     ):
         IntegerAttr(-129, 8)
 
     with pytest.raises(
         VerifyException,
-        match=re.escape(
-            "Integer value 256 is out of range for type i8 which supports "
-            "values in the range [-128, 256)"
-        ),
+        match=re.escape("Integer value 256 is out of range for type i8 which supports " "values in the range [-128, 256)"),
     ):
         IntegerAttr(256, 8)
 
@@ -325,9 +278,7 @@ def test_IntegerType_packing():
         match="format requires (-32768)|(\\(-0x7fff -1\\)|\\(-32767 -1\\)) <= number <= (32767)|(0x7fff)",
     ):
         i16.pack((32768,))
-    with pytest.raises(
-        Exception, match="format requires -2147483648 <= number <= 2147483647"
-    ):
+    with pytest.raises(Exception, match="format requires -2147483648 <= number <= 2147483647"):
         i32.pack((2147483648,))
     with pytest.raises(
         Exception,
@@ -340,20 +291,14 @@ def test_IntegerType_packing():
     buffer_complex_i32 = complex_i32.pack(nums_complex_i32)
     unpacked_complex_i32 = complex_i32.unpack(buffer_complex_i32, len(nums_complex_i32))
     assert nums_complex_i32 == unpacked_complex_i32
-    assert (
-        tuple(val for val in complex_i32.iter_unpack(buffer_complex_i32))
-        == nums_complex_i32
-    )
+    assert tuple(val for val in complex_i32.iter_unpack(buffer_complex_i32)) == nums_complex_i32
 
     nums_complex_f32 = ((-128.0, -1.0), (0.0, 1.0), (127.0, 128.0))
     complex_f32 = ComplexType(f32)
     buffer_complex_f32 = complex_f32.pack(nums_complex_f32)
     unpacked_complex_f32 = complex_f32.unpack(buffer_complex_f32, len(nums_complex_f32))
     assert nums_complex_f32 == unpacked_complex_f32
-    assert (
-        tuple(val for val in complex_f32.iter_unpack(buffer_complex_f32))
-        == nums_complex_f32
-    )
+    assert tuple(val for val in complex_f32.iter_unpack(buffer_complex_f32)) == nums_complex_f32
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
@@ -389,9 +334,7 @@ def test_DenseIntOrFPElementsAttr_splat():
     assert tuple(attr_int.get_int_values()) == (4, 4, 4)
     assert attr_int.is_splat()
 
-    attr_float = DenseIntOrFPElementsAttr.create_dense_float(
-        TensorType(f32, [2, 2]), 4.5
-    )
+    attr_float = DenseIntOrFPElementsAttr.create_dense_float(TensorType(f32, [2, 2]), 4.5)
     assert len(attr_float) == 4
     assert tuple(attr_float.get_float_values()) == (4.5, 4.5, 4.5, 4.5)
     assert attr_float.is_splat()
@@ -422,9 +365,7 @@ def test_DenseIntOrFPElementsAttr_initialization():
 
 
 def test_DenseIntOrFPElementsAttr_values():
-    int_attr = DenseIntOrFPElementsAttr.create_dense_int(
-        TensorType(i32, [4]), [1, 2, 3, 4]
-    )
+    int_attr = DenseIntOrFPElementsAttr.create_dense_int(TensorType(i32, [4]), [1, 2, 3, 4])
     assert tuple(int_attr.get_values()) == (1, 2, 3, 4)
     assert tuple(int_attr.iter_values()) == (1, 2, 3, 4)
     assert tuple(int_attr.get_attrs()) == (
@@ -440,9 +381,7 @@ def test_DenseIntOrFPElementsAttr_values():
         IntegerAttr(4, i32),
     )
 
-    index_attr = DenseIntOrFPElementsAttr.create_dense_int(
-        TensorType(IndexType(), [4]), [1, 2, 3, 4]
-    )
+    index_attr = DenseIntOrFPElementsAttr.create_dense_int(TensorType(IndexType(), [4]), [1, 2, 3, 4])
     assert tuple(index_attr.get_values()) == (1, 2, 3, 4)
     assert tuple(index_attr.iter_values()) == (1, 2, 3, 4)
     assert tuple(index_attr.get_attrs()) == (
@@ -542,10 +481,7 @@ def test_vector_constructor(
 def test_vector_verifier_fail(dims: list[int], scalable_dims: list[bool]):
     with pytest.raises(
         VerifyException,
-        match=(
-            f"Number of scalable dimension specifiers {len(scalable_dims)} must equal "
-            f"to number of dimensions {len(dims)}."
-        ),
+        match=(f"Number of scalable dimension specifiers {len(scalable_dims)} must equal " f"to number of dimensions {len(dims)}."),
     ):
         VectorType(i32, dims, ArrayAttr(BoolAttr.from_bool(s) for s in scalable_dims))
 
@@ -714,9 +650,7 @@ def test_dense_as_tuple():
 def test_create_dense_int():
     with pytest.raises(
         ValueError,
-        match=re.escape(
-            "Integer value 99999999 is out of range for type i8 which supports values in the range [-128, 256)"
-        ),
+        match=re.escape("Integer value 99999999 is out of range for type i8 which supports values in the range [-128, 256)"),
     ):
         DenseArrayBase.create_dense_int(i8, (99999999, 255, 256))
 
@@ -740,9 +674,7 @@ def test_strides():
 
 def test_integer_type_repr():
     assert repr(IntegerType(16)) == "IntegerType(16)"
-    assert (
-        repr(IntegerType(16, Signedness.SIGNED)) == "IntegerType(16, Signedness.SIGNED)"
-    )
+    assert repr(IntegerType(16, Signedness.SIGNED)) == "IntegerType(16, Signedness.SIGNED)"
 
 
 def test_vector_constr():

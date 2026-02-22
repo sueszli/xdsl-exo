@@ -1,21 +1,8 @@
 from collections.abc import Sequence
 from typing import Generic
 
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    DictionaryAttr,
-    FunctionType,
-    StringAttr,
-)
-from xdsl.ir import (
-    Attribute,
-    AttributeInvT,
-    BlockArgument,
-    Operation,
-    Region,
-    SSAValue,
-    TypeAttribute,
-)
+from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FunctionType, StringAttr
+from xdsl.ir import Attribute, AttributeInvT, BlockArgument, Operation, Region, SSAValue, TypeAttribute
 from xdsl.irdl import IRDLOperation, var_operand_def
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
@@ -93,9 +80,7 @@ def print_for_op_like(
         printer.print_list((a.type for a in block_iter_args), printer.print_attribute)
         printer.print_string(") ")
 
-    if default_indvar_type is not None and not isinstance(
-        indvar.type, default_indvar_type
-    ):
+    if default_indvar_type is not None and not isinstance(indvar.type, default_indvar_type):
         print_indvar_type()
 
     printer.print_region(
@@ -146,31 +131,19 @@ def parse_for_op_like(
     iter_arg_unresolved_operands: list[UnresolvedOperand] = []
     iter_arg_types: list[Attribute] = []
     if parser.parse_optional_characters("iter_args"):
-        for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, lambda: parse_assignment(parser)
-        ):
+        for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(Parser.Delimiter.PAREN, lambda: parse_assignment(parser)):
             unresolved_iter_args.append(iter_arg)
             iter_arg_unresolved_operands.append(iter_arg_operand)
         parser.parse_characters("->")
-        iter_arg_types = parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, parser.parse_attribute
-        )
+        iter_arg_types = parser.parse_comma_separated_list(Parser.Delimiter.PAREN, parser.parse_attribute)
 
-    iter_arg_operands = parser.resolve_operands(
-        iter_arg_unresolved_operands, iter_arg_types, pos
-    )
+    iter_arg_operands = parser.resolve_operands(iter_arg_unresolved_operands, iter_arg_types, pos)
 
     # set block argument types
-    iter_args = [
-        u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)
-    ]
+    iter_args = [u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)]
 
     if default_indvar_type is not None:
-        indvar_type = (
-            parser.parse_type()
-            if parser.parse_optional_characters(":")
-            else default_indvar_type
-        )
+        indvar_type = parser.parse_type() if parser.parse_optional_characters(":") else default_indvar_type
     assert indvar_type is not None
 
     # set induction variable type
@@ -198,9 +171,7 @@ def print_func_op_like(
         if arg_attrs is not None:
             printer.print_list(
                 zip(body.blocks[0].args, arg_attrs),
-                lambda arg_with_attrs: print_func_argument(
-                    printer, arg_with_attrs[0], arg_with_attrs[1]
-                ),
+                lambda arg_with_attrs: print_func_argument(printer, arg_with_attrs[0], arg_with_attrs[1]),
             )
         else:
             printer.print_list(body.blocks[0].args, printer.print_block_argument)
@@ -212,9 +183,7 @@ def print_func_op_like(
             if res_attrs is not None:
                 printer.print_list(
                     zip(function_type.outputs, res_attrs),
-                    lambda arg_with_attrs: print_func_output(
-                        printer, arg_with_attrs[0], arg_with_attrs[1]
-                    ),
+                    lambda arg_with_attrs: print_func_output(printer, arg_with_attrs[0], arg_with_attrs[1]),
                 )
             else:
                 printer.print_list(function_type.outputs, printer.print_attribute)
@@ -222,18 +191,14 @@ def print_func_op_like(
                 printer.print(")")
     else:
         printer.print_attribute(function_type)
-    printer.print_op_attributes(
-        attributes, reserved_attr_names=reserved_attr_names, print_keyword=True
-    )
+    printer.print_op_attributes(attributes, reserved_attr_names=reserved_attr_names, print_keyword=True)
     printer.print_string(" ", indent=0)
 
     if body.blocks:
         printer.print_region(body, False, False)
 
 
-def parse_func_op_like(
-    parser: Parser, *, reserved_attr_names: Sequence[str]
-) -> tuple[
+def parse_func_op_like(parser: Parser, *, reserved_attr_names: Sequence[str]) -> tuple[
     str,
     Sequence[Attribute],
     Sequence[Attribute],
@@ -283,9 +248,7 @@ def parse_func_op_like(
     if entry_arg_tuples:
         # Check consistency (They should be either all named or none)
         if input_types:
-            parser.raise_error(
-                "Expected all arguments to be named or all arguments to be unnamed."
-            )
+            parser.raise_error("Expected all arguments to be named or all arguments to be unnamed.")
 
         entry_args = [arg for arg, _ in entry_arg_tuples]
         input_types = [arg.type for arg in entry_args]
@@ -301,9 +264,7 @@ def parse_func_op_like(
     return_types: list[Attribute] = []
     res_attrs_raw: list[dict[str, Attribute]] | None = []
     if parser.parse_optional_punctuation("->"):
-        return_attributes = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.PAREN, parse_fun_output
-        )
+        return_attributes = parser.parse_optional_comma_separated_list(parser.Delimiter.PAREN, parse_fun_output)
         if return_attributes is None:
             # output attributes are supported only if return results are enclosed in brackets (...)
             return_types, res_attrs_raw = [parser.parse_type()], None
@@ -336,17 +297,13 @@ def parse_func_op_like(
     )
 
 
-def print_func_argument(
-    printer: Printer, arg: BlockArgument, attrs: DictionaryAttr | None
-):
+def print_func_argument(printer: Printer, arg: BlockArgument, attrs: DictionaryAttr | None):
     printer.print_block_argument(arg)
     if attrs is not None and attrs.data:
         printer.print_op_attributes(attrs.data)
 
 
-def print_func_output(
-    printer: Printer, out_type: Attribute, attrs: DictionaryAttr | None
-):
+def print_func_output(printer: Printer, out_type: Attribute, attrs: DictionaryAttr | None):
     printer.print_attribute(out_type)
     if attrs is not None and attrs.data:
         printer.print_op_attributes(attrs.data)

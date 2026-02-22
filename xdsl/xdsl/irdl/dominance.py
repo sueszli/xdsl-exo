@@ -48,11 +48,7 @@ class DominanceInfo:
             changed = False
             for b in blocks:
                 old = self._dominance[b].copy()
-                self._dominance[b] = {b} | (
-                    set[Block].intersection(*(self._dominance[p] for p in pred[b]))
-                    if pred[b]
-                    else set()
-                )
+                self._dominance[b] = {b} | (set[Block].intersection(*(self._dominance[p] for p in pred[b])) if pred[b] else set())
                 if old != self._dominance[b]:
                     changed = True
 

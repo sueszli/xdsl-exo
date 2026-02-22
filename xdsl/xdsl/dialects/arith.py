@@ -4,55 +4,14 @@ import abc
 from collections.abc import Mapping, Sequence
 from typing import ClassVar, Literal, TypeVar, cast
 
-from xdsl.dialects.builtin import (
-    AnyFloat,
-    AnyFloatConstr,
-    ContainerOf,
-    DenseIntOrFPElementsAttr,
-    FixedBitwidthType,
-    Float16Type,
-    Float32Type,
-    Float64Type,
-    FloatAttr,
-    IndexType,
-    IndexTypeConstr,
-    IntAttr,
-    IntegerAttr,
-    IntegerType,
-    MemRefType,
-    SignlessIntegerConstraint,
-    TensorType,
-    UnrankedTensorType,
-    VectorType,
-)
+from xdsl.dialects.builtin import AnyFloat, AnyFloatConstr, ContainerOf, DenseIntOrFPElementsAttr, FixedBitwidthType, Float16Type, Float32Type, Float64Type, FloatAttr, IndexType, IndexTypeConstr, IntAttr, IntegerAttr, IntegerType, MemRefType, SignlessIntegerConstraint, TensorType, UnrankedTensorType, VectorType
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
 from xdsl.ir import Attribute, BitEnumAttribute, Dialect, Operation, SSAValue
-from xdsl.irdl import (
-    AnyAttr,
-    AnyOf,
-    BaseAttr,
-    IRDLOperation,
-    TypedAttributeConstraint,
-    VarConstraint,
-    base,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    prop_def,
-    result_def,
-    traits_def,
-)
+from xdsl.irdl import AnyAttr, AnyOf, BaseAttr, IRDLOperation, TypedAttributeConstraint, VarConstraint, base, irdl_attr_definition, irdl_op_definition, operand_def, prop_def, result_def, traits_def
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import (
-    Commutative,
-    ConditionallySpeculatable,
-    ConstantLike,
-    HasCanonicalizationPatternsTrait,
-    NoMemoryEffect,
-    Pure,
-)
+from xdsl.traits import Commutative, ConditionallySpeculatable, ConstantLike, HasCanonicalizationPatternsTrait, NoMemoryEffect, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
@@ -134,9 +93,7 @@ class ConstantOp(IRDLOperation):
     result = result_def(_T)
     value = prop_def(
         TypedAttributeConstraint(
-            IntegerAttr.constr(type=SignlessIntegerConstraint | IndexTypeConstr)
-            | BaseAttr[FloatAttr[AnyFloat]](FloatAttr)
-            | BaseAttr(DenseIntOrFPElementsAttr),
+            IntegerAttr.constr(type=SignlessIntegerConstraint | IndexTypeConstr) | BaseAttr[FloatAttr[AnyFloat]](FloatAttr) | BaseAttr(DenseIntOrFPElementsAttr),
             _T,
         )
     )
@@ -153,9 +110,7 @@ class ConstantOp(IRDLOperation):
         if value_type is None:
             value_type = value.get_type()
 
-        super().__init__(
-            operands=[], result_types=[value_type], properties={"value": value}
-        )
+        super().__init__(operands=[], result_types=[value_type], properties={"value": value})
 
     @staticmethod
     def from_int_and_width(
@@ -168,9 +123,7 @@ class ConstantOp(IRDLOperation):
             value_type = IntegerType(value_type)
         return ConstantOp.create(
             result_types=[value_type],
-            properties={
-                "value": IntegerAttr(value, value_type, truncate_bits=truncate_bits)
-            },
+            properties={"value": IntegerAttr(value, value_type, truncate_bits=truncate_bits)},
         )
 
 
@@ -234,15 +187,10 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
         return id(self)
 
 
-class SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(
-    HasCanonicalizationPatternsTrait
-):
+class SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.arith import (
-            SignlessIntegerBinaryOperationConstantProp,
-            SignlessIntegerBinaryOperationZeroOrUnitRight,
-        )
+        from xdsl.transforms.canonicalization_patterns.arith import SignlessIntegerBinaryOperationConstantProp, SignlessIntegerBinaryOperationZeroOrUnitRight
 
         return (
             SignlessIntegerBinaryOperationConstantProp(),
@@ -250,9 +198,7 @@ class SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(
         )
 
 
-class SignlessIntegerBinaryOperationWithOverflow(
-    SignlessIntegerBinaryOperation, abc.ABC
-):
+class SignlessIntegerBinaryOperationWithOverflow(SignlessIntegerBinaryOperation, abc.ABC):
     """
     A generic base class for arith's binary operations on signless integers which
     can overflow.
@@ -264,9 +210,7 @@ class SignlessIntegerBinaryOperationWithOverflow(
         prop_name="overflowFlags",
     )
 
-    assembly_format = (
-        "$lhs `,` $rhs (`overflow` `` $overflowFlags^)? attr-dict `:` type($result)"
-    )
+    assembly_format = "$lhs `,` $rhs (`overflow` `` $overflowFlags^)? attr-dict `:` type($result)"
 
     def __init__(
         self,
@@ -285,9 +229,7 @@ class SignlessIntegerBinaryOperationWithOverflow(
         )
 
 
-class FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait(
-    HasCanonicalizationPatternsTrait
-):
+class FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.arith import FoldConstConstOp
@@ -295,15 +237,10 @@ class FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait(
         return (FoldConstConstOp(),)
 
 
-class FloatingPointLikeBinaryOpHasFastReassociativeCanonicalizationPatternsTrait(
-    HasCanonicalizationPatternsTrait
-):
+class FloatingPointLikeBinaryOpHasFastReassociativeCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.arith import (
-            FoldConstConstOp,
-            FoldConstsByReassociation,
-        )
+        from xdsl.transforms.canonicalization_patterns.arith import FoldConstConstOp, FoldConstsByReassociation
 
         return FoldConstsByReassociation(), FoldConstConstOp()
 
@@ -334,9 +271,7 @@ class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
             properties={"fastmath": flags},
         )
 
-    assembly_format = (
-        "$lhs `,` $rhs (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
-    )
+    assembly_format = "$lhs `,` $rhs (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
 
 
 @irdl_op_definition
@@ -400,26 +335,19 @@ class AddUIExtendedOp(IRDLOperation):
     def verify_(self):
         expected_overflow_type = AddUIExtendedOp.infer_overflow_type(self.lhs.type)
         if self.overflow.type != expected_overflow_type:
-            raise VerifyException(
-                f"overflow type {self.overflow.type} does not "
-                f"match input types {self.lhs.type}. Expected {expected_overflow_type}"
-            )
+            raise VerifyException(f"overflow type {self.overflow.type} does not " f"match input types {self.lhs.type}. Expected {expected_overflow_type}")
 
     @staticmethod
     def infer_overflow_type(input_type: Attribute) -> Attribute:
         if isinstance(input_type, IntegerType):
             return IntegerType(1)
         if isinstance(input_type, VectorType):
-            return VectorType(
-                IntegerType(1), input_type.shape, input_type.scalable_dims
-            )
+            return VectorType(IntegerType(1), input_type.shape, input_type.scalable_dims)
         if isinstance(input_type, UnrankedTensorType):
             return UnrankedTensorType(IntegerType(1))
         if isinstance(input_type, TensorType):
             return TensorType(IntegerType(1), input_type.shape, input_type.encoding)
-        raise ValueError(
-            f"Unsupported input type for {AddUIExtendedOp.name}: {input_type}"
-        )
+        raise ValueError(f"Unsupported input type for {AddUIExtendedOp.name}: {input_type}")
 
 
 @irdl_op_definition
@@ -465,9 +393,7 @@ class MulExtendedBase(IRDLOperation):
     ):
         if result_type is None:
             result_type = SSAValue.get(operand1).type
-        super().__init__(
-            operands=[operand1, operand2], result_types=[result_type, result_type]
-        )
+        super().__init__(operands=[operand1, operand2], result_types=[result_type, result_type])
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
 
@@ -490,9 +416,7 @@ class MulSIExtendedOp(MulExtendedBase):
 class SubiOp(SignlessIntegerBinaryOperationWithOverflow):
     name = "arith.subi"
 
-    traits = traits_def(
-        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
-    )
+    traits = traits_def(Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait())
 
     @staticmethod
     def py_operation(lhs: int, rhs: int) -> int | None:
@@ -561,9 +485,7 @@ class FloorDivSIOp(SignlessIntegerBinaryOperation):
 
     name = "arith.floordivsi"
 
-    traits = traits_def(
-        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
-    )
+    traits = traits_def(Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait())
 
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
@@ -574,9 +496,7 @@ class FloorDivSIOp(SignlessIntegerBinaryOperation):
 class CeilDivSIOp(SignlessIntegerBinaryOperation):
     name = "arith.ceildivsi"
 
-    traits = traits_def(
-        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
-    )
+    traits = traits_def(Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait())
 
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
@@ -703,9 +623,7 @@ class ShLIOp(SignlessIntegerBinaryOperationWithOverflow):
 
     name = "arith.shli"
 
-    traits = traits_def(
-        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
-    )
+    traits = traits_def(Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait())
 
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
@@ -722,9 +640,7 @@ class ShRUIOp(SignlessIntegerBinaryOperation):
 
     name = "arith.shrui"
 
-    traits = traits_def(
-        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
-    )
+    traits = traits_def(Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait())
 
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
@@ -742,9 +658,7 @@ class ShRSIOp(SignlessIntegerBinaryOperation):
 
     name = "arith.shrsi"
 
-    traits = traits_def(
-        Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait()
-    )
+    traits = traits_def(Pure(), SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait())
 
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
@@ -771,9 +685,7 @@ class ComparisonOperation(IRDLOperation):
     """
 
     @staticmethod
-    def _get_comparison_predicate(
-        mnemonic: str, comparison_operations: dict[str, int]
-    ) -> int:
+    def _get_comparison_predicate(mnemonic: str, comparison_operations: dict[str, int]) -> int:
         if mnemonic in comparison_operations:
             return comparison_operations[mnemonic]
         else:
@@ -782,10 +694,7 @@ class ComparisonOperation(IRDLOperation):
     @staticmethod
     def _validate_operand_types(operand1: SSAValue, operand2: SSAValue):
         if operand1.type != operand2.type:
-            raise TypeError(
-                f"Comparison operands must have same type, but "
-                f"provided {operand1.type} and {operand2.type}"
-            )
+            raise TypeError(f"Comparison operands must have same type, but " f"provided {operand1.type} and {operand2.type}")
 
     traits = traits_def(Pure())
 
@@ -875,9 +784,7 @@ class CmpiOp(ComparisonOperation):
         operand2 = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
         input_type = parser.parse_type()
-        (operand1, operand2) = parser.resolve_operands(
-            [operand1, operand2], 2 * [input_type], parser.pos
-        )
+        operand1, operand2 = parser.resolve_operands([operand1, operand2], 2 * [input_type], parser.pos)
 
         return cls(operand1, operand2, arg)
 
@@ -983,9 +890,7 @@ class CmpfOp(ComparisonOperation):
             fastmath = FastMathFlagsAttr("none")
         parser.parse_punctuation(":")
         input_type = parser.parse_type()
-        (operand1, operand2) = parser.resolve_operands(
-            [operand1, operand2], 2 * [input_type], parser.pos
-        )
+        operand1, operand2 = parser.resolve_operands([operand1, operand2], 2 * [input_type], parser.pos)
 
         return cls(operand1, operand2, arg, fastmath)
 
@@ -1006,12 +911,7 @@ class CmpfOp(ComparisonOperation):
 class SelectHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.arith import (
-            SelectConstPattern,
-            SelectFoldCmpfPattern,
-            SelectSamePattern,
-            SelectTrueFalsePattern,
-        )
+        from xdsl.transforms.canonicalization_patterns.arith import SelectConstPattern, SelectFoldCmpfPattern, SelectSamePattern, SelectTrueFalsePattern
 
         return (
             SelectConstPattern(),
@@ -1047,9 +947,7 @@ class SelectOp(IRDLOperation):
         operand3: Operation | SSAValue,
     ):
         operand2 = SSAValue.get(operand2)
-        super().__init__(
-            operands=[operand1, operand2, operand3], result_types=[operand2.type]
-        )
+        super().__init__(operands=[operand1, operand2, operand3], result_types=[operand2.type])
 
     assembly_format = "$cond `,` $lhs `,` $rhs attr-dict `:` type($result)"
 
@@ -1068,9 +966,7 @@ class AddfOp(FloatingPointLikeBinaryOperation):
 class SubfOp(FloatingPointLikeBinaryOperation):
     name = "arith.subf"
 
-    traits = traits_def(
-        Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait()
-    )
+    traits = traits_def(Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -1087,9 +983,7 @@ class MulfOp(FloatingPointLikeBinaryOperation):
 class DivfOp(FloatingPointLikeBinaryOperation):
     name = "arith.divf"
 
-    traits = traits_def(
-        Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait()
-    )
+    traits = traits_def(Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -1104,9 +998,7 @@ class NegfOp(IRDLOperation):
 
     traits = traits_def(Pure())
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
+    def __init__(self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None):
         operand = SSAValue.get(operand)
         super().__init__(
             attributes={"fastmath": fastmath},
@@ -1170,16 +1062,8 @@ class MinnumfOp(FloatingPointLikeBinaryOperation):
 class BitcastOp(IRDLOperation):
     name = "arith.bitcast"
 
-    input = operand_def(
-        signlessIntegerLike
-        | floatingPointLike
-        | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
-    )
-    result = result_def(
-        signlessIntegerLike
-        | floatingPointLike
-        | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
-    )
+    input = operand_def(signlessIntegerLike | floatingPointLike | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint))
+    result = result_def(signlessIntegerLike | floatingPointLike | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint))
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
@@ -1196,18 +1080,14 @@ class BitcastOp(IRDLOperation):
         t1 = get_element_type_or_self(in_type)
         t2 = get_element_type_or_self(res_type)
         if not BitcastOp._are_types_bitcastable(t1, t2):
-            raise VerifyException(
-                "operand and result types must have equal bitwidths or be IndexType"
-            )
+            raise VerifyException("operand and result types must have equal bitwidths or be IndexType")
 
     @staticmethod
     def _are_types_bitcastable(type_a: Attribute, type_b: Attribute) -> bool:
         if isinstance(type_a, IndexType) or isinstance(type_b, IndexType):
             return True
 
-        if isinstance(type_a, FixedBitwidthType) and isinstance(
-            type_b, FixedBitwidthType
-        ):
+        if isinstance(type_a, FixedBitwidthType) and isinstance(type_b, FixedBitwidthType):
             return type_a.bitwidth == type_b.bitwidth
 
         return False
@@ -1232,10 +1112,7 @@ class IndexCastOp(IRDLOperation):
         it = IndexType
         # exactly one of input or result must be of IndexType, no more, no less.
         if not isinstance(self.input.type, it) ^ isinstance(self.result.type, it):
-            raise VerifyException(
-                f"'arith.index_cast' op operand type '{self.input.type}' and result "
-                f"type '{self.input.type}' are cast incompatible"
-            )
+            raise VerifyException(f"'arith.index_cast' op operand type '{self.input.type}' and result " f"type '{self.input.type}' are cast incompatible")
 
 
 class FloatingPointToIntegerBaseOp(IRDLOperation, abc.ABC):
@@ -1326,9 +1203,7 @@ class TruncIOp(IRDLOperation):
         assert isinstance(self.input.type, IntegerType)
         assert isinstance(self.result.type, IntegerType)
         if not self.result.type.width.data < self.input.type.width.data:
-            raise VerifyException(
-                "Destination bit-width must be smaller than the input bit-width"
-            )
+            raise VerifyException("Destination bit-width must be smaller than the input bit-width")
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
@@ -1349,9 +1224,7 @@ class ExtSIOp(IRDLOperation):
         assert isinstance(self.input.type, IntegerType)
         assert isinstance(self.result.type, IntegerType)
         if not self.result.type.width.data > self.input.type.width.data:
-            raise VerifyException(
-                "Destination bit-width must be larger than the input bit-width"
-            )
+            raise VerifyException("Destination bit-width must be larger than the input bit-width")
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
@@ -1370,9 +1243,7 @@ class ExtUIOp(IRDLOperation):
         assert isinstance(self.input.type, IntegerType)
         assert isinstance(self.result.type, IntegerType)
         if not self.result.type.width.data > self.input.type.width.data:
-            raise VerifyException(
-                "Destination bit-width must be larger than the input bit-width"
-            )
+            raise VerifyException("Destination bit-width must be larger than the input bit-width")
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 

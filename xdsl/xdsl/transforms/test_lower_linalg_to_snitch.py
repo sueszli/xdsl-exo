@@ -1,39 +1,10 @@
 from dataclasses import dataclass
 
-from xdsl.backend.riscv.lowering import (
-    convert_arith_to_riscv,
-    convert_arith_to_riscv_snitch,
-    convert_func_to_riscv_func,
-    convert_memref_to_riscv,
-    convert_riscv_scf_to_riscv_cf,
-    convert_scf_to_riscv_scf,
-    convert_snitch_stream_to_snitch,
-)
+from xdsl.backend.riscv.lowering import convert_arith_to_riscv, convert_arith_to_riscv_snitch, convert_func_to_riscv_func, convert_memref_to_riscv, convert_riscv_scf_to_riscv_cf, convert_scf_to_riscv_scf, convert_snitch_stream_to_snitch
 from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.passes import ModulePass
-from xdsl.transforms import (
-    canonicalize,
-    convert_linalg_to_memref_stream,
-    convert_memref_stream_to_loops,
-    convert_memref_stream_to_snitch_stream,
-    convert_riscv_scf_for_to_frep,
-    lower_affine,
-    lower_snitch,
-    memref_stream_fold_fill,
-    memref_stream_generalize_fill,
-    memref_stream_infer_fill,
-    memref_stream_interleave,
-    memref_stream_legalize,
-    memref_stream_tile_outer_loops,
-    memref_stream_unnest_out_parameters,
-    memref_streamify,
-    reconcile_unrealized_casts,
-    riscv_register_allocation,
-    riscv_scf_loop_range_folding,
-    scf_for_loop_flatten,
-    snitch_register_allocation,
-)
+from xdsl.transforms import canonicalize, convert_linalg_to_memref_stream, convert_memref_stream_to_loops, convert_memref_stream_to_snitch_stream, convert_riscv_scf_for_to_frep, lower_affine, lower_snitch, memref_stream_fold_fill, memref_stream_generalize_fill, memref_stream_infer_fill, memref_stream_interleave, memref_stream_legalize, memref_stream_tile_outer_loops, memref_stream_unnest_out_parameters, memref_streamify, reconcile_unrealized_casts, riscv_register_allocation, riscv_scf_loop_range_folding, scf_for_loop_flatten, snitch_register_allocation
 
 OPTIMISE_MEMREF_STREAM_PASSES: tuple[ModulePass, ...] = (
     canonicalize.CanonicalizePass(),

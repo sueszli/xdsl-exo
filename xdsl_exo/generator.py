@@ -4,6 +4,7 @@ from typing import TypeAlias
 
 from exo.API import Sym
 from exo.core.LoopIR import LoopIR, T
+
 from xdsl.builder import Builder
 from xdsl.dialects.arith import AddfOp, AddiOp, AndIOp, CmpfOp, CmpiOp, ConstantOp, DivfOp, DivSIOp, FastMathFlagsAttr, MulfOp, MuliOp, NegfOp, OrIOp, RemSIOp, SubfOp, SubiOp
 from xdsl.dialects.builtin import I8, I16, I32, BoolAttr, Float16Type, Float32Type, Float64Type, FloatAttr, FunctionType, IndexType, IntAttr, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StringAttr, f16, f32, f64, i1, i8, i16, i32, i64
@@ -14,7 +15,6 @@ from xdsl.dialects.test import TestOp
 from xdsl.ir import Attribute, Block, BlockArgument, OpResult, Region, SSAValue
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.scoped_dict import ScopedDict
-
 from xdsl_exo.dialects.exo import AllocOp, AssignOp, ExternOp, FreeOp, InstrOp, IntervalOp, ReadOp, ReduceOp, WindowOp
 from xdsl_exo.dialects.index import CastsOp
 

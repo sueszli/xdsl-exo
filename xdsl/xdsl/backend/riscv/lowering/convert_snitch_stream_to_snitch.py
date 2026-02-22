@@ -1,18 +1,8 @@
 from xdsl.context import Context
-from xdsl.dialects import (
-    builtin,
-    riscv,
-    snitch,
-    snitch_stream,
-)
+from xdsl.dialects import builtin, riscv, snitch, snitch_stream
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 
 
@@ -60,21 +50,14 @@ def insert_stride_pattern_ops(
 
     rank = len(ub)
     if rank > 4:
-        raise NotImplementedError(
-            "Only 1d, 2d, 3d, or 4d loop stride patterns are supported"
-        )
+        raise NotImplementedError("Only 1d, 2d, 3d, or 4d loop stride patterns are supported")
 
     ints = tuple(builtin.IntAttr(i) for i in range(rank))
 
     b_ops = tuple(riscv.LiOp(b.data) for b in reversed(ub.data))
     new_b_ops = tuple(riscv.AddiOp(b_op.rd, -1) for b_op in b_ops)
-    set_bound_ops = tuple(
-        snitch.SsrSetDimensionBoundOp(new_b_op, dm, i)
-        for (i, new_b_op) in zip(ints, new_b_ops, strict=True)
-    )
-    interleaved_b_set_bound_ops = tuple(
-        x for t in zip(new_b_ops, set_bound_ops) for x in t
-    )
+    set_bound_ops = tuple(snitch.SsrSetDimensionBoundOp(new_b_op, dm, i) for (i, new_b_op) in zip(ints, new_b_ops, strict=True))
+    interleaved_b_set_bound_ops = tuple(x for t in zip(new_b_ops, set_bound_ops) for x in t)
     s_ops = tuple(riscv.LiOp(s.data) for s in reversed(strides.data))
 
     new_ops: list[Operation] = [
@@ -106,9 +89,7 @@ def insert_stride_pattern_ops(
 
 class LowerStreamingRegionOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_stream.StreamingRegionOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch_stream.StreamingRegionOp, rewriter: PatternRewriter, /):
         # Set up stream stride patterns
         # Set up stream pointers
         # Insert stream begin
@@ -152,9 +133,7 @@ class LowerStreamingRegionOp(RewritePattern):
                 dm=builtin.IntAttr(dm),
                 dimension=builtin.IntAttr(pattern.rank() - 1),
             )
-            for input, pattern, dm in zip(
-                op.inputs, patterns[:input_count], dms[:input_count], strict=True
-            )
+            for input, pattern, dm in zip(op.inputs, patterns[:input_count], dms[:input_count], strict=True)
         )
 
         rewriter.insert_op_before_matched_op(set_source_ops)
@@ -165,17 +144,13 @@ class LowerStreamingRegionOp(RewritePattern):
                 dm=builtin.IntAttr(dm),
                 dimension=builtin.IntAttr(pattern.rank() - 1),
             )
-            for output, pattern, dm in zip(
-                op.outputs, patterns[input_count:], dms[input_count:], strict=True
-            )
+            for output, pattern, dm in zip(op.outputs, patterns[input_count:], dms[input_count:], strict=True)
         )
         rewriter.insert_op_before_matched_op(set_destination_ops)
 
         block = op.body.block
 
-        rewriter.insert_op_before_matched_op(
-            enable_op := snitch.SsrEnableOp(block.arg_types)
-        )
+        rewriter.insert_op_before_matched_op(enable_op := snitch.SsrEnableOp(block.arg_types))
 
         for val, arg in zip(enable_op.streams, block.args):
             arg.replace_by(val)
@@ -195,6 +170,4 @@ class ConvertSnitchStreamToSnitch(ModulePass):
         # StridedWrite and StridePattern ops are rewritten to remove their results, so we
         # have to first lower the ops that use the results in `stream`, and then the ops
         # themselves.
-        PatternRewriteWalker(
-            LowerStreamingRegionOp(), apply_recursively=False
-        ).rewrite_module(op)
+        PatternRewriteWalker(LowerStreamingRegionOp(), apply_recursively=False).rewrite_module(op)

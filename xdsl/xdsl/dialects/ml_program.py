@@ -2,25 +2,9 @@ from __future__ import annotations
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import (
-    NoneType,
-    StringAttr,
-    SymbolRefAttr,
-    UnitAttr,
-)
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    IRDLOperation,
-    attr_def,
-    irdl_op_definition,
-    opt_attr_def,
-    result_def,
-    traits_def,
-)
+from xdsl.dialects.builtin import NoneType, StringAttr, SymbolRefAttr, UnitAttr
+from xdsl.ir import Attribute, Dialect, TypeAttribute
+from xdsl.irdl import IRDLOperation, attr_def, irdl_op_definition, opt_attr_def, result_def, traits_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import SymbolOpInterface

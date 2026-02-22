@@ -6,9 +6,7 @@ from collections.abc import Sequence
 
 from xdsl.context import Context
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters import (
-    register_implementations,
-)
+from xdsl.interpreters import register_implementations
 from xdsl.parser import Parser
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.traits import CallableOpInterface
@@ -60,8 +58,7 @@ class xDSLRunMain(CommandLineTool):
             "--args",
             default="",
             type=str,
-            help="Arguments to pass to entry function. Comma-separated list of xDSL "
-            "Attributes, that will be parsed and converted by the interpreter.",
+            help="Arguments to pass to entry function. Comma-separated list of xDSL " "Attributes, that will be parsed and converted by the interpreter.",
         )
         return super().register_all_arguments(arg_parser)
 
@@ -74,28 +71,19 @@ class xDSLRunMain(CommandLineTool):
             module = self.parse_chunk(input, file_extension)
             if module is not None:
                 module.verify()
-                interpreter = Interpreter(
-                    module, index_bitwidth=self.args.index_bitwidth
-                )
+                interpreter = Interpreter(module, index_bitwidth=self.args.index_bitwidth)
                 self.register_implementations(interpreter)
                 symbol = self.args.symbol
                 assert isinstance(symbol, str)
                 parser = Parser(self.ctx, self.args.args, "args")
-                runner_args = parser.parse_optional_undelimited_comma_separated_list(
-                    parser.parse_optional_attribute, parser.parse_attribute
-                )
+                runner_args = parser.parse_optional_undelimited_comma_separated_list(parser.parse_optional_attribute, parser.parse_attribute)
                 if runner_args is None:
                     runner_args = ()
                 op = interpreter.get_op_for_symbol(symbol)
                 trait = op.get_trait(CallableOpInterface)
                 assert trait is not None
 
-                args = tuple(
-                    interpreter.value_for_attribute(attr, attr_type)
-                    for attr, attr_type in zip(
-                        runner_args, trait.get_argument_types(op)
-                    )
-                )
+                args = tuple(interpreter.value_for_attribute(attr, attr_type) for attr, attr_type in zip(runner_args, trait.get_argument_types(op)))
                 result = interpreter.call_op(op, args)
                 if self.args.verbose:
                     if result:

@@ -173,10 +173,7 @@ class MLIRTokenKind(Enum):
     def get_punctuation_kind_from_name(
         spelling: PunctuationSpelling,
     ) -> MLIRTokenKind:
-        assert MLIRTokenKind.is_spelling_of_punctuation(spelling), (
-            "Kind.get_punctuation_kind_from_name: spelling is not a "
-            "valid punctuation spelling!"
-        )
+        assert MLIRTokenKind.is_spelling_of_punctuation(spelling), "Kind.get_punctuation_kind_from_name: spelling is not a " "valid punctuation spelling!"
         return MLIRTokenKind.get_punctuation_spelling_to_kind_dict()[spelling]
 
     def get_int_value(self, span: Span):
@@ -419,9 +416,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
 
         The first character is expected to have already been parsed.
         """
-        assert self.pos != 0, (
-            "First prefixed identifier character must have been parsed"
-        )
+        assert self.pos != 0, "First prefixed identifier character must have been parsed"
         first_char = self.input.at(self.pos - 1)
         if first_char == "#":
             kind = MLIRTokenKind.HASH_IDENT
@@ -430,9 +425,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         elif first_char == "^":
             kind = MLIRTokenKind.CARET_IDENT
         else:
-            assert first_char == "%", (
-                "First prefixed identifier character must have been parsed correctly"
-            )
+            assert first_char == "%", "First prefixed identifier character must have been parsed correctly"
             kind = MLIRTokenKind.PERCENT_IDENT
 
         match = self._consume_regex(self._suffix_id)
@@ -510,12 +503,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         # Hexadecimal case, we only parse it if we see the first '0x' characters,
         # and then a first digit.
         # Otherwise, a string like '0xi32' would not be parsed correctly.
-        if (
-            first_digit == "0"
-            and self._peek_chars() == "x"
-            and self._is_in_bounds(2)
-            and cast(str, self.input.at(self.pos + 1)) in hexdigits
-        ):
+        if first_digit == "0" and self._peek_chars() == "x" and self._is_in_bounds(2) and cast(str, self.input.at(self.pos + 1)) in hexdigits:
             self._consume_chars(2)
             self._consume_regex(self._hexdigits_star_regex)
             return self._form_token(MLIRTokenKind.INTEGER_LIT, start_pos)

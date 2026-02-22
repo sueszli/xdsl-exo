@@ -1,9 +1,4 @@
-from xdsl.dialects.arm_neon import (
-    NeonArrangement,
-    NeonArrangementAttr,
-    NEONRegisterType,
-    VectorWithArrangement,
-)
+from xdsl.dialects.arm_neon import NeonArrangement, NeonArrangementAttr, NEONRegisterType, VectorWithArrangement
 
 
 def test_assembly_str_without_index():

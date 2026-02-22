@@ -13,22 +13,11 @@ def eqsat_extract(block: Block):
                 min_cost_operand = op.operands[min_cost_index.data]
                 has_uses = bool(op.result.uses)
                 if has_uses:
-                    ops_to_erase.update(
-                        operand.op
-                        for index, operand in enumerate(op.operands)
-                        if index != min_cost_index.data
-                        and isinstance(operand, OpResult)
-                    )
+                    ops_to_erase.update(operand.op for index, operand in enumerate(op.operands) if index != min_cost_index.data and isinstance(operand, OpResult))
                 else:
-                    ops_to_erase.update(
-                        operand.op
-                        for operand in op.operands
-                        if isinstance(operand, OpResult)
-                    )
+                    ops_to_erase.update(operand.op for operand in op.operands if isinstance(operand, OpResult))
                 if isinstance(min_cost_operand, OpResult):
-                    assert eqsat.EQSAT_COST_LABEL in min_cost_operand.op.attributes, (
-                        min_cost_operand.op
-                    )
+                    assert eqsat.EQSAT_COST_LABEL in min_cost_operand.op.attributes, min_cost_operand.op
                     del min_cost_operand.op.attributes[eqsat.EQSAT_COST_LABEL]
                 Rewriter.replace_op(op, (), new_results=(min_cost_operand,))
             continue
@@ -48,10 +37,6 @@ class EqsatExtractPass(ModulePass):
     name = "eqsat-extract"
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        eclass_parent_blocks = set(
-            o.parent
-            for o in op.walk()
-            if o.parent is not None and isinstance(o, eqsat.EClassOp)
-        )
+        eclass_parent_blocks = set(o.parent for o in op.walk() if o.parent is not None and isinstance(o, eqsat.EClassOp))
         for block in eclass_parent_blocks:
             eqsat_extract(block)

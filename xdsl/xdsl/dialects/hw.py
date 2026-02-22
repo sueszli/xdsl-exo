@@ -12,51 +12,12 @@ from dataclasses import InitVar, dataclass, field
 from enum import Enum
 from typing import NamedTuple, overload
 
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    FlatSymbolRefAttr,
-    FlatSymbolRefAttrConstr,
-    IntAttr,
-    LocationAttr,
-    ParameterDef,
-    StringAttr,
-    SymbolRefAttr,
-)
-from xdsl.ir import (
-    Attribute,
-    Data,
-    Dialect,
-    OpaqueSyntaxAttribute,
-    Operation,
-    ParametrizedAttribute,
-    Region,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    IRDLOperation,
-    SingleBlockRegion,
-    attr_def,
-    irdl_attr_definition,
-    irdl_op_definition,
-    lazy_traits_def,
-    opt_attr_def,
-    region_def,
-    traits_def,
-    var_operand_def,
-    var_result_def,
-)
+from xdsl.dialects.builtin import ArrayAttr, FlatSymbolRefAttr, FlatSymbolRefAttrConstr, IntAttr, LocationAttr, ParameterDef, StringAttr, SymbolRefAttr
+from xdsl.ir import Attribute, Data, Dialect, OpaqueSyntaxAttribute, Operation, ParametrizedAttribute, Region, SSAValue, TypeAttribute
+from xdsl.irdl import IRDLOperation, SingleBlockRegion, attr_def, irdl_attr_definition, irdl_op_definition, lazy_traits_def, opt_attr_def, region_def, traits_def, var_operand_def, var_result_def
 from xdsl.parser import AttrParser, BaseParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import (
-    HasParent,
-    IsolatedFromAbove,
-    IsTerminator,
-    OpTrait,
-    SingleBlockImplicitTerminator,
-    SymbolOpInterface,
-    SymbolTable,
-)
+from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator, OpTrait, SingleBlockImplicitTerminator, SymbolOpInterface, SymbolTable
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -85,9 +46,7 @@ class InnerSymTarget:
         return not self.is_field() and not self.is_port()
 
     @classmethod
-    def get_target_for_subfield(
-        cls, base: "InnerSymTarget", field_id: int
-    ) -> "InnerSymTarget":
+    def get_target_for_subfield(cls, base: "InnerSymTarget", field_id: int) -> "InnerSymTarget":
         """
         Return a target to the specified field within the given base.
         `field_id` is relative to the specified base target.
@@ -112,9 +71,7 @@ class InnerRefAttr(ParametrizedAttribute):
         super().__init__((SymbolRefAttr(module), name))
 
     @classmethod
-    def get_from_operation(
-        cls, op: Operation, sym_name: StringAttr, module_name: StringAttr
-    ) -> "InnerRefAttr":
+    def get_from_operation(cls, op: Operation, sym_name: StringAttr, module_name: StringAttr) -> "InnerRefAttr":
         """Get the InnerRefAttr for an operation and add the sym on it."""
         # NB: declared upstream, but no implementation to be found
         raise NotImplementedError
@@ -128,10 +85,7 @@ class InnerRefAttr(ParametrizedAttribute):
         parser.parse_punctuation("<")
         symbol_ref = parser.parse_attribute()
         parser.parse_punctuation(">")
-        if (
-            not isinstance(symbol_ref, SymbolRefAttr)
-            or len(symbol_ref.nested_references) != 1
-        ):
+        if not isinstance(symbol_ref, SymbolRefAttr) or len(symbol_ref.nested_references) != 1:
             parser.raise_error("Expected a module and symbol reference")
         return [
             SymbolRefAttr(symbol_ref.root_reference),
@@ -154,17 +108,13 @@ class InnerSymbolTableTrait(OpTrait):
         # Insist that ops with InnerSymbolTable's provide a Symbol, this is
         # essential to how InnerRef's work.
         if not op.has_trait(trait := SymbolOpInterface):
-            raise VerifyException(
-                f"Operation {op.name} must have trait {trait.__name__}"
-            )
+            raise VerifyException(f"Operation {op.name} must have trait {trait.__name__}")
 
         # InnerSymbolTable's must be directly nested within an InnerRefNamespaceTrait (or similar),
         # however don’t test InnerRefNamespace’s symbol lookups
         parent = op.parent_op()
         if parent is None or not parent.has_trait(trait := InnerRefNamespaceLike):
-            raise VerifyException(
-                f"Operation {op.name} with trait {type(self).__name__} must have a parent with trait {trait.__name__}"
-            )
+            raise VerifyException(f"Operation {op.name} with trait {type(self).__name__} must have a parent with trait {trait.__name__}")
 
 
 @dataclass
@@ -172,9 +122,7 @@ class InnerSymbolTable:
     """A class for lookups in inner symbol tables. Called InnerSymbolTable in upstream (name clash with trait)."""
 
     op: InitVar[Operation | None] = None
-    symbol_table: dict[StringAttr, InnerSymTarget] = field(
-        default_factory=dict[StringAttr, InnerSymTarget]
-    )
+    symbol_table: dict[StringAttr, InnerSymTarget] = field(default_factory=dict[StringAttr, InnerSymTarget])
 
     def __post_init__(self, op: Operation | None = None) -> None:
         pass
@@ -185,26 +133,20 @@ class InnerSymbolTable:
 class InnerSymbolTableCollection:
     """This class represents a collection of InnerSymbolTable."""
 
-    symbol_tables: dict[Operation, InnerSymbolTable] = field(
-        default_factory=dict[Operation, InnerSymbolTable], init=False
-    )
+    symbol_tables: dict[Operation, InnerSymbolTable] = field(default_factory=dict[Operation, InnerSymbolTable], init=False)
     op: InitVar[Operation | None] = None
 
     def __post_init__(self, op: Operation | None = None) -> None:
         if op is None:
             return
         if not op.has_trait(trait := InnerRefNamespaceTrait):
-            raise VerifyException(
-                f"Operation {op.name} should have {trait.__name__} trait"
-            )
+            raise VerifyException(f"Operation {op.name} should have {trait.__name__} trait")
         self.populate_and_verify_tables(op)
 
     def get_inner_symbol_table(self, op: Operation) -> InnerSymbolTable:
         """Returns the InnerSymolTable trait, ensuring `op` is in the collection"""
         if not op.has_trait(trait := InnerSymbolTableTrait):
-            raise VerifyException(
-                f"Operation {op.name} should have {trait.__name__} trait"
-            )
+            raise VerifyException(f"Operation {op.name} should have {trait.__name__} trait")
         if op not in self.symbol_tables:
             self.symbol_tables[op] = InnerSymbolTable(op)
         return self.symbol_tables[op]
@@ -212,16 +154,12 @@ class InnerSymbolTableCollection:
     def populate_and_verify_tables(self, inner_ref_ns_op: Operation):
         """Populate tables for all InnerSymbolTable operations in the given InnerRefNamespace operation, verifying each."""
         # Gather top-level operations that have the InnerSymbolTable trait.
-        inner_sym_table_ops = (
-            op for op in inner_ref_ns_op.walk() if op.has_trait(InnerSymbolTableTrait)
-        )
+        inner_sym_table_ops = (op for op in inner_ref_ns_op.walk() if op.has_trait(InnerSymbolTableTrait))
 
         # Construct the tables
         for op in inner_sym_table_ops:
             if op in self.symbol_tables:
-                raise VerifyException(
-                    f"Trying to insert the same op twice in symbol tables: {op}"
-                )
+                raise VerifyException(f"Trying to insert the same op twice in symbol tables: {op}")
             self.symbol_tables[op] = InnerSymbolTable(op)
 
 
@@ -242,9 +180,7 @@ class InnerRefNamespaceTrait(OpTrait):
 
     def verify(self, op: Operation):
         if not op.has_trait(trait := SymbolTable):
-            raise VerifyException(
-                f"Operation {op.name} must have trait {trait.__name__}"
-            )
+            raise VerifyException(f"Operation {op.name} must have trait {trait.__name__}")
 
         # Upstreams verifies that len(op.regions) == 1 and len(op.regions[0].blocks) == 1
         # however this is already checked as part of SymbolTable, so would be redundant to re-check here
@@ -308,9 +244,7 @@ class InnerSymPropertiesAttr(ParametrizedAttribute):
         super().__init__([sym, field_id, sym_visibility])
 
     @classmethod
-    def parse_parameters(
-        cls, parser: AttrParser
-    ) -> tuple[StringAttr, IntAttr, StringAttr]:
+    def parse_parameters(cls, parser: AttrParser) -> tuple[StringAttr, IntAttr, StringAttr]:
         parser.parse_punctuation("<")
         sym_name = parser.parse_symbol_name()
         parser.parse_punctuation(",")
@@ -337,9 +271,7 @@ class InnerSymPropertiesAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class InnerSymAttr(
-    ParametrizedAttribute, Iterable[InnerSymPropertiesAttr], OpaqueSyntaxAttribute
-):
+class InnerSymAttr(ParametrizedAttribute, Iterable[InnerSymPropertiesAttr], OpaqueSyntaxAttribute):
     """Inner symbol definition
 
     Defines the properties of an inner_sym attribute. It specifies the symbol name and symbol
@@ -363,18 +295,11 @@ class InnerSymAttr(
     def __init__(self, syms: str | StringAttr) -> None: ...
 
     @overload
-    def __init__(
-        self, syms: Sequence[InnerSymPropertiesAttr] | ArrayAttr[InnerSymPropertiesAttr]
-    ) -> None: ...
+    def __init__(self, syms: Sequence[InnerSymPropertiesAttr] | ArrayAttr[InnerSymPropertiesAttr]) -> None: ...
 
     def __init__(
         self,
-        syms: (
-            str
-            | StringAttr
-            | Sequence[InnerSymPropertiesAttr]
-            | ArrayAttr[InnerSymPropertiesAttr]
-        ) = [],
+        syms: str | StringAttr | Sequence[InnerSymPropertiesAttr] | ArrayAttr[InnerSymPropertiesAttr] = [],
     ) -> None:
         if isinstance(syms, str | StringAttr):
             syms = [InnerSymPropertiesAttr(syms)]
@@ -410,9 +335,7 @@ class InnerSymAttr(
         return InnerSymAttr([prop for prop in self.props if prop.field_id != field_id])
 
     @classmethod
-    def parse_parameters(
-        cls, parser: AttrParser
-    ) -> list[ArrayAttr[InnerSymPropertiesAttr]]:
+    def parse_parameters(cls, parser: AttrParser) -> list[ArrayAttr[InnerSymPropertiesAttr]]:
         if (sym_name := parser.parse_optional_symbol_name()) is not None:
             return [ArrayAttr([InnerSymPropertiesAttr(sym_name, 0, "public")])]
 
@@ -423,12 +346,7 @@ class InnerSymAttr(
         return [ArrayAttr(InnerSymPropertiesAttr(*tup) for tup in data)]
 
     def print_parameters(self, printer: Printer):
-        if (
-            len(self) == 1
-            and (sym_name := self.get_sym_name()) is not None
-            and self.props.data[0].sym_visibility.data == "public"
-            and self.props.data[0].field_id.data == 0
-        ):
+        if len(self) == 1 and (sym_name := self.get_sym_name()) is not None and self.props.data[0].sym_visibility.data == "public" and self.props.data[0].field_id.data == 0:
             printer.print_string("@")
             printer.print_string(sym_name.data)
         else:
@@ -521,10 +439,7 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         def parse_port() -> ModulePort:
             direction = Direction.parse(parser)
-            name = (
-                parser.parse_optional_identifier()
-                or parser.parse_optional_str_literal()
-            )
+            name = parser.parse_optional_identifier() or parser.parse_optional_str_literal()
             if name is None:
                 parser.raise_error("expected port name as identifier or string literal")
 
@@ -533,11 +448,7 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
 
             return ModulePort([StringAttr(name), typ, DirectionAttr(direction)])
 
-        return [
-            ArrayAttr(
-                parser.parse_comma_separated_list(parser.Delimiter.ANGLE, parse_port)
-            )
-        ]
+        return [ArrayAttr(parser.parse_comma_separated_list(parser.Delimiter.ANGLE, parse_port))]
 
     def print_parameters(self, printer: Printer):
         def print_port(port: ModulePort):
@@ -559,9 +470,7 @@ class ParamDeclAttr(ParametrizedAttribute):
     type: ParameterDef[TypeAttribute]
 
     @classmethod
-    def parse_free_standing_parameters(
-        cls, parser: AttrParser, only_accept_string_literal_name: bool = False
-    ) -> Sequence[Attribute]:
+    def parse_free_standing_parameters(cls, parser: AttrParser, only_accept_string_literal_name: bool = False) -> Sequence[Attribute]:
         """
         Parses the parameter declaration without the encompassing angle brackets.
         If only_accept_string_literal_name is True, the parser will not accept
@@ -572,9 +481,7 @@ class ParamDeclAttr(ParametrizedAttribute):
         if name is None:
             if only_accept_string_literal_name:
                 parser.raise_error("expected parameter name as string literal")
-            name = parser.expect(
-                parser.parse_optional_identifier, "expected parameter name"
-            )
+            name = parser.expect(parser.parse_optional_identifier, "expected parameter name")
         parser.parse_punctuation(":")
         typ = parser.parse_attribute()
         if not isinstance(typ, TypeAttribute):
@@ -589,13 +496,9 @@ class ParamDeclAttr(ParametrizedAttribute):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
-            return cls.parse_free_standing_parameters(
-                parser, only_accept_string_literal_name=True
-            )
+            return cls.parse_free_standing_parameters(parser, only_accept_string_literal_name=True)
 
-    def print_free_standing_parameters(
-        self, printer: Printer, print_name_as_string_literal: bool = False
-    ):
+    def print_free_standing_parameters(self, printer: Printer, print_name_as_string_literal: bool = False):
         """
         Prints the parameter declaration without the encompassing angle brackets.
         If print_name_as_string_literal is True, the name of the parameter will
@@ -610,9 +513,7 @@ class ParamDeclAttr(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer):
         with printer.in_angle_brackets():
-            self.print_free_standing_parameters(
-                printer, print_name_as_string_literal=True
-            )
+            self.print_free_standing_parameters(printer, print_name_as_string_literal=True)
 
 
 class HWModuleLike(OpTrait, abc.ABC):
@@ -678,10 +579,7 @@ class ParsedModuleHeader(NamedTuple):
     @classmethod
     def parse(cls, parser: Parser) -> "ParsedModuleHeader":
         def parse_optional_port_name() -> str | None:
-            return (
-                parser.parse_optional_identifier()
-                or parser.parse_optional_str_literal()
-            )
+            return parser.parse_optional_identifier() or parser.parse_optional_str_literal()
 
         def parse_module_arg() -> ParsedModuleHeader.ModuleArg:
             port_dir = Direction.parse(parser, short=True)
@@ -694,9 +592,7 @@ class ParsedModuleHeader(NamedTuple):
                 port_ssa = None
                 port_name = parse_optional_port_name()
                 if port_name is None:
-                    parser.raise_error(
-                        "expected identifier or string literal as port name"
-                    )
+                    parser.raise_error("expected identifier or string literal as port name")
             parser.parse_punctuation(":")
             port_type = parser.parse_attribute()
             if not isinstance(port_type, TypeAttribute):
@@ -709,9 +605,7 @@ class ParsedModuleHeader(NamedTuple):
             if port_ssa is not None:
                 port_ssa = Parser.Argument(port_ssa.name, port_type)
 
-            return ParsedModuleHeader.ModuleArg(
-                port_dir, port_name, port_ssa, port_type, port_attrs, port_location
-            )
+            return ParsedModuleHeader.ModuleArg(port_dir, port_name, port_ssa, port_type, port_attrs, port_location)
 
         sym_visibility = parser.parse_optional_visibility_keyword()
         name = parser.parse_symbol_name()
@@ -719,9 +613,7 @@ class ParsedModuleHeader(NamedTuple):
             parser.Delimiter.ANGLE,
             lambda: ParamDeclAttr(ParamDeclAttr.parse_free_standing_parameters(parser)),
         )
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parse_module_arg
-        )
+        args = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parse_module_arg)
 
         return cls(
             visibility=sym_visibility,
@@ -872,11 +764,7 @@ class HWModuleOp(IRDLOperation):
             if (next_block_arg := next(block_args, None)) is None:
                 raise VerifyException("missing block arguments in module block")
             if port.type != next_block_arg.type:
-                raise VerifyException(
-                    f"input-like port #{i} has inconsistent type with its matching "
-                    f"module block argument (expected {port.type}, block argument "
-                    f"is of type {next_block_arg.type})"
-                )
+                raise VerifyException(f"input-like port #{i} has inconsistent type with its matching " f"module block argument (expected {port.type}, block argument " f"is of type {next_block_arg.type})")
         if next(block_args, None) is not None:
             raise VerifyException("too many block arguments in module block")
 
@@ -884,9 +772,7 @@ class HWModuleOp(IRDLOperation):
     def parse(cls, parser: Parser) -> "HWModuleOp":
         module_header = ParsedModuleHeader.parse(parser)
 
-        attrs = parser.parse_optional_attr_dict_with_keyword(
-            _MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT
-        )
+        attrs = parser.parse_optional_attr_dict_with_keyword(_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT)
 
         # Create a body region suitable for the ports of the module.
         region_args = tuple(arg.port_ssa for arg in module_header.args if arg.port_ssa)
@@ -972,9 +858,7 @@ class HWModuleExternOp(IRDLOperation):
     def parse(cls, parser: Parser) -> "HWModuleExternOp":
         module_header = ParsedModuleHeader.parse(parser)
 
-        attrs = parser.parse_optional_attr_dict_with_keyword(
-            _MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT
-        )
+        attrs = parser.parse_optional_attr_dict_with_keyword(_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT)
 
         module_op = cls(
             module_header.module_name,
@@ -990,11 +874,7 @@ class HWModuleExternOp(IRDLOperation):
 
     def print(self, printer: Printer):
         # TODO: use the actual port name when it is a valid SSA name
-        arg_ssa_names = tuple(
-            f"port{i}"
-            for i, port in enumerate(self.module_type.ports.data)
-            if port.dir.data.is_input_like()
-        )
+        arg_ssa_names = tuple(f"port{i}" for i, port in enumerate(self.module_type.ports.data) if port.dir.data.is_input_like())
         print_module_header(
             printer=printer,
             visibility=self.sym_visibility,
@@ -1054,17 +934,9 @@ class InstanceOp(IRDLOperation):
 
     def verify_(self) -> None:
         if len(self.arg_names.data) != len(self.inputs):
-            raise VerifyException(
-                "Instance has a different amount of argument names "
-                f"({len(self.arg_names.data)}) "
-                f"and arguments ({len(self.inputs)})"
-            )
+            raise VerifyException("Instance has a different amount of argument names " f"({len(self.arg_names.data)}) " f"and arguments ({len(self.inputs)})")
         if len(self.result_names.data) != len(self.outputs):
-            raise VerifyException(
-                "Instance has a different amount of result names "
-                f"({len(self.result_names.data)}) "
-                f"and results ({len(self.outputs)})"
-            )
+            raise VerifyException("Instance has a different amount of result names " f"({len(self.result_names.data)}) " f"and results ({len(self.outputs)})")
 
         module = SymbolTable.lookup_symbol(self, self.module_name)
         if module is None:
@@ -1072,21 +944,14 @@ class InstanceOp(IRDLOperation):
 
         hw_module_like = module.get_trait(HWModuleLike)
         if hw_module_like is None:
-            raise VerifyException(
-                f"Module {self.module_name} must be a HWModuleLike, "
-                f"found '{module.name}'"
-            )
+            raise VerifyException(f"Module {self.module_name} must be a HWModuleLike, " f"found '{module.name}'")
 
-        def check_same_or_exception(
-            reference: Iterable[str], candidate: Iterable[str], kind: str
-        ):
+        def check_same_or_exception(reference: Iterable[str], candidate: Iterable[str], kind: str):
             reference_set = set(reference)
             visited: set[str] = set()
             for candidate in candidate:
                 if candidate in visited:
-                    raise VerifyException(
-                        f"Multiple definitions for {kind} '{candidate}'"
-                    )
+                    raise VerifyException(f"Multiple definitions for {kind} '{candidate}'")
                 visited.add(candidate)
                 if candidate not in reference_set:
                     raise VerifyException(f"Unknown {kind} '{candidate}'")
@@ -1094,20 +959,10 @@ class InstanceOp(IRDLOperation):
             if len(reference_set) != 0:
                 raise VerifyException(f"Missing {kind} '{reference_set.pop()}'")
 
-        module_args = (
-            port.port_name.data
-            for port in hw_module_like.get_hw_module_type(module).ports
-            if port.dir.data.is_input_like()
-        )
-        result_args = (
-            port.port_name.data
-            for port in hw_module_like.get_hw_module_type(module).ports
-            if port.dir.data.is_output_like()
-        )
+        module_args = (port.port_name.data for port in hw_module_like.get_hw_module_type(module).ports if port.dir.data.is_input_like())
+        result_args = (port.port_name.data for port in hw_module_like.get_hw_module_type(module).ports if port.dir.data.is_output_like())
 
-        check_same_or_exception(
-            module_args, (arg.data for arg in self.arg_names.data), "input port"
-        )
+        check_same_or_exception(module_args, (arg.data for arg in self.arg_names.data), "input port")
 
         check_same_or_exception(
             result_args,
@@ -1124,19 +979,13 @@ class InstanceOp(IRDLOperation):
             if not isinstance(inner_sym, InnerSymAttr):
                 parser.raise_error("Expected inner symbol attribute")
         module_name = parser.parse_attribute()
-        if (
-            not isinstance(module_name, SymbolRefAttr)
-            or len(module_name.nested_references.data) != 0
-        ):
+        if not isinstance(module_name, SymbolRefAttr) or len(module_name.nested_references.data) != 0:
             parser.raise_error("Expected flat symbol reference")
         if parser.parse_optional_punctuation("<") is not None:
             parser.raise_error("Instance parameters are not supported yet")
 
         def parse_input_port():
-            port_name = (
-                parser.parse_optional_str_literal()
-                or parser.parse_optional_identifier()
-            )
+            port_name = parser.parse_optional_str_literal() or parser.parse_optional_identifier()
             if port_name is None:
                 parser.raise_error("Expected port name as identifier or string literal")
             parser.parse_punctuation(":")
@@ -1147,23 +996,16 @@ class InstanceOp(IRDLOperation):
             return (port_name, port_value)
 
         def parse_output_port():
-            port_name = (
-                parser.parse_optional_str_literal()
-                or parser.parse_optional_identifier()
-            )
+            port_name = parser.parse_optional_str_literal() or parser.parse_optional_identifier()
             if port_name is None:
                 parser.raise_error("Expected port name as identifier or string literal")
             parser.parse_punctuation(":")
             port_type = parser.parse_type()
             return (port_name, port_type)
 
-        input_ports = parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, parse_input_port, "input port list expected"
-        )
+        input_ports = parser.parse_comma_separated_list(Parser.Delimiter.PAREN, parse_input_port, "input port list expected")
         parser.parse_punctuation("->")
-        output_ports = parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, parse_output_port, "output port list expected"
-        )
+        output_ports = parser.parse_comma_separated_list(Parser.Delimiter.PAREN, parse_output_port, "output port list expected")
         attributes_attr = parser.parse_optional_attr_dict_with_reserved_attr_names(
             (
                 "instanceName",
@@ -1180,14 +1022,10 @@ class InstanceOp(IRDLOperation):
         attributes["instanceName"] = StringAttr(instance_name)
         attributes["moduleName"] = module_name
         attributes["argNames"] = ArrayAttr(StringAttr(port[0]) for port in input_ports)
-        attributes["resultNames"] = ArrayAttr(
-            StringAttr(port[0]) for port in output_ports
-        )
+        attributes["resultNames"] = ArrayAttr(StringAttr(port[0]) for port in output_ports)
         if inner_sym is not None:
             attributes["inner_sym"] = inner_sym
-        return cls.create(
-            operands=operands, result_types=result_types, attributes=attributes
-        )
+        return cls.create(operands=operands, result_types=result_types, attributes=attributes)
 
     def print(self, printer: Printer) -> None:
         printer.print(" ")
@@ -1252,35 +1090,23 @@ class OutputOp(IRDLOperation):
         parent = self.parent_op()
         assert isinstance(parent, HWModuleOp)
 
-        expected_results = tuple(
-            port.type
-            for port in parent.module_type.ports.data
-            if port.dir.data == Direction.OUTPUT
-        )
+        expected_results = tuple(port.type for port in parent.module_type.ports.data if port.dir.data == Direction.OUTPUT)
 
         if len(expected_results) != len(self.inputs):
-            raise VerifyException(
-                f"wrong amount of output values (expected {len(expected_results)}, got {len(self.inputs)})"
-            )
+            raise VerifyException(f"wrong amount of output values (expected {len(expected_results)}, got {len(self.inputs)})")
 
         for i, (got, expected) in enumerate(zip(self.inputs, expected_results)):
             if got.type != expected:
-                raise VerifyException(
-                    f"output #{i} is of unexpected type (expected {expected}, got {got.type})"
-                )
+                raise VerifyException(f"output #{i} is of unexpected type (expected {expected}, got {got.type})")
 
     @classmethod
     def parse(cls, parser: Parser) -> "OutputOp":
-        operands = parser.parse_optional_undelimited_comma_separated_list(
-            parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
-        )
+        operands = parser.parse_optional_undelimited_comma_separated_list(parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand)
         if operands is None:
             return cls(())
 
         parser.parse_punctuation(":")
-        types = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_attribute
-        )
+        types = parser.parse_comma_separated_list(parser.Delimiter.NONE, parser.parse_attribute)
         operands = parser.resolve_operands(operands, types, parser.pos)
         return cls(operands)
 

@@ -2,11 +2,7 @@ from typing import cast
 
 from xdsl.dialects import stencil
 from xdsl.ir import Block, Region, SSAValue
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import cse
 

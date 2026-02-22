@@ -5,7 +5,6 @@ from xdsl.dialects import arith, llvm
 from xdsl.dialects.builtin import IntegerAttr, MemRefType, ModuleOp, UnrealizedConversionCastOp, i64
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, TypeConversionPattern, attr_type_rewrite_pattern, op_type_rewrite_pattern
-
 from xdsl_exo.dialects import exo
 
 

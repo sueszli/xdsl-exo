@@ -7,11 +7,12 @@ app = marimo.App()
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
+
     from xdsl.builder import Builder, InsertPoint
+    from xdsl.dialects.arith import AddiOp, ConstantOp
+    from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
     from xdsl.utils import marimo as xmo
-    from xdsl.dialects.arith import AddiOp
-    from xdsl.dialects.builtin import ModuleOp, IntegerType, IntegerAttr
-    from xdsl.dialects.arith import ConstantOp
+
     return (
         AddiOp,
         Builder,
@@ -45,13 +46,11 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         In xDSL, ops often define a custom `__init__` constructor to make operation creation easier.
 
         For example, here is the API for creating an `arith.constant` instance:
-        """
-    )
+        """)
     return
 
 
@@ -89,25 +88,25 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         A `Builder` insert new operations at a given insertion point (A position before an operation, or at the end of a block). Whenever a builder inserts a new operation, it updates its insertion point to be after the inserted operation.
 
         The `Builder` constructor takes a single argument, which is an `InsertPoint`. An `InsertPoint` can be created using the static methods `before`, `after`, `at_start`, and `at_end`.
 
         Let's look at the following program:
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(ConstantOp, IntegerAttr, IntegerType, ModuleOp, xmo):
-    module = ModuleOp([
-        ConstantOp(IntegerAttr(0, IntegerType(64))),
-        ConstantOp(IntegerAttr(1, IntegerType(64))),
-        ConstantOp(IntegerAttr(2, IntegerType(64))),
-    ])
+    module = ModuleOp(
+        [
+            ConstantOp(IntegerAttr(0, IntegerType(64))),
+            ConstantOp(IntegerAttr(1, IntegerType(64))),
+            ConstantOp(IntegerAttr(2, IntegerType(64))),
+        ]
+    )
 
     xmo.module_html(module)
     return (module,)
@@ -156,23 +155,23 @@ def _(module_cloned):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
         ## Small exercise
 
         As a simple task, insert the program so the operations are read in order `0, 1, 2, 3, 4, 5, 6, 7`
-        """
-    )
+        """)
     return
 
 
 @app.cell(hide_code=True)
 def _(ConstantOp, IntegerAttr, IntegerType, ModuleOp, xmo):
-    module2 = ModuleOp([
-        ConstantOp(IntegerAttr(1, IntegerType(64))),
-        ConstantOp(IntegerAttr(4, IntegerType(64))),
-        ConstantOp(IntegerAttr(6, IntegerType(64))),
-    ])
+    module2 = ModuleOp(
+        [
+            ConstantOp(IntegerAttr(1, IntegerType(64))),
+            ConstantOp(IntegerAttr(4, IntegerType(64))),
+            ConstantOp(IntegerAttr(6, IntegerType(64))),
+        ]
+    )
 
     xmo.module_html(module2)
     return (module2,)

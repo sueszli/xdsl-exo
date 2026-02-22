@@ -49,10 +49,7 @@ def test_live_ins():
     def rename(
         mapping: dict[Block, OrderedSet[SSAValue]],
     ) -> dict[str, OrderedSet[str]]:
-        return {
-            name_per_block[block]: OrderedSet(name_per_value[value] for value in values)
-            for block, values in mapping.items()
-        }
+        return {name_per_block[block]: OrderedSet(name_per_value[value] for value in values) for block, values in mapping.items()}
 
     reference_live_ins: dict[Block, OrderedSet[SSAValue]] = {
         outer_region.block: OrderedSet([]),
@@ -60,9 +57,7 @@ def test_live_ins():
         inner_region.block: OrderedSet([b, c, d, g]),
     }
 
-    assert rename(live_ins_per_block(inner_region.block)) == rename(
-        {inner_region.block: reference_live_ins[inner_region.block]}
-    )
+    assert rename(live_ins_per_block(inner_region.block)) == rename({inner_region.block: reference_live_ins[inner_region.block]})
 
     assert rename(live_ins_per_block(middle_region.block)) == rename(
         {

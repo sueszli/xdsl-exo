@@ -8,32 +8,7 @@ from typing import Any, cast
 import xdsl.ir
 import xdsl.irdl
 from xdsl.ir import Attribute, Dialect, OpResult, ParametrizedAttribute, Region
-from xdsl.irdl import (
-    AllOf,
-    AnyAttr,
-    AnyOf,
-    AttrConstraint,
-    AttributeDef,
-    BaseAttr,
-    EqAttrConstraint,
-    IRDLOperation,
-    OperandDef,
-    OptAttributeDef,
-    OptOperandDef,
-    OptPropertyDef,
-    OptRegionDef,
-    OptResultDef,
-    OptSuccessorDef,
-    ParamAttrConstraint,
-    PropertyDef,
-    RegionDef,
-    ResultDef,
-    SuccessorDef,
-    VarOperandDef,
-    VarRegionDef,
-    VarResultDef,
-    VarSuccessorDef,
-)
+from xdsl.irdl import AllOf, AnyAttr, AnyOf, AttrConstraint, AttributeDef, BaseAttr, EqAttrConstraint, IRDLOperation, OperandDef, OptAttributeDef, OptOperandDef, OptPropertyDef, OptRegionDef, OptResultDef, OptSuccessorDef, ParamAttrConstraint, PropertyDef, RegionDef, ResultDef, SuccessorDef, VarOperandDef, VarRegionDef, VarResultDef, VarSuccessorDef
 
 
 @dataclass
@@ -41,9 +16,7 @@ class DialectStubGenerator:
     """Generate a typing stub file (.pyi) for a dialect."""
 
     dialect: Dialect
-    dependencies: dict[str, set[str]] = field(
-        init=False, default_factory=dict[str, set[str]]
-    )
+    dependencies: dict[str, set[str]] = field(init=False, default_factory=dict[str, set[str]])
 
     def _import(self, module: ModuleType | str, name: str | type[Any]):
         """
@@ -91,9 +64,7 @@ class DialectStubGenerator:
                 return type(attr).__name__
 
             case AnyOf(constraints):
-                return " | ".join(
-                    self._generate_constraint_type(c) for c in constraints
-                )
+                return " | ".join(self._generate_constraint_type(c) for c in constraints)
             case AllOf(constraints):
                 self._import(typing, "Annotated")
                 return f"Annotated[{', '.join(self._generate_constraint_type(c) for c in reversed(constraints))}]"  # noqa: E501
@@ -104,15 +75,11 @@ class DialectStubGenerator:
                 self._import(xdsl.ir, Attribute)
                 return "Attribute"
             case ParamAttrConstraint():
-                base_type = cast(
-                    ParamAttrConstraint[ParametrizedAttribute], constraint
-                ).base_attr
+                base_type = cast(ParamAttrConstraint[ParametrizedAttribute], constraint).base_attr
                 return base_type.__name__
 
             case _:
-                raise NotImplementedError(
-                    f"Unsupported constraint type: {type(constraint)}"
-                )
+                raise NotImplementedError(f"Unsupported constraint type: {type(constraint)}")
 
     def _generate_attribute_stub(self, attr: type[ParametrizedAttribute]):
         """

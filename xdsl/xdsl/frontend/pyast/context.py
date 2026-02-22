@@ -35,10 +35,7 @@ class CodeContext(AbstractContextManager[Any]):
 
         # Find where the program starts.
         for node in ast.walk(python_ast):
-            if (
-                isinstance(node, ast.With)
-                and node.lineno == frame.f_lineno - frame.f_code.co_firstlineno + 1
-            ):
+            if isinstance(node, ast.With) and node.lineno == frame.f_lineno - frame.f_code.co_firstlineno + 1:
                 # Found the program AST. Store it for later compilation or
                 # execution.
                 self.program.stmts = node.body
@@ -47,6 +44,4 @@ class CodeContext(AbstractContextManager[Any]):
         # Having proccessed all the code in the context, check it is well-formed
         # and can be compiled/executed. Additionally, record it for subsequent code generation.
         assert self.program.stmts is not None
-        self.program.functions_and_blocks = PythonCodeCheck.run(
-            self.program.stmts, self.program.file
-        )
+        self.program.functions_and_blocks = PythonCodeCheck.run(self.program.stmts, self.program.file)

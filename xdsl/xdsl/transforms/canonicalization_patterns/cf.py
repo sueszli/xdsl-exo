@@ -2,22 +2,11 @@ from collections.abc import Callable, Sequence
 from typing import cast
 
 from xdsl.dialects import arith, cf
-from xdsl.dialects.builtin import (
-    BoolAttr,
-    DenseIntElementsAttr,
-    IntegerAttr,
-    VectorType,
-)
+from xdsl.dialects.builtin import BoolAttr, DenseIntElementsAttr, IntegerAttr, VectorType
 from xdsl.ir import Block, BlockArgument, Operation, SSAValue
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
-from xdsl.transforms.canonicalization_patterns.utils import (
-    const_evaluate_operand,
-)
+from xdsl.transforms.canonicalization_patterns.utils import const_evaluate_operand
 
 
 class AssertTrue(RewritePattern):
@@ -63,9 +52,7 @@ class SimplifyBrToBlockWithSinglePred(RewritePattern):
         rewriter.inline_block(succ, InsertPoint.at_end(parent), br_operands)
 
 
-def collapse_branch(
-    successor: Block, successor_operands: Sequence[SSAValue]
-) -> tuple[Block, Sequence[SSAValue]] | None:
+def collapse_branch(successor: Block, successor_operands: Sequence[SSAValue]) -> tuple[Block, Sequence[SSAValue]] | None:
     """
     Given a successor, try to collapse it to a new destination if it only
     contains a passthrough unconditional branch. If the successor is
@@ -97,12 +84,7 @@ def collapse_branch(
     # Remap operands
     operands = branch.operands
 
-    new_operands = tuple(
-        successor_operands[operand.index]
-        if isinstance(operand, BlockArgument) and operand.owner is successor
-        else operand
-        for operand in operands
-    )
+    new_operands = tuple(successor_operands[operand.index] if isinstance(operand, BlockArgument) and operand.owner is successor else operand for operand in operands)
 
     return (branch.successor, new_operands)
 
@@ -126,7 +108,7 @@ class SimplifyPassThroughBr(RewritePattern):
         ret = collapse_branch(op.successor, op.arguments)
         if ret is None:
             return
-        (block, args) = ret
+        block, args = ret
 
         rewriter.replace_matched_op(cf.BranchOp(block, *args))
 
@@ -174,15 +156,11 @@ class SimplifyPassThroughCondBranch(RewritePattern):
         if collapsed_then is None and collapsed_else is None:
             return
 
-        (new_then, new_then_args) = collapsed_then or (op.then_block, op.then_arguments)
+        new_then, new_then_args = collapsed_then or (op.then_block, op.then_arguments)
 
-        (new_else, new_else_args) = collapsed_else or (op.else_block, op.else_arguments)
+        new_else, new_else_args = collapsed_else or (op.else_block, op.else_arguments)
 
-        rewriter.replace_matched_op(
-            cf.ConditionalBranchOp(
-                op.cond, new_then, new_then_args, new_else, new_else_args
-            )
-        )
+        rewriter.replace_matched_op(cf.ConditionalBranchOp(op.cond, new_then, new_then_args, new_else, new_else_args))
 
 
 class SimplifyCondBranchIdenticalSuccessors(RewritePattern):
@@ -214,10 +192,7 @@ class SimplifyCondBranchIdenticalSuccessors(RewritePattern):
         if op.then_block != op.else_block:
             return
 
-        merged_operands = tuple(
-            self._merge_operand(op1, op2, rewriter, op)
-            for (op1, op2) in zip(op.then_arguments, op.else_arguments, strict=True)
-        )
+        merged_operands = tuple(self._merge_operand(op1, op2, rewriter, op) for (op1, op2) in zip(op.then_arguments, op.else_arguments, strict=True))
 
         rewriter.replace_matched_op(cf.BranchOp(op.then_block, *merged_operands))
 
@@ -249,9 +224,7 @@ class CondBranchTruthPropagation(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: cf.ConditionalBranchOp, rewriter: PatternRewriter):
         if len(op.then_block.predecessors()) == 1:
-            if any(
-                use.operation.parent_block() is op.then_block for use in op.cond.uses
-            ):
+            if any(use.operation.parent_block() is op.then_block for use in op.cond.uses):
                 const_true = arith.ConstantOp(BoolAttr.from_bool(True))
                 rewriter.insert_op(const_true, InsertPoint.before(op))
                 op.cond.replace_by_if(
@@ -259,9 +232,7 @@ class CondBranchTruthPropagation(RewritePattern):
                     lambda use: use.operation.parent_block() is op.then_block,
                 )
         if len(op.else_block.predecessors()) == 1:
-            if any(
-                use.operation.parent_block() is op.else_block for use in op.cond.uses
-            ):
+            if any(use.operation.parent_block() is op.else_block for use in op.cond.uses):
                 const_false = arith.ConstantOp(BoolAttr.from_bool(False))
                 rewriter.insert_op(const_false, InsertPoint.before(op))
                 op.cond.replace_by_if(
@@ -281,9 +252,7 @@ class SimplifySwitchWithOnlyDefault(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: cf.SwitchOp, rewriter: PatternRewriter):
         if not op.case_blocks:
-            rewriter.replace_matched_op(
-                cf.BranchOp(op.default_block, *op.default_operands)
-            )
+            rewriter.replace_matched_op(cf.BranchOp(op.default_block, *op.default_operands))
 
 
 def drop_case_helper(
@@ -369,13 +338,7 @@ def fold_switch(switch: cf.SwitchOp, rewriter: PatternRewriter, flag: int):
     case_values = () if switch.case_values is None else switch.case_values.get_attrs()
 
     new_block, new_operands = next(
-        (
-            (block, operand)
-            for (c, block, operand) in zip(
-                case_values, switch.case_blocks, switch.case_operand, strict=True
-            )
-            if flag == c.value.data
-        ),
+        ((block, operand) for (c, block, operand) in zip(case_values, switch.case_blocks, switch.case_operand, strict=True) if flag == c.value.data),
         (switch.default_block, switch.default_operands),
     )
 
@@ -423,7 +386,7 @@ class SimplifyPassThroughSwitch(RewritePattern):
         for block, operands in zip(op.case_blocks, op.case_operand, strict=True):
             collapsed = collapse_branch(block, operands)
             requires_change |= collapsed is not None
-            (new_block, new_operands) = collapsed or (block, operands)
+            new_block, new_operands = collapsed or (block, operands)
             new_case_blocks.append(new_block)
             new_case_operands.append(new_operands)
 
@@ -431,7 +394,7 @@ class SimplifyPassThroughSwitch(RewritePattern):
 
         requires_change |= collapsed is not None
 
-        (default_block, default_operands) = collapsed or (
+        default_block, default_operands = collapsed or (
             op.default_block,
             op.default_operands,
         )

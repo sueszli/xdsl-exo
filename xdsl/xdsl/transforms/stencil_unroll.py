@@ -6,24 +6,10 @@ from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import builtin
-from xdsl.dialects.stencil import (
-    AccessOp,
-    ApplyOp,
-    DynAccessOp,
-    IndexAttr,
-    IndexOp,
-    ReturnOp,
-    TempType,
-)
+from xdsl.dialects.stencil import AccessOp, ApplyOp, DynAccessOp, IndexAttr, IndexOp, ReturnOp, TempType
 from xdsl.ir import Attribute
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.utils.hints import isa
 
 
@@ -42,10 +28,7 @@ def offseted_block_clone(apply: ApplyOp, unroll_offset: Sequence[int]):
                     offset_mapping = list(range(0, len(op.offset)))
                 else:
                     offset_mapping = op.offset_mapping
-                new_offset = [
-                    o + unroll_offset[m]
-                    for o, m in zip(op.offset, offset_mapping, strict=True)
-                ]
+                new_offset = [o + unroll_offset[m] for o, m in zip(op.offset, offset_mapping, strict=True)]
 
                 op.offset = IndexAttr.get(*new_offset)
             case DynAccessOp():
@@ -97,10 +80,7 @@ class StencilUnrollPattern(RewritePattern):
             return
 
         # Get all the offsetted computations
-        offsetted_blocks = [
-            offseted_block_clone(op, cast(Sequence[int], offset))
-            for offset in product(*(range(u) for u in unroll))
-        ]
+        offsetted_blocks = [offseted_block_clone(op, cast(Sequence[int], offset)) for offset in product(*(range(u) for u in unroll))]
 
         # Merge them in one region
         unrolled_block = offsetted_blocks[0]
@@ -128,7 +108,5 @@ class StencilUnrollPass(ModulePass):
     unroll_factor: tuple[int, ...]
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        walker = PatternRewriteWalker(
-            GreedyRewritePatternApplier([StencilUnrollPattern(self.unroll_factor)])
-        )
+        walker = PatternRewriteWalker(GreedyRewritePatternApplier([StencilUnrollPattern(self.unroll_factor)]))
         walker.rewrite_module(op)

@@ -14,9 +14,7 @@ AffineMapBuilderT = (
     | Callable[[AffineExpr], tuple[AffineExprBuilderT, ...]]
     | Callable[[AffineExpr, AffineExpr], tuple[AffineExprBuilderT, ...]]
     | Callable[[AffineExpr, AffineExpr, AffineExpr], tuple[AffineExprBuilderT, ...]]
-    | Callable[
-        [AffineExpr, AffineExpr, AffineExpr, AffineExpr], tuple[AffineExprBuilderT, ...]
-    ]
+    | Callable[[AffineExpr, AffineExpr, AffineExpr, AffineExpr], tuple[AffineExprBuilderT, ...]]
     | Callable[
         [AffineExpr, AffineExpr, AffineExpr, AffineExpr, AffineExpr],
         tuple[AffineExprBuilderT, ...],
@@ -48,8 +46,7 @@ class AffineMap:
         return AffineMap(
             rank,
             symbolic_rank,
-            tuple(AffineExpr.dimension(dim) for dim in range(rank))
-            + tuple(AffineExpr.symbol(dim) for dim in range(symbolic_rank)),
+            tuple(AffineExpr.dimension(dim) for dim in range(rank)) + tuple(AffineExpr.symbol(dim) for dim in range(symbolic_rank)),
         )
 
     @staticmethod
@@ -61,10 +58,7 @@ class AffineMap:
         Corresponds to MLIR's `AffineMap::getMinorIdentityMap`.
         """
         if num_dims < num_results:
-            raise ValueError(
-                f"Dimension mismatch, expected dims {num_dims} to be greater than or "
-                f"equal to results {num_results}."
-            )
+            raise ValueError(f"Dimension mismatch, expected dims {num_dims} to be greater than or " f"equal to results {num_results}.")
 
         return AffineMap(
             num_dims,
@@ -84,9 +78,7 @@ class AffineMap:
         return AffineMap(0, 0, ())
 
     @staticmethod
-    def from_callable(
-        func: AffineMapBuilderT, *, dim_symbol_split: tuple[int, int] | None = None
-    ) -> AffineMap:
+    def from_callable(func: AffineMapBuilderT, *, dim_symbol_split: tuple[int, int] | None = None) -> AffineMap:
         """
         Creates an `AffineMap` by calling the function provided. If `dim_symbol_split` is
         not provided or `None`, then all parameters are treated as dimension expressions.
@@ -114,16 +106,11 @@ class AffineMap:
         else:
             num_dims, num_symbols = dim_symbol_split
             if num_args != num_dims + num_symbols:
-                raise ValueError(
-                    f"Argument count mismatch in AffineMap.from_callable: {num_args} != "
-                    f"{num_dims} + {num_symbols}"
-                )
+                raise ValueError(f"Argument count mismatch in AffineMap.from_callable: {num_args} != " f"{num_dims} + {num_symbols}")
         dim_exprs = [AffineExpr.dimension(dim) for dim in range(num_dims)]
         sym_exprs = [AffineExpr.symbol(sym) for sym in range(num_symbols)]
         result_exprs = func(*dim_exprs, *sym_exprs)
-        results_tuple = tuple(
-            AffineExpr.constant(r) if isinstance(r, int) else r for r in result_exprs
-        )
+        results_tuple = tuple(AffineExpr.constant(r) if isinstance(r, int) else r for r in result_exprs)
         return AffineMap(num_dims, num_symbols, results_tuple)
 
     def replace_dims_and_symbols(
@@ -145,10 +132,7 @@ class AffineMap:
         return AffineMap(
             result_num_dims,
             result_num_symbols,
-            tuple(
-                expr.replace_dims_and_symbols(new_dims, new_symbols)
-                for expr in self.results
-            ),
+            tuple(expr.replace_dims_and_symbols(new_dims, new_symbols) for expr in self.results),
         )
 
     def compose(self, other: AffineMap) -> AffineMap:
@@ -170,23 +154,15 @@ class AffineMap:
         ```
         """
         if self.num_dims != len(other.results):
-            raise ValueError(
-                "Cannot compose AffineMaps with mismatching dimensions and results: "
-                "self.num_dims != len(map.results) "
-                f"({self.num_dims} != {len(other.results)})"
-            )
+            raise ValueError("Cannot compose AffineMaps with mismatching dimensions and results: " "self.num_dims != len(map.results) " f"({self.num_dims} != {len(other.results)})")
 
         num_dims = other.num_dims
         num_symbols = self.num_symbols + other.num_symbols
 
         new_dims = tuple(AffineExpr.dimension(d) for d in range(num_dims))
-        new_symbols = tuple(
-            AffineExpr.symbol(s) for s in range(self.num_symbols, num_symbols)
-        )
+        new_symbols = tuple(AffineExpr.symbol(s) for s in range(self.num_symbols, num_symbols))
 
-        new_map = other.replace_dims_and_symbols(
-            new_dims, new_symbols, num_dims, num_symbols
-        )
+        new_map = other.replace_dims_and_symbols(new_dims, new_symbols, num_dims, num_symbols)
 
         results = tuple(expr.compose(new_map) for expr in self.results)
         return AffineMap(
@@ -212,9 +188,7 @@ class AffineMap:
            (d0, d1, d2, d3, d4, d5, d6, d7) -> (d2, d0, d3)
         """
         if self.num_symbols != 0:
-            raise ValueError(
-                f"Cannot invert AffineMap with symbols: {self.num_symbols}"
-            )
+            raise ValueError(f"Cannot invert AffineMap with symbols: {self.num_symbols}")
         found_dims = [-1] * self.num_dims
 
         for i, expr in enumerate(self.results):
@@ -257,21 +231,13 @@ class AffineMap:
         Corresponds to MLIR's `compressDims`.
         """
         if len(unused_dims) != self.num_dims:
-            raise ValueError(
-                f"Invalid `unused_dims`, expected {self.num_dims} `bool` values, got "
-                f"{len(unused_dims)}"
-            )
+            raise ValueError(f"Invalid `unused_dims`, expected {self.num_dims} `bool` values, got " f"{len(unused_dims)}")
 
         result_num_dims = sum(not dim for dim in unused_dims)
-        new_dims = tuple(
-            AffineExpr.dimension(dim)
-            for dim in itertools.accumulate((not dim for dim in unused_dims), initial=0)
-        )
+        new_dims = tuple(AffineExpr.dimension(dim) for dim in itertools.accumulate((not dim for dim in unused_dims), initial=0))
         new_symbols = tuple(AffineExpr.symbol(s) for s in range(self.num_symbols))
 
-        return self.replace_dims_and_symbols(
-            new_dims, new_symbols, result_num_dims, self.num_symbols
-        )
+        return self.replace_dims_and_symbols(new_dims, new_symbols, result_num_dims, self.num_symbols)
 
     def used_dims(self) -> set[int]:
         """
@@ -283,12 +249,7 @@ class AffineMap:
         (d0, d1, d2) -> (d0, d2) gives {d0, d2}
         ```
         """
-        return {
-            expr.position
-            for res_expr in self.results
-            for expr in res_expr.dfs()
-            if isinstance(expr, AffineDimExpr)
-        }
+        return {expr.position for res_expr in self.results for expr in res_expr.dfs() if isinstance(expr, AffineDimExpr)}
 
     def used_dims_bit_vector(self) -> tuple[bool, ...]:
         """
@@ -366,11 +327,7 @@ class AffineMap:
                     return False
                 seen[expr.position] = True
             else:
-                if (
-                    not allow_zero_in_results
-                    or not isinstance(expr, AffineConstantExpr)
-                    or expr.value != 0
-                ):
+                if not allow_zero_in_results or not isinstance(expr, AffineConstantExpr) or expr.value != 0:
                     return False
 
         # Results are either dims or zeros and zeros can be mapped to input dims.

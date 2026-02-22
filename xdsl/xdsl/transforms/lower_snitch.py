@@ -11,13 +11,7 @@ from xdsl.dialects.builtin import IntegerAttr, i32
 from xdsl.ir import Operation
 from xdsl.irdl import Operand
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
 @dataclass(frozen=True)
@@ -97,9 +91,7 @@ class SnitchStreamerMemoryMap:
     )
 
 
-def write_ssr_config_ops(
-    reg: int, dm: int, value: Operand, comment: str | None = None
-) -> Iterable[Operation]:
+def write_ssr_config_ops(reg: int, dm: int, value: Operand, comment: str | None = None) -> Iterable[Operation]:
     """
     Return the list of riscv operations needed to set a specific SSR configuration
     parameter located at 'reg' to a specific 'value' for a specific data mover
@@ -128,9 +120,7 @@ def write_ssr_config_ops(
 
 class LowerSsrSetDimensionBoundOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch.SsrSetDimensionBoundOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch.SsrSetDimensionBoundOp, rewriter: PatternRewriter, /):
         dim: int = op.dimension.data
         ops = write_ssr_config_ops(
             dm=op.dm.data,
@@ -146,9 +136,7 @@ class LowerSsrSetDimensionBoundOp(RewritePattern):
 
 class LowerSsrSetDimensionStrideOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch.SsrSetDimensionStrideOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch.SsrSetDimensionStrideOp, rewriter: PatternRewriter, /):
         dim: int = op.dimension.data
         ops = write_ssr_config_ops(
             dm=op.dm.data,
@@ -164,9 +152,7 @@ class LowerSsrSetDimensionStrideOp(RewritePattern):
 
 class LowerSsrSetDimensionSourceOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch.SsrSetDimensionSourceOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch.SsrSetDimensionSourceOp, rewriter: PatternRewriter, /):
         dim: int = op.dimension.data
         ops = write_ssr_config_ops(
             dm=op.dm.data,
@@ -182,9 +168,7 @@ class LowerSsrSetDimensionSourceOp(RewritePattern):
 
 class LowerSsrSetDimensionDestinationOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch.SsrSetDimensionDestinationOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch.SsrSetDimensionDestinationOp, rewriter: PatternRewriter, /):
         dim: int = op.dimension.data
         ops = write_ssr_config_ops(
             dm=op.dm.data,
@@ -200,9 +184,7 @@ class LowerSsrSetDimensionDestinationOp(RewritePattern):
 
 class LowerSsrSetStreamRepetitionOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch.SsrSetStreamRepetitionOp, rewriter: PatternRewriter, /
-    ):
+    def match_and_rewrite(self, op: snitch.SsrSetStreamRepetitionOp, rewriter: PatternRewriter, /):
         ops = write_ssr_config_ops(
             dm=op.dm.data,
             reg=SnitchStreamerMemoryMap.repeat,

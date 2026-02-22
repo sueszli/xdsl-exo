@@ -5,12 +5,7 @@ from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, i32
 from xdsl.dialects.printf import PrintCharOp, PrintIntOp
 from xdsl.ir import Block, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.traits import SymbolTable
 
 i8 = IntegerType(8)
@@ -118,9 +113,7 @@ def get_mlir_itoa():
         is_negative = arith.CmpiOp(integer, zero, "slt")
 
         # Either way get the absolute value of the number
-        absolute_value = scf.IfOp(
-            is_negative, [i32], [is_negative_block], [is_positive_block]
-        )
+        absolute_value = scf.IfOp(is_negative, [i32], [is_negative_block], [is_positive_block])
         # If the value is negative, print the minus sign, return abs value
         with ImplicitBuilder(is_negative_block):
             PrintCharOp.from_constant_char("-")
@@ -214,9 +207,7 @@ class PrintfToPutcharPass(ModulePass):
     # lower to func.call
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         # Check if there are any printints
-        contains_printint = any(
-            isinstance(op_in_module, PrintIntOp) for op_in_module in op.walk()
-        )
+        contains_printint = any(isinstance(op_in_module, PrintIntOp) for op_in_module in op.walk())
         if contains_printint:
             print_int_walker = PatternRewriteWalker(
                 ConvertPrintIntToItoa(),
@@ -228,9 +219,7 @@ class PrintfToPutcharPass(ModulePass):
             # Add function implementation for mlir_itoa if it isn't there already
             SymbolTable.insert_or_update(op, get_mlir_itoa())
         # Check if there are any printchars
-        contains_printchar = any(
-            isinstance(op_in_module, PrintCharOp) for op_in_module in op.walk()
-        )
+        contains_printchar = any(isinstance(op_in_module, PrintCharOp) for op_in_module in op.walk())
         if contains_printchar:
             print_char_walker = PatternRewriteWalker(
                 LowerPrintCharToPutchar(),

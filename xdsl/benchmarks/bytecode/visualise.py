@@ -119,9 +119,7 @@ from types import CodeType
 from typing import Any
 
 
-def get_called_functions(
-    func: Callable[[], Any], repeats: bool = True
-) -> list[tuple[str, CodeType | None, int]]:
+def get_called_functions(func: Callable[[], Any], repeats: bool = True) -> list[tuple[str, CodeType | None, int]]:
     """Get called functions and their stack depths."""
     names: list[CodeType] = []
     objs: list[CodeType | None] = []
@@ -167,11 +165,7 @@ def print_bytecode(func: Callable[[], Any], indent: int = 4, repeats: bool = Fal
             if not obj:
                 raise OSError("could not get source code")
             source = textwrap.dedent(inspect.getsource(obj))
-            print(
-                " " * depth * indent
-                + "// >>> "
-                + f"\n{' ' * depth * indent}// >>> ".join(source.split("\n"))
-            )
+            print(" " * depth * indent + "// >>> " + f"\n{' ' * depth * indent}// >>> ".join(source.split("\n")))
             print(f"{' ' * depth * indent}// {'=' * 43}")
             bytecode = dis.Bytecode(obj).dis()
             print(bytecode)

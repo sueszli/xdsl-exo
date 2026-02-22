@@ -6,19 +6,12 @@ from xdsl.dialects import memref, memref_stream
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Attribute
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 
 class InferFillPattern(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: memref_stream.GenericOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: memref_stream.GenericOp, rewriter: PatternRewriter) -> None:
         if len(op.inputs) != 1:
             return
 
@@ -28,10 +21,7 @@ class InferFillPattern(RewritePattern):
         if op.inits:
             return
 
-        if any(
-            iterator_type.data != memref_stream.IteratorType.PARALLEL
-            for iterator_type in op.iterator_types.data
-        ):
+        if any(iterator_type.data != memref_stream.IteratorType.PARALLEL for iterator_type in op.iterator_types.data):
             return
 
         output = op.outputs[0]

@@ -1,16 +1,7 @@
 import pytest
 
 from xdsl.dialects.builtin import IntegerAttr
-from xdsl.dialects.smt import (
-    AndOp,
-    BoolType,
-    ConstantBoolOp,
-    DistinctOp,
-    EqOp,
-    OrOp,
-    VariadicBoolOp,
-    XOrOp,
-)
+from xdsl.dialects.smt import AndOp, BoolType, ConstantBoolOp, DistinctOp, EqOp, OrOp, VariadicBoolOp, XOrOp
 from xdsl.utils.test_value import create_ssa_value
 
 

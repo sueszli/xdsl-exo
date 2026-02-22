@@ -2,13 +2,7 @@ import pytest
 
 from xdsl.context import Context
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import (
-    IntAttr,
-    IntegerAttr,
-    ModuleOp,
-    Signedness,
-    i32,
-)
+from xdsl.dialects.builtin import IntAttr, IntegerAttr, ModuleOp, Signedness, i32
 from xdsl.parser import Parser
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 from xdsl.utils.exceptions import ParseError, VerifyException
@@ -77,15 +71,9 @@ def test_csr_op():
     with pytest.raises(VerifyException):
         riscv.CsrrcOp(rs1=a1, csr=csr, readonly=True, rd=riscv.Registers.A2).verify()
     # CsrrwiOp
-    riscv.CsrrwiOp(
-        csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.A2
-    ).verify()
-    riscv.CsrrwiOp(
-        csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.ZERO
-    ).verify()
-    riscv.CsrrwiOp(
-        csr=csr, immediate=IntegerAttr(0, i32), writeonly=True, rd=riscv.Registers.ZERO
-    ).verify()
+    riscv.CsrrwiOp(csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.A2).verify()
+    riscv.CsrrwiOp(csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.ZERO).verify()
+    riscv.CsrrwiOp(csr=csr, immediate=IntegerAttr(0, i32), writeonly=True, rd=riscv.Registers.ZERO).verify()
     with pytest.raises(VerifyException):
         riscv.CsrrwiOp(
             csr=csr,
@@ -94,19 +82,11 @@ def test_csr_op():
             rd=riscv.Registers.A2,
         ).verify()
     # CsrrsiOp
-    riscv.CsrrsiOp(
-        csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.A2
-    ).verify()
-    riscv.CsrrsiOp(
-        csr=csr, immediate=IntegerAttr(1, i32), rd=riscv.Registers.A2
-    ).verify()
+    riscv.CsrrsiOp(csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.A2).verify()
+    riscv.CsrrsiOp(csr=csr, immediate=IntegerAttr(1, i32), rd=riscv.Registers.A2).verify()
     # CsrrciOp
-    riscv.CsrrciOp(
-        csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.A2
-    ).verify()
-    riscv.CsrrsiOp(
-        csr=csr, immediate=IntegerAttr(1, i32), rd=riscv.Registers.A2
-    ).verify()
+    riscv.CsrrciOp(csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.A2).verify()
+    riscv.CsrrsiOp(csr=csr, immediate=IntegerAttr(1, i32), rd=riscv.Registers.A2).verify()
 
 
 def test_comment_op():
@@ -239,13 +219,9 @@ def test_immediate_shift_inst():
 
 
 def test_float_register():
-    with pytest.raises(
-        VerifyException, match="Invalid register name ft9 for register type riscv.reg."
-    ):
+    with pytest.raises(VerifyException, match="Invalid register name ft9 for register type riscv.reg."):
         riscv.IntRegisterType.from_name("ft9")
-    with pytest.raises(
-        VerifyException, match="Invalid register name a0 for register type riscv.freg."
-    ):
+    with pytest.raises(VerifyException, match="Invalid register name a0 for register type riscv.freg."):
         riscv.FloatRegisterType.from_name("a0")
 
     a1 = create_ssa_value(riscv.Registers.A1)
@@ -328,9 +304,7 @@ def test_int_from_index():
     with pytest.raises(KeyError):
         riscv.IntRegisterType.from_index(40)
 
-    assert riscv.IntRegisterType.from_index(
-        -10
-    ) == riscv.IntRegisterType.infinite_register(9)
+    assert riscv.IntRegisterType.from_index(-10) == riscv.IntRegisterType.infinite_register(9)
 
 
 def test_float_abi_name_by_index():
@@ -379,6 +353,4 @@ def test_float_from_index():
     with pytest.raises(KeyError):
         riscv.FloatRegisterType.from_index(40)
 
-    assert riscv.FloatRegisterType.from_index(
-        -10
-    ) == riscv.FloatRegisterType.infinite_register(9)
+    assert riscv.FloatRegisterType.from_index(-10) == riscv.FloatRegisterType.infinite_register(9)

@@ -6,13 +6,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.csl import csl_stencil, csl_wrapper
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
@@ -37,16 +31,11 @@ class MaterializeInApplyDest(RewritePattern):
         for src, dst in zip(op.arguments, apply.dest, strict=True):
             assert isa(src.type, memref.MemRefType[Attribute])
             assert isa(dst.type, memref.MemRefType[Attribute])
-            dst_arg = apply.done_exchange.block.insert_arg(
-                dst.type, len(apply.done_exchange.block.args)
-            )
+            dst_arg = apply.done_exchange.block.insert_arg(dst.type, len(apply.done_exchange.block.args))
             views.append(
                 memref.SubviewOp.get(
                     dst_arg,
-                    [
-                        (d - s) // 2  # symmetric offset
-                        for s, d in zip(src.type.get_shape(), dst.type.get_shape())
-                    ],
+                    [(d - s) // 2 for s, d in zip(src.type.get_shape(), dst.type.get_shape())],  # symmetric offset
                     src.type.get_shape(),
                     len(src.type.get_shape()) * [1],
                     src.type,
@@ -99,26 +88,19 @@ class DisableComputeInBorderRegion(RewritePattern):
         op.done_exchange.block.insert_arg(cond.type, len(op.done_exchange.block.args))
 
         rewriter.insert_op(
-            if_op := scf.IfOp(
-                op.done_exchange.block.args[-1], [], Region(Block()), Region(Block())
-            ),
+            if_op := scf.IfOp(op.done_exchange.block.args[-1], [], Region(Block()), Region(Block())),
             InsertPoint.at_start(op.done_exchange.block),
         )
 
         assert if_op.next_op, "Block cannot be empty"
 
-        if (
-            not isinstance(yld := op.done_exchange.block.last_op, csl_stencil.YieldOp)
-            or len(yld.arguments) > 0
-        ):
+        if not isinstance(yld := op.done_exchange.block.last_op, csl_stencil.YieldOp) or len(yld.arguments) > 0:
             return
 
         body = op.done_exchange.block.split_before(if_op.next_op)
         rewriter.inline_block(body, InsertPoint.at_start(if_op.false_region.block))
 
-        rewriter.insert_op(
-            csl_stencil.YieldOp(), InsertPoint.at_end(op.done_exchange.block)
-        )
+        rewriter.insert_op(csl_stencil.YieldOp(), InsertPoint.at_end(op.done_exchange.block))
         rewriter.replace_op(yld, scf.YieldOp())
         rewriter.insert_op(scf.YieldOp(), InsertPoint.at_start(if_op.true_region.block))
         rewriter.replace_matched_op(

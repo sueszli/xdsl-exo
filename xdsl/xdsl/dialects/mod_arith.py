@@ -9,16 +9,7 @@ from typing import ClassVar
 from xdsl.dialects.arith import signlessIntegerLike
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
-from xdsl.irdl import (
-    IRDLOperation,
-    ParsePropInAttrDict,
-    VarConstraint,
-    irdl_op_definition,
-    operand_def,
-    prop_def,
-    result_def,
-    traits_def,
-)
+from xdsl.irdl import IRDLOperation, ParsePropInAttrDict, VarConstraint, irdl_op_definition, operand_def, prop_def, result_def, traits_def
 from xdsl.traits import Pure
 
 

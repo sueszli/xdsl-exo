@@ -4,15 +4,7 @@ Translate an IRDL program to a Python program creating the corresponding xDSL di
 
 import keyword
 
-from xdsl.dialects.irdl import (
-    AttributeOp,
-    DialectOp,
-    OperandsOp,
-    OperationOp,
-    ParametersOp,
-    ResultsOp,
-    TypeOp,
-)
+from xdsl.dialects.irdl import AttributeOp, DialectOp, OperandsOp, OperationOp, ParametersOp, ResultsOp, TypeOp
 from xdsl.dialects.irdl.irdl import VariadicityAttr
 
 
@@ -95,8 +87,4 @@ def convert_dialect(dialect: DialectOp) -> str:
             ops += [op.get_py_class_name()]
     op_list = "[" + ", ".join(ops) + "]"
     attr_list = "[" + ", ".join(attrs) + "]"
-    return (
-        res
-        + dialect.sym_name.data
-        + f' = Dialect("{dialect.sym_name.data}", {op_list}, {attr_list})'
-    )
+    return res + dialect.sym_name.data + f' = Dialect("{dialect.sym_name.data}", {op_list}, {attr_list})'

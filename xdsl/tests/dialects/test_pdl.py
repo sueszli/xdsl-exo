@@ -43,9 +43,7 @@ def test_build_anr():
 
 
 def test_build_rewrite():
-    r = pdl.RewriteOp(
-        name="r", root=None, external_args=[type_val, attr_val], body=None
-    )
+    r = pdl.RewriteOp(name="r", root=None, external_args=[type_val, attr_val], body=None)
 
     assert r.name_ == StringAttr("r")
     assert r.external_args == (type_val, attr_val)
@@ -91,9 +89,7 @@ def test_build_operation_replace():
         replace.verify()
 
     with pytest.raises(VerifyException):
-        replace = pdl.ReplaceOp(
-            op_value=op_val, repl_operation=operation.results[0], repl_values=[val_val]
-        )
+        replace = pdl.ReplaceOp(op_value=op_val, repl_operation=operation.results[0], repl_values=[val_val])
         replace.verify()
 
 
@@ -114,9 +110,7 @@ def test_build_pattern():
         name = "dummy.terminator"
         traits = traits_def(HasParent(pdl.PatternOp), IsTerminator())
 
-    with pytest.raises(
-        VerifyException, match="expected body to terminate with a `pdl.rewrite`"
-    ):
+    with pytest.raises(VerifyException, match="expected body to terminate with a `pdl.rewrite`"):
 
         @Builder.implicit_region
         def body() -> None:
@@ -125,9 +119,7 @@ def test_build_pattern():
         pattern = pdl.PatternOp(1, "pattern", body)
         pattern.verify()
 
-    with pytest.raises(
-        VerifyException, match="the pattern must contain at least one `pdl.operation`"
-    ):
+    with pytest.raises(VerifyException, match="the pattern must contain at least one `pdl.operation`"):
         root = pdl.OperationOp("test.op")
 
         @Builder.implicit_region

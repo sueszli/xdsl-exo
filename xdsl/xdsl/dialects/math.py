@@ -11,23 +11,9 @@ import abc
 from typing import ClassVar
 
 from xdsl.dialects.arith import FastMathFlagsAttr
-from xdsl.dialects.builtin import (
-    AnyFloatConstr,
-    ContainerOf,
-    IndexType,
-    SignlessIntegerConstraint,
-)
+from xdsl.dialects.builtin import AnyFloatConstr, ContainerOf, IndexType, SignlessIntegerConstraint
 from xdsl.ir import Dialect, Operation, SSAValue
-from xdsl.irdl import (
-    AnyOf,
-    IRDLOperation,
-    VarConstraint,
-    irdl_op_definition,
-    operand_def,
-    opt_prop_def,
-    result_def,
-    traits_def,
-)
+from xdsl.irdl import AnyOf, IRDLOperation, VarConstraint, irdl_op_definition, operand_def, opt_prop_def, result_def, traits_def
 from xdsl.traits import Pure, SameOperandsAndResultType
 
 signlessIntegerLike = ContainerOf(AnyOf([SignlessIntegerConstraint, IndexType]))
@@ -70,18 +56,14 @@ class FloatingPointLikeUnaryMathOperation(IRDLOperation, abc.ABC):
         )
 
 
-class FloatingPointLikeUnaryMathOperationWithFastMath(
-    FloatingPointLikeUnaryMathOperation, abc.ABC
-):
+class FloatingPointLikeUnaryMathOperationWithFastMath(FloatingPointLikeUnaryMathOperation, abc.ABC):
     """A generic floating-point-like unary math operation with fastmath flags."""
 
     fastmath = opt_prop_def(FastMathFlagsAttr)
 
     assembly_format = "$operand (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
 
-    def __init__(
-        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ):
+    def __init__(self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None):
         operand = SSAValue.get(operand)
         IRDLOperation.__init__(
             self,
@@ -135,16 +117,12 @@ class FloatingPointLikeBinaryMathOperation(IRDLOperation, abc.ABC):
         )
 
 
-class FloatingPointLikeBinaryMathOperationWithFastMath(
-    FloatingPointLikeBinaryMathOperation, abc.ABC
-):
+class FloatingPointLikeBinaryMathOperationWithFastMath(FloatingPointLikeBinaryMathOperation, abc.ABC):
     """A generic floating-point-like binary math operation with fastmath flags."""
 
     fastmath = opt_prop_def(FastMathFlagsAttr)
 
-    assembly_format = (
-        "$lhs `,` $rhs (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
-    )
+    assembly_format = "$lhs `,` $rhs (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
 
     def __init__(
         self,
@@ -535,9 +513,7 @@ class FmaOp(IRDLOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
-    assembly_format = (
-        "$a `,` $b `,` $c (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
-    )
+    assembly_format = "$a `,` $b `,` $c (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
 
     def __init__(
         self,

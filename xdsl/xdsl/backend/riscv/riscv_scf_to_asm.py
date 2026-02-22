@@ -4,12 +4,7 @@ from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_scf
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 
 
@@ -25,11 +20,7 @@ def get_register_ops_from_values(
     for value in values:
         assert isinstance(value.type, riscv.IntRegisterType | riscv.FloatRegisterType)
 
-        get_target_register = (
-            riscv.GetRegisterOp(value.type)
-            if isinstance(value.type, riscv.IntRegisterType)
-            else riscv.GetFloatRegisterOp(value.type)
-        )
+        get_target_register = riscv.GetRegisterOp(value.type) if isinstance(value.type, riscv.IntRegisterType) else riscv.GetFloatRegisterOp(value.type)
 
         value.replace_by(get_target_register.res)
         yield get_target_register

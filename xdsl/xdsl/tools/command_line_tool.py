@@ -27,9 +27,7 @@ class CommandLineTool:
     """
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
-        arg_parser.add_argument(
-            "input_file", type=str, nargs="?", help="path to input file"
-        )
+        arg_parser.add_argument("input_file", type=str, nargs="?", help="path to input file")
 
         frontends = [name for name in self.available_frontends]
         arg_parser.add_argument(
@@ -38,9 +36,7 @@ class CommandLineTool:
             type=str,
             required=False,
             choices=frontends,
-            help="Frontend to be used for the input. If not set, "
-            "the xdsl frontend or the one for the file extension "
-            "is used.",
+            help="Frontend to be used for the input. If not set, " "the xdsl frontend or the one for the file extension " "is used.",
         )
         arg_parser.add_argument("--disable-verify", default=False, action="store_true")
 
@@ -99,9 +95,7 @@ class CommandLineTool:
 
         self.available_frontends["mlir"] = parse_mlir
 
-    def parse_chunk(
-        self, chunk: IO[str], file_extension: str, start_offset: int = 0
-    ) -> ModuleOp | None:
+    def parse_chunk(self, chunk: IO[str], file_extension: str, start_offset: int = 0) -> ModuleOp | None:
         """
         Parse the input file by invoking the parser specified by the `parser`
         argument. If not set, the parser registered for this file extension
