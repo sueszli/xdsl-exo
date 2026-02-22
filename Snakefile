@@ -243,8 +243,6 @@ rule all:
 #         python3 tools/plot-instruction-counts.py
 #         """
 
-
-
 # rule all:
 #     input:
 #         # inst counts
@@ -265,5 +263,3 @@ rule all:
 #             level=config["levels"],
 #             proc=config["procs"]
 #         ),
-
-

@@ -14,8 +14,6 @@ dependencies = [
 ]
 scripts = { exo-mlir = "exomlir.main:main" }
 
-[project.optional-dependencies]
-exoblas = ["exoblas"]
 
 [dependency-groups]
 dev = [
@@ -35,7 +33,6 @@ package = true
 
 [tool.uv.sources]
 xdsl = { git = "https://github.com/kaylendog/xdsl", rev = "5e799fc5062d392338f9aa9c40e9e1277286cd97" }
-exoblas = { git = "https://github.com/exo-lang/ExoBLAS.git" }
 
 [tool.ruff]
 target-version = "py310"

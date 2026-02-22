@@ -3,14 +3,10 @@ An experimental MLIR backend for the Exo programming language.
 ## Dependencies
 
 ```bash
-# macOS
-brew install llvm pkg-config google-benchmark clang lld ninja ccache
-# might need to update path
-export PATH="$(brew --prefix llvm)/bin:$PATH"
+brew install llvm pkg-config google-benchmark ninja ccache
 
-# setup
 uv venv
-uv sync --all-extras
+uv sync
 source .venv/bin/activate
 ```
 
