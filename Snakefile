@@ -128,9 +128,8 @@ rule benchmark_compile_harnesses:
         """
         clang++ -O3 -mavx -mfma -mavx2 -fuse-ld=lld -fsanitize=address,undefined \
             -Ibuild \
-            -Ivendor/benchmark/include \
-            -Lvendor/benchmark/build/src \
-            -lbenchmark -lpthread -lm -lstdc++ \
+            $(pkg-config --cflags benchmark) \
+            $(pkg-config --libs benchmark) -lpthread -lm -lstdc++ \
             -o build/harnesses/{wildcards.level}/{wildcards.proc}.x \
             build/exocc/{wildcards.level}/{wildcards.proc}.o \
             build/exomlir/{wildcards.level}/{wildcards.proc}.o \

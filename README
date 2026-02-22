@@ -1,5 +1,37 @@
 An experimental MLIR backend for the Exo programming language.
 
-Requires: clang, ccache, lld, ninja
+## Dependencies
 
-Running `make` will build the required LLVM dependencies.
+```bash
+# macOS
+brew install llvm pkg-config google-benchmark clang lld ninja ccache
+# might need to update path
+export PATH="$(brew --prefix llvm)/bin:$PATH"
+
+# setup
+uv venv
+uv sync --all-extras
+source .venv/bin/activate
+```
+
+## Usage
+
+Run the compiler:
+
+```bash
+exo-mlir <source.py> [--target {exo,builtin,scf,lowered,llvm}] [-o output.mlir]
+# e.g. exo-mlir benchmarks/level1/axpy.py --target llvm -o out/axpy.mlir
+```
+
+## Benchmarks
+
+```bash
+snakemake
+```
+
+## Tests
+
+```bash
+pytest tests/
+lit tests/filecheck/
+```

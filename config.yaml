@@ -14,6 +14,6 @@ levels:
         - rot
         - scal
 
-opt: ./vendor/llvm-project/build/bin/opt
-mlir-opt: ./vendor/llvm-project/build/bin/mlir-opt
-mlir-translate: ./vendor/llvm-project/build/bin/mlir-translate
+opt: opt
+mlir-opt: mlir-opt
+mlir-translate: mlir-translate

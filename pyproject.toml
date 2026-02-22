@@ -35,10 +35,7 @@ package = true
 
 [tool.uv.sources]
 xdsl = { git = "https://github.com/kaylendog/xdsl", rev = "5e799fc5062d392338f9aa9c40e9e1277286cd97" }
-exoblas = { workspace = true }
-
-[tool.uv.workspace]
-members = ["./vendor/ExoBLAS"]
+exoblas = { git = "https://github.com/exo-lang/ExoBLAS.git" }
 
 [tool.ruff]
 target-version = "py310"
