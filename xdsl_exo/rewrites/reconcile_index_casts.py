@@ -3,7 +3,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
-from exomlir.dialects import index
+from xdsl_exo.dialects import index
 
 
 class ReconcileIndexCasts(RewritePattern):

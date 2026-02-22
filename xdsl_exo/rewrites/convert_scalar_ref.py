@@ -5,7 +5,7 @@ from xdsl.ir import BlockArgument
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
-from exomlir.dialects import exo, index
+from xdsl_exo.dialects import exo, index
 
 
 class ConvertRedundantReads(RewritePattern):

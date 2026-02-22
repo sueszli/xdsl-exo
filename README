@@ -3,5 +3,7 @@ An experimental MLIR backend for the Exo programming language.
 Usage:
 
 ```bash
-uv run exomlir examples/vadd.py --target llvm
+uv run xdsl-exo examples/vadd.py --target llvm
 ```
+
+xdsl subdir is a local copy of this fork: https://github.com/kaylendog/xdsl

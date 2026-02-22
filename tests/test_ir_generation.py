@@ -9,8 +9,8 @@ from xdsl.dialects.builtin import i32
 from xdsl.utils.scoped_dict import ScopedDict
 from xdsl.utils.test_value import create_ssa_value
 
-from exomlir import compile_one
-from exomlir.generator import IRGenerator, IRGeneratorError
+from xdsl_exo import compile_one
+from xdsl_exo.generator import IRGenerator, IRGeneratorError
 
 SRC_INFO = SrcInfo("test_mlir.py", 0)
 TENSOR_TYPE = T.Tensor(

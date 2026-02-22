@@ -1,1 +1,0 @@
-can we use latest xdsl in dependencies (just xdsl, not the custom github fork) and still pass all tests with `make tests`?

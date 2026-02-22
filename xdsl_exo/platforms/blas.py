@@ -6,7 +6,7 @@ from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, MemRefT
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
-from exomlir.dialects import exo, llvm_intrinsics
+from xdsl_exo.dialects import exo, llvm_intrinsics
 
 
 class ConvertAllocOp(RewritePattern):

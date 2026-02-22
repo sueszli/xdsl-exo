@@ -324,45 +324,6 @@ wheels = [
 ]
 
 [[package]]
-name = "exomlir"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "argparse" },
-    { name = "exo-lang" },
-    { name = "filecheck" },
-    { name = "lit" },
-    { name = "llvmlite" },
-    { name = "matplotlib" },
-    { name = "pandas" },
-    { name = "pulp" },
-    { name = "pytest" },
-    { name = "ruff" },
-    { name = "scipy" },
-    { name = "seaborn" },
-    { name = "snakemake" },
-    { name = "xdsl" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "argparse", specifier = ">=1.4.0" },
-    { name = "exo-lang", specifier = "==1.0.0" },
-    { name = "filecheck", specifier = ">=1.0.2" },
-    { name = "lit", specifier = ">=18.1.8" },
-    { name = "llvmlite", specifier = ">=0.44.0" },
-    { name = "matplotlib", specifier = ">=3.10.3" },
-    { name = "pandas", specifier = ">=2.2.3" },
-    { name = "pulp", specifier = "<2.8" },
-    { name = "pytest", specifier = ">=8.3.5" },
-    { name = "ruff", specifier = "==0.11.9" },
-    { name = "scipy", specifier = ">=1.15.3" },
-    { name = "seaborn", specifier = ">=0.13.2" },
-    { name = "snakemake", specifier = ">=9.3.4" },
-    { name = "xdsl", directory = "xdsl" },
-]
-
-[[package]]
 name = "fastjsonschema"
 version = "2.21.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1852,6 +1813,45 @@ requires-dist = [
     { name = "viztracer", marker = "extra == 'bench'", specifier = ">=1.0.1" },
 ]
 provides-extras = ["dev", "docs", "gui", "jax", "riscv", "bench"]
+
+[[package]]
+name = "xdsl-exo"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "argparse" },
+    { name = "exo-lang" },
+    { name = "filecheck" },
+    { name = "lit" },
+    { name = "llvmlite" },
+    { name = "matplotlib" },
+    { name = "pandas" },
+    { name = "pulp" },
+    { name = "pytest" },
+    { name = "ruff" },
+    { name = "scipy" },
+    { name = "seaborn" },
+    { name = "snakemake" },
+    { name = "xdsl" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "argparse", specifier = ">=1.4.0" },
+    { name = "exo-lang", specifier = "==1.0.0" },
+    { name = "filecheck", specifier = ">=1.0.2" },
+    { name = "lit", specifier = ">=18.1.8" },
+    { name = "llvmlite", specifier = ">=0.44.0" },
+    { name = "matplotlib", specifier = ">=3.10.3" },
+    { name = "pandas", specifier = ">=2.2.3" },
+    { name = "pulp", specifier = "<2.8" },
+    { name = "pytest", specifier = ">=8.3.5" },
+    { name = "ruff", specifier = "==0.11.9" },
+    { name = "scipy", specifier = ">=1.15.3" },
+    { name = "seaborn", specifier = ">=0.13.2" },
+    { name = "snakemake", specifier = ">=9.3.4" },
+    { name = "xdsl", directory = "xdsl" },
+]
 
 [[package]]
 name = "yapf"

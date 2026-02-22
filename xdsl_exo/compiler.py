@@ -20,17 +20,17 @@ from xdsl.transforms.common_subexpression_elimination import CommonSubexpression
 from xdsl.transforms.convert_scf_to_cf import ConvertScfToCf
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 
-from exomlir.dialects.exo import Exo
-from exomlir.dialects.index import Index
-from exomlir.dialects.llvm_intrinsics import LLVMIntrinsics
-from exomlir.generator import IRGenerator
-from exomlir.platforms.avx2 import InlineAVX2Pass
-from exomlir.platforms.blas import InlineBLASAllocPass, InlineBLASPass
-from exomlir.rewrites.add_prefix import AddPrefixPass
-from exomlir.rewrites.convert_memref_to_llvm import ConvertMemRefToLLVM
-from exomlir.rewrites.convert_scalar_ref import ConvertScalarRefPass
-from exomlir.rewrites.inline_memory_space import InlineMemorySpacePass
-from exomlir.rewrites.reconcile_index_casts import ReconcileIndexCastsPass
+from xdsl_exo.dialects.exo import Exo
+from xdsl_exo.dialects.index import Index
+from xdsl_exo.dialects.llvm_intrinsics import LLVMIntrinsics
+from xdsl_exo.generator import IRGenerator
+from xdsl_exo.platforms.avx2 import InlineAVX2Pass
+from xdsl_exo.platforms.blas import InlineBLASAllocPass, InlineBLASPass
+from xdsl_exo.rewrites.add_prefix import AddPrefixPass
+from xdsl_exo.rewrites.convert_memref_to_llvm import ConvertMemRefToLLVM
+from xdsl_exo.rewrites.convert_scalar_ref import ConvertScalarRefPass
+from xdsl_exo.rewrites.inline_memory_space import InlineMemorySpacePass
+from xdsl_exo.rewrites.reconcile_index_casts import ReconcileIndexCastsPass
 
 logger = logging.getLogger("exo-mlir")
 

@@ -4,8 +4,8 @@ import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
-from exomlir import compile_path
-from exomlir.compiler import CompilerOptions
+from xdsl_exo import compile_path
+from xdsl_exo.compiler import CompilerOptions
 
 logging.basicConfig(format="%(levelname)s: %(message)s", stream=sys.stderr)
 

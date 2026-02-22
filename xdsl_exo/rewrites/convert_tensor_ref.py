@@ -8,7 +8,7 @@ from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
-from exomlir.dialects import exo
+from xdsl_exo.dialects import exo
 
 
 class ConvertReadOp(RewritePattern):

@@ -4,7 +4,7 @@ from xdsl.dialects.builtin import Float32Type, IndexType, IntegerAttr, MemRefTyp
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
-from exomlir.dialects import exo
+from xdsl_exo.dialects import exo
 
 
 class ConvertMM256StoreuPsOp(RewritePattern):
