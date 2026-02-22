@@ -2,30 +2,10 @@ from collections.abc import Sequence
 from typing import ClassVar, TypeAlias
 
 from xdsl.dialects import memref
-from xdsl.dialects.builtin import (
-    DenseArrayBase,
-    FlatSymbolRefAttrConstr,
-    MemRefType,
-    StringAttr,
-    SymbolRefAttr,
-    TupleType,
-    i64,
-)
+from xdsl.dialects.builtin import DenseArrayBase, FlatSymbolRefAttrConstr, MemRefType, StringAttr, SymbolRefAttr, TupleType, i64
 from xdsl.dialects.utils import split_dynamic_index_list
 from xdsl.ir import Dialect, Operation, SSAValue
-from xdsl.irdl import (
-    AnyAttr,
-    Attribute,
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    ParsePropInAttrDict,
-    VarConstraint,
-    irdl_op_definition,
-    operand_def,
-    prop_def,
-    result_def,
-    var_operand_def,
-)
+from xdsl.irdl import AnyAttr, Attribute, AttrSizedOperandSegments, IRDLOperation, ParsePropInAttrDict, VarConstraint, irdl_op_definition, operand_def, prop_def, result_def, var_operand_def
 from xdsl.printer import Printer
 
 IntervalType: TypeAlias = TupleType
@@ -95,15 +75,11 @@ class AssignOp(IRDLOperation):
         indices: Sequence[SSAValue | Operation],
         sizes: Sequence[SSAValue | int],
     ) -> None:
-        static_sizes, dyn_sizes = split_dynamic_index_list(
-            sizes, memref.SubviewOp.DYNAMIC_INDEX
-        )
+        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, memref.SubviewOp.DYNAMIC_INDEX)
         super().__init__(
             operands=[value, SSAValue.get(input), indices, dyn_sizes],
             result_types=[],
-            properties={
-                "static_sizes": DenseArrayBase.create_dense_int(i64, static_sizes)
-            },
+            properties={"static_sizes": DenseArrayBase.create_dense_int(i64, static_sizes)},
         )
 
 
@@ -128,16 +104,12 @@ class ReduceOp(IRDLOperation):
         indices: Sequence[SSAValue | Operation],
         sizes: Sequence[SSAValue | int],
     ) -> None:
-        static_sizes, dyn_sizes = split_dynamic_index_list(
-            sizes, memref.SubviewOp.DYNAMIC_INDEX
-        )
+        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, memref.SubviewOp.DYNAMIC_INDEX)
 
         super().__init__(
             operands=[value, SSAValue.get(input), indices, dyn_sizes],
             result_types=[],
-            properties={
-                "static_sizes": DenseArrayBase.create_dense_int(i64, static_sizes)
-            },
+            properties={"static_sizes": DenseArrayBase.create_dense_int(i64, static_sizes)},
         )
 
 
@@ -160,9 +132,7 @@ class ReadOp(IRDLOperation):
         sizes: Sequence[SSAValue | int],
         result_type: Attribute,
     ) -> None:
-        static_sizes, dyn_sizes = split_dynamic_index_list(
-            sizes, memref.SubviewOp.DYNAMIC_INDEX
-        )
+        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, memref.SubviewOp.DYNAMIC_INDEX)
         super().__init__(
             operands=[
                 SSAValue.get(input),
@@ -170,32 +140,20 @@ class ReadOp(IRDLOperation):
                 dyn_sizes,
             ],
             result_types=[result_type],
-            properties={
-                "static_sizes": DenseArrayBase.create_dense_int(i64, static_sizes)
-            },
+            properties={"static_sizes": DenseArrayBase.create_dense_int(i64, static_sizes)},
         )
 
     def verify_(self):
-        if isinstance(self.input.type, MemRefType) and isinstance(
-            self.result.type, MemRefType
-        ):
+        if isinstance(self.input.type, MemRefType) and isinstance(self.result.type, MemRefType):
             if self.input.type != self.result.type:
-                raise ValueError(
-                    f"Input type {self.input.type} does not match result type {self.result.type}"
-                )
+                raise ValueError(f"Input type {self.input.type} does not match result type {self.result.type}")
 
-        if isinstance(self.input.type, MemRefType) and not isinstance(
-            self.result.type, MemRefType
-        ):
+        if isinstance(self.input.type, MemRefType) and not isinstance(self.result.type, MemRefType):
             if self.input.type.element_type != self.result.type:
-                raise ValueError(
-                    f"Input element type {self.input.type.element_type} does not match result type {self.result.type}"
-                )
+                raise ValueError(f"Input element type {self.input.type.element_type} does not match result type {self.result.type}")
         else:
             if len(self.indices) > 0:
-                raise ValueError(
-                    f"Expected no indices for non-memref input, but got {self.indices}"
-                )
+                raise ValueError(f"Expected no indices for non-memref input, but got {self.indices}")
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -261,23 +219,15 @@ class WindowOp(IRDLOperation):
         output_sizes: Sequence[SSAValue[Attribute] | int],
         result_type: MemRefType,
     ) -> None:
-        static_input_sizes, dyn_input_sizes = split_dynamic_index_list(
-            input_sizes, memref.SubviewOp.DYNAMIC_INDEX
-        )
-        static_output_sizes, dyn_output_sizes = split_dynamic_index_list(
-            output_sizes, memref.SubviewOp.DYNAMIC_INDEX
-        )
+        static_input_sizes, dyn_input_sizes = split_dynamic_index_list(input_sizes, memref.SubviewOp.DYNAMIC_INDEX)
+        static_output_sizes, dyn_output_sizes = split_dynamic_index_list(output_sizes, memref.SubviewOp.DYNAMIC_INDEX)
 
         super().__init__(
             operands=[SSAValue.get(input), indices, dyn_input_sizes, dyn_output_sizes],
             result_types=[result_type],
             properties={
-                "static_input_sizes": DenseArrayBase.create_dense_int(
-                    i64, static_input_sizes
-                ),
-                "static_output_sizes": DenseArrayBase.create_dense_int(
-                    i64, static_output_sizes
-                ),
+                "static_input_sizes": DenseArrayBase.create_dense_int(i64, static_input_sizes),
+                "static_output_sizes": DenseArrayBase.create_dense_int(i64, static_output_sizes),
             },
         )
 
@@ -298,9 +248,7 @@ class InstrOp(IRDLOperation):
     ) -> None:
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
-        super().__init__(
-            operands=[arguments], result_types=[], properties={"callee": callee}
-        )
+        super().__init__(operands=[arguments], result_types=[], properties={"callee": callee})
 
 
 @irdl_op_definition
@@ -312,9 +260,7 @@ class ExternOp(IRDLOperation):
 
     callee = prop_def(FlatSymbolRefAttrConstr)
 
-    assembly_format = (
-        "$callee attr-dict `(` $arguments `)` `:` type($arguments) `->` type($result)"
-    )
+    assembly_format = "$callee attr-dict `(` $arguments `)` `:` type($arguments) `->` type($result)"
 
     def __init__(
         self,

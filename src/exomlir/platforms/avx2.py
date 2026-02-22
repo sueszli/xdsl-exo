@@ -1,21 +1,8 @@
 from xdsl.context import Context
 from xdsl.dialects import arith, llvm, memref, vector
-from xdsl.dialects.builtin import (
-    Float32Type,
-    IndexType,
-    IntegerAttr,
-    MemRefType,
-    ModuleOp,
-    VectorType,
-)
+from xdsl.dialects.builtin import Float32Type, IndexType, IntegerAttr, MemRefType, ModuleOp, VectorType
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 from exomlir.dialects import exo
 

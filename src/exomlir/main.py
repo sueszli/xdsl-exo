@@ -11,18 +11,14 @@ logging.basicConfig(format="%(levelname)s: %(message)s", stream=sys.stderr)
 
 
 def main():
-    parser = ArgumentParser(
-        prog=Path(sys.argv[0]).name, description="Compile an Exo library to MLIR."
-    )
+    parser = ArgumentParser(prog=Path(sys.argv[0]).name, description="Compile an Exo library to MLIR.")
     parser.add_argument("source", type=str, nargs="+", help="Source file(s) to compile")
     parser.add_argument(
         "-o",
         "--output",
         help="The output target. For single source files, this is the output file. For multiple source files, this is the output directory.",
     )
-    parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Print verbose output"
-    )
+    parser.add_argument("-v", "--verbose", action="store_true", help="Print verbose output")
     parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
     parser.add_argument(
         "--target",
@@ -38,9 +34,7 @@ def main():
     srcs = [Path(src) for src in args.source]
 
     # set logging level
-    logging.getLogger("exo-mlir").setLevel(
-        logging.DEBUG if args.verbose else logging.ERROR
-    )
+    logging.getLogger("exo-mlir").setLevel(logging.DEBUG if args.verbose else logging.ERROR)
 
     if len(srcs) == 0:
         parser.error("Must provide at least one source file.")

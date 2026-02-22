@@ -31,9 +31,7 @@ def syrk_rm(
 
     for i in seq(0, N):
         for j in seq(0, N):
-            if (Uplo == CblasUpperValue and j >= i) or (
-                Uplo == CblasLowerValue and j < i + 1
-            ):
+            if (Uplo == CblasUpperValue and j >= i) or (Uplo == CblasLowerValue and j < i + 1):
                 for k in seq(0, K):
                     if Trans == CblasNoTransValue:
                         C[i, j] += alpha * (A[i, k] * A_[j, k])
@@ -42,9 +40,7 @@ def syrk_rm(
 
 
 @proc
-def syrk_gemm(
-    M: size, N: size, K: size, alpha: R, A: [R][N, K], A_: [R][N, K], C: [R][M, N]
-):
+def syrk_gemm(M: size, N: size, K: size, alpha: R, A: [R][N, K], A_: [R][N, K], C: [R][M, N]):
     assert stride(A, 1) == 1
     assert stride(A_, 1) == 1
     assert stride(C, 1) == 1
@@ -100,9 +96,7 @@ def schedule_macro(mk, precision, machine, max_N, max_K, m_r, n_r_fac, Trans):
     )
     mk = set_memory(mk, cursors.alloc, ALIGNED_DRAM_STATIC)
     mk, _ = extract_subproc(mk, cursors.load.as_block(), mk.name() + "_A_alias_pack")
-    mk = extract_and_schedule(schedule_compute)(
-        mk, i_loop, mk.name() + "_compute", precision, machine, m_r, n_r_fac
-    )
+    mk = extract_and_schedule(schedule_compute)(mk, i_loop, mk.name() + "_compute", precision, machine, m_r, n_r_fac)
     return mk_starter, simplify(mk)
 
 
@@ -121,9 +115,7 @@ def schedule(
     if Uplo != CblasLowerValue:
         return proc
 
-    syrk_macro = schedule_macro(
-        proc, precision, machine, N_tile, K_tile, m_r, n_r_fac, Trans
-    )
+    syrk_macro = schedule_macro(proc, precision, machine, N_tile, K_tile, m_r, n_r_fac, Trans)
 
     gemm = syrk_gemm
     if Trans == CblasTransValue:
@@ -159,9 +151,7 @@ def schedule(
     tiled = apply(attempt(bound_loop_by_if))(tiled, tiled.find_loop("ji", many=True))
     tiled = simplify(delete_pass(tiled))
 
-    tiled = apply(repeate_n(reorder_loops))(
-        tiled, tiled.find_loop("ki", many=True), n=1
-    )
+    tiled = apply(repeate_n(reorder_loops))(tiled, tiled.find_loop("ki", many=True), n=1)
     tiled = replace_all_stmts(tiled, [syrk_macro, gemm])
     tiled = inline_calls(tiled, subproc=syrk_macro[1])
     tiled = inline_calls(tiled, subproc=gemm[1])
@@ -184,6 +174,4 @@ n_r = n_r_fac * C.Machine.vec_width("f32")
 lcm = (m_r * n_r) // math.gcd(m_r, n_r)
 N_tile = n_r_fac * lcm
 
-variants_generator(schedule, targets=("avx2", "avx512"))(
-    syrk_rm, "i", m_r, n_r_fac, N_tile, K_tile, globals=globals()
-)
+variants_generator(schedule, targets=("avx2", "avx512"))(syrk_rm, "i", m_r, n_r_fac, N_tile, K_tile, globals=globals())

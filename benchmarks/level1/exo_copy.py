@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from exo import *
-
-from exoblas.codegen_helpers import *
 from exoblas.blaslib import *
+from exoblas.codegen_helpers import *
 
 
 @proc
@@ -12,6 +11,4 @@ def copy(n: size, x: [R][n], y: [R][n]):
         y[i] = x[i]
 
 
-variants_generator(optimize_level_1, targets=("avx2"), opt_precisions=("f32"))(
-    copy, "i", 4, globals=globals()
-)
+variants_generator(optimize_level_1, targets=("avx2"), opt_precisions=("f32"))(copy, "i", 4, globals=globals())

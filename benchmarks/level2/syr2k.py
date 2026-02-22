@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from exo import *
-from exo.stdlib.scheduling import *
 from exo.API_cursors import *
-from exo.libs.memories import DRAM_STATIC
-
-from exoblas.codegen_helpers import *
+from exo.stdlib.scheduling import *
 from exoblas.blaslib import *
+from exoblas.codegen_helpers import *
 
 
 @proc
@@ -28,9 +26,7 @@ def syr2k_rm(
 ):
     for i in seq(0, N):
         for j in seq(0, N):
-            if (Uplo == CblasUpperValue and j >= i) or (
-                Uplo == CblasLowerValue and j < i + 1
-            ):
+            if (Uplo == CblasUpperValue and j >= i) or (Uplo == CblasLowerValue and j < i + 1):
                 for k in seq(0, K):
                     if Trans == CblasNoTransValue:
                         C[i, j] += alpha * (A[i, k] * B[j, k] + B_[i, k] * A_[j, k])
@@ -61,6 +57,4 @@ def schedule(syr2k, loop, precision, machine, Uplo=None, Trans=None):
     return schedule_compute(syr2k, syr2k.body()[0], precision, machine, m_r, n_r_fac)
 
 
-variants_generator(schedule, targets=("avx2", "avx512"))(
-    syr2k_rm, "i", globals=globals()
-)
+variants_generator(schedule, targets=("avx2", "avx512"))(syr2k_rm, "i", globals=globals())

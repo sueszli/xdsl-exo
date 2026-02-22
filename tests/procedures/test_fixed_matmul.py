@@ -7,9 +7,7 @@ from exomlir.compiler import compile_one
 
 def test_fixed_matmul():
     @proc
-    def fixed_matmul(
-        C: f32[16, 16] @ DRAM, A: f32[16, 16] @ DRAM, B: f32[16, 16] @ DRAM
-    ):
+    def fixed_matmul(C: f32[16, 16] @ DRAM, A: f32[16, 16] @ DRAM, B: f32[16, 16] @ DRAM):
         for i in seq(0, 16):
             for j in seq(0, 16):
                 C[i, j] = 0.0

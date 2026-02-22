@@ -1,23 +1,9 @@
 from xdsl.context import Context
 from xdsl.dialects import arith, func
-from xdsl.dialects.builtin import (
-    FunctionType,
-    IndexType,
-    IntegerAttr,
-    MemRefType,
-    ModuleOp,
-    NoneAttr,
-    i64,
-)
+from xdsl.dialects.builtin import FunctionType, IndexType, IntegerAttr, MemRefType, ModuleOp, NoneAttr, i64
 from xdsl.ir import BlockArgument
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 from exomlir.dialects import exo, index
 
@@ -26,11 +12,7 @@ class ConvertRedundantReads(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.ReadOp, rewriter: PatternRewriter):
         # replace redundant reads
-        if (
-            isinstance(op.input.type, MemRefType)
-            and op.result.type == op.input.type
-            and len(op.indices) == 0
-        ):
+        if isinstance(op.input.type, MemRefType) and op.result.type == op.input.type and len(op.indices) == 0:
             rewriter.replace_matched_op((), (op.input,))
             return
 
@@ -39,9 +21,7 @@ class ConvertRedundantReads(RewritePattern):
             return
 
         # replace index -> x with index cast
-        if isinstance(op.input.type, IndexType) and not isinstance(
-            op.result.type, IndexType
-        ):
+        if isinstance(op.input.type, IndexType) and not isinstance(op.result.type, IndexType):
             rewriter.replace_matched_op(index.CastsOp(op.input, op.result.type))
 
         if op.input.type == op.result.type and isinstance(op.input, BlockArgument):
@@ -55,21 +35,13 @@ class ConvertAllocToTensor(RewritePattern):
         if isinstance(op.result.type, MemRefType):
             return
 
-        rewriter.replace_matched_op(
-            exo.AllocOp(
-                op.mem.data, MemRefType(op.result.type, [1], NoneAttr(), op.mem)
-            )
-        )
+        rewriter.replace_matched_op(exo.AllocOp(op.mem.data, MemRefType(op.result.type, [1], NoneAttr(), op.mem)))
 
 
 class ConvertReadToTensor(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.ReadOp, rewriter: PatternRewriter):
-        if (
-            not isinstance(op.input.type, MemRefType)
-            or op.input.type.get_shape() != (1,)
-            or len(op.indices) != 0
-        ):
+        if not isinstance(op.input.type, MemRefType) or op.input.type.get_shape() != (1,) or len(op.indices) != 0:
             return
 
         rewriter.replace_matched_op(
@@ -84,11 +56,7 @@ class ConvertReadToTensor(RewritePattern):
 class ConvertAssignToTensor(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.AssignOp, rewriter: PatternRewriter):
-        if (
-            not isinstance(op.input.type, MemRefType)
-            or op.input.type.get_shape() != (1,)
-            or len(op.indices) != 0
-        ):
+        if not isinstance(op.input.type, MemRefType) or op.input.type.get_shape() != (1,) or len(op.indices) != 0:
             return
 
         rewriter.replace_matched_op(
@@ -103,11 +71,7 @@ class ConvertAssignToTensor(RewritePattern):
 class ConvertReduceToTensor(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.ReduceOp, rewriter: PatternRewriter):
-        if (
-            not isinstance(op.input.type, MemRefType)
-            or op.input.type.get_shape() != (1,)
-            or len(op.indices) != 0
-        ):
+        if not isinstance(op.input.type, MemRefType) or op.input.type.get_shape() != (1,) or len(op.indices) != 0:
             return
 
         rewriter.replace_matched_op(
@@ -127,13 +91,7 @@ class ConvertScalarFuncArgsToTensor(RewritePattern):
             if isinstance(arg.type, MemRefType):
                 continue
 
-            mutated = any(
-                isinstance(use.operation, exo.AssignOp)
-                and use.operation.input == arg
-                or isinstance(use.operation, exo.ReduceOp)
-                and use.operation.input == arg
-                for use in arg.uses
-            )
+            mutated = any(isinstance(use.operation, exo.AssignOp) and use.operation.input == arg or isinstance(use.operation, exo.ReduceOp) and use.operation.input == arg for use in arg.uses)
 
             # ignore unmutated scalar types, these can stay as is
             if not mutated:
@@ -150,18 +108,14 @@ class ConvertScalarFuncArgsToTensor(RewritePattern):
 
             # rewrite function signature
             body = op.detach_region(op.body)
-            new_arg = rewriter.insert_block_argument(
-                body.block, idx, (MemRefType(arg.type, [1], NoneAttr()))
-            )
+            new_arg = rewriter.insert_block_argument(body.block, idx, (MemRefType(arg.type, [1], NoneAttr())))
             rewriter.replace_all_uses_with(
                 arg,
                 new_arg,
             )
             rewriter.erase_block_argument(arg, idx)
 
-            rewriter.replace_matched_op(
-                func.FuncOp(op.sym_name.data, func_type, body, op.sym_visibility)
-            )
+            rewriter.replace_matched_op(func.FuncOp(op.sym_name.data, func_type, body, op.sym_visibility))
 
 
 class ConvertScalarRefPass(ModulePass):

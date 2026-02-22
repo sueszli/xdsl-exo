@@ -2,23 +2,9 @@ from functools import reduce
 
 from xdsl.context import Context
 from xdsl.dialects import arith, llvm
-from xdsl.dialects.builtin import (
-    IntegerAttr,
-    MemRefType,
-    ModuleOp,
-    UnrealizedConversionCastOp,
-    i64,
-)
+from xdsl.dialects.builtin import IntegerAttr, MemRefType, ModuleOp, UnrealizedConversionCastOp, i64
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    TypeConversionPattern,
-    attr_type_rewrite_pattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, TypeConversionPattern, attr_type_rewrite_pattern, op_type_rewrite_pattern
 
 from exomlir.dialects import exo
 
@@ -30,14 +16,8 @@ class ConvertAllocOp(RewritePattern):
 
         rewriter.replace_matched_op(
             (
-                const_op := arith.ConstantOp(
-                    IntegerAttr(
-                        reduce(lambda x, y: x * y, op.result.type.get_shape()), i64
-                    )
-                ),
-                alloca_op := llvm.AllocaOp(
-                    const_op.result, op.result.type.element_type
-                ),
+                const_op := arith.ConstantOp(IntegerAttr(reduce(lambda x, y: x * y, op.result.type.get_shape()), i64)),
+                alloca_op := llvm.AllocaOp(const_op.result, op.result.type.element_type),
                 UnrealizedConversionCastOp.get(alloca_op.res, op.result.type),
             )
         )

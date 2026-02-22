@@ -58,12 +58,7 @@ with open(input_path) as fin:
                 colcounter = 0
 
             # get cpu time
-            if (
-                not name.endswith("_mean")
-                and not name.endswith("_stddev")
-                and not name.endswith("_median")
-                and not name.endswith("_cv")
-            ):
+            if not name.endswith("_mean") and not name.endswith("_stddev") and not name.endswith("_median") and not name.endswith("_cv"):
                 results[f"cputime_{colcounter}"] = float(row["cpu_time"])
                 colcounter += 1
                 continue

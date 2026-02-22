@@ -2,30 +2,11 @@ from typing import Sequence
 
 from xdsl.context import Context
 from xdsl.dialects import arith, memref
-from xdsl.dialects.builtin import (
-    IndexType,
-    IntegerAttr,
-    MemRefType,
-    ModuleOp,
-    NoneAttr,
-    StridedLayoutAttr,
-    f16,
-    f32,
-    f64,
-    f80,
-    f128,
-    i64,
-)
+from xdsl.dialects.builtin import IndexType, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StridedLayoutAttr, f16, f32, f64, f80, f128, i64
 from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
-from xdsl.ir import Attribute, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 from exomlir.dialects import exo
 
@@ -62,9 +43,7 @@ class ConvertAssignOp(RewritePattern):
 
         # if the value is a scalar memref, we need to load
         if isinstance(op.value.type, MemRefType):
-            assert op.value.type.get_shape() == (1,), (
-                f"Expected scalar memref type, got {op.value.type}"
-            )
+            assert op.value.type.get_shape() == (1,), f"Expected scalar memref type, got {op.value.type}"
 
             return rewriter.replace_matched_op(
                 (
@@ -93,9 +72,7 @@ class ConvertReduceOp(RewritePattern):
 
         # if the value is a scalar memref, we need to load
         if isinstance(op.value.type, MemRefType):
-            assert op.value.type.get_shape() == (1,), (
-                f"Expected scalar memref type, got {op.value.type}"
-            )
+            assert op.value.type.get_shape() == (1,), f"Expected scalar memref type, got {op.value.type}"
 
             ops.append(zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())))
             ops.append(
@@ -209,9 +186,7 @@ def convert_all_to_index(
     ops = []
     output_dyn_values = []
 
-    static_values, dyn_values = split_dynamic_index_list(
-        input, memref.SubviewOp.DYNAMIC_INDEX
-    )
+    static_values, dyn_values = split_dynamic_index_list(input, memref.SubviewOp.DYNAMIC_INDEX)
 
     for value in dyn_values:
         ops.append(cast_op := arith.IndexCastOp(value, IndexType()))
@@ -272,9 +247,7 @@ class ConvertWindowOp(RewritePattern):
                         op.result.type.element_type,
                         op.result.type.shape,
                         StridedLayoutAttr(
-                            split_dynamic_index_list(strides, -1)[0][
-                                input_dims - output_dims + 1 :
-                            ],
+                            split_dynamic_index_list(strides, -1)[0][input_dims - output_dims + 1 :],
                             NoneAttr(),
                         ),
                         op.result.type.memory_space,

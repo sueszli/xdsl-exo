@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from exo import *
 from exo.platforms.x86 import *
-from exo.libs.externs import select
-
-from exoblas.codegen_helpers import *
 from exoblas.blaslib import *
+from exoblas.codegen_helpers import *
 
 
 @proc
@@ -15,6 +13,4 @@ def scalar_load(x: f32 @ DRAM, src: [f32][8] @ AVX2):
         x += src[i]
 
 
-variants_generator(optimize_level_1, opt_precisions=("f32"), targets=("avx2"))(
-    scalar_load, "i", 8, globals=globals()
-)
+variants_generator(optimize_level_1, opt_precisions=("f32"), targets=("avx2"))(scalar_load, "i", 8, globals=globals())

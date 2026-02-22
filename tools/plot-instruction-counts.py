@@ -24,9 +24,7 @@ for level in sorted(df["level"].unique()):
     df_level = df[df["level"] == level].sort_values(by="proc")
 
     plt.figure(figsize=(8, 6))
-    ax = sns.barplot(
-        data=df_level, x="proc", y="instcount", hue="compiler", palette=palette
-    )
+    ax = sns.barplot(data=df_level, x="proc", y="instcount", hue="compiler", palette=palette)
     ax.set_title(f"Instruction Count - {level}")
     ax.set_xlabel("Procedure")
     ax.set_ylabel("Instruction Count")

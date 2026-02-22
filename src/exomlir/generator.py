@@ -5,71 +5,17 @@ from typing import TypeAlias
 from exo.API import Sym
 from exo.core.LoopIR import LoopIR, T
 from xdsl.builder import Builder
-from xdsl.dialects.arith import (
-    AddfOp,
-    AddiOp,
-    AndIOp,
-    CmpfOp,
-    CmpiOp,
-    ConstantOp,
-    DivfOp,
-    DivSIOp,
-    FastMathFlagsAttr,
-    MulfOp,
-    MuliOp,
-    NegfOp,
-    OrIOp,
-    RemSIOp,
-    SubfOp,
-    SubiOp,
-)
-from xdsl.dialects.builtin import (
-    I8,
-    I16,
-    I32,
-    BoolAttr,
-    Float16Type,
-    Float32Type,
-    Float64Type,
-    FloatAttr,
-    FunctionType,
-    IndexType,
-    IntAttr,
-    IntegerAttr,
-    MemRefType,
-    ModuleOp,
-    NoneAttr,
-    StringAttr,
-    f16,
-    f32,
-    f64,
-    i1,
-    i8,
-    i16,
-    i32,
-    i64,
-)
+from xdsl.dialects.arith import AddfOp, AddiOp, AndIOp, CmpfOp, CmpiOp, ConstantOp, DivfOp, DivSIOp, FastMathFlagsAttr, MulfOp, MuliOp, NegfOp, OrIOp, RemSIOp, SubfOp, SubiOp
+from xdsl.dialects.builtin import I8, I16, I32, BoolAttr, Float16Type, Float32Type, Float64Type, FloatAttr, FunctionType, IndexType, IntAttr, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StringAttr, f16, f32, f64, i1, i8, i16, i32, i64
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
-from xdsl.dialects.memref import (
-    CastOp as MemrefCastOp,
-)
+from xdsl.dialects.memref import CastOp as MemrefCastOp
 from xdsl.dialects.scf import ForOp, IfOp, YieldOp
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Attribute, Block, BlockArgument, OpResult, Region, SSAValue
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.scoped_dict import ScopedDict
 
-from exomlir.dialects.exo import (
-    AllocOp,
-    AssignOp,
-    ExternOp,
-    FreeOp,
-    InstrOp,
-    IntervalOp,
-    ReadOp,
-    ReduceOp,
-    WindowOp,
-)
+from exomlir.dialects.exo import AllocOp, AssignOp, ExternOp, FreeOp, InstrOp, IntervalOp, ReadOp, ReduceOp, WindowOp
 from exomlir.dialects.index import CastsOp
 
 MemRefTypeI8: TypeAlias = MemRefType[I8]
@@ -116,9 +62,7 @@ class IRGenerator:
 
     def __init__(self):
         self.module = ModuleOp([])
-        self.builder = Builder(
-            insertion_point=InsertPoint.at_end(self.module.body.blocks[0])
-        )
+        self.builder = Builder(insertion_point=InsertPoint.at_end(self.module.body.blocks[0]))
 
     def with_empty_scope(self):
         """
@@ -196,9 +140,7 @@ class IRGenerator:
         elif isinstance(type, MemRefType) and isinstance(value.type, MemRefType):
             # check inner types are equal
             if type.element_type != value.type.element_type:
-                raise IRGeneratorError(
-                    f"Cannot cast from {value.type} to {type} as inner types do not match"
-                )
+                raise IRGeneratorError(f"Cannot cast from {value.type} to {type} as inner types do not match")
 
             cast = MemrefCastOp.get(value, type)
             result = cast.results[0]
@@ -235,14 +177,16 @@ class IRGenerator:
 
         input_types = [self.get_type(arg.type) for arg in procedure.args]
         input_types = [
-            MemRefType(
-                ty.element_type,
-                ty.shape,
-                ty.layout,
-                StringAttr(arg.mem.name()),
+            (
+                MemRefType(
+                    ty.element_type,
+                    ty.shape,
+                    ty.layout,
+                    StringAttr(arg.mem.name()),
+                )
+                if isinstance(ty, MemRefType)
+                else ty
             )
-            if isinstance(ty, MemRefType)
-            else ty
             for (ty, arg) in zip(input_types, procedure.args)
         ]
 
@@ -250,9 +194,7 @@ class IRGenerator:
 
         # instantiate builder at module level
         parent_builder = self.builder
-        module_builder = Builder(
-            insertion_point=InsertPoint.at_end(self.module.body.blocks[0])
-        )
+        module_builder = Builder(insertion_point=InsertPoint.at_end(self.module.body.blocks[0]))
 
         # generate private funcs for instruction procedures
         if procedure.instr is not None:
@@ -419,9 +361,7 @@ class IRGenerator:
 
         # ensure arg lengths match
         if len(call.args) != len(call.f.args):
-            raise IRGeneratorError(
-                f"Call to '{call.f.name}' has {len(call.args)} arguments, expected {len(call.f.args)}"
-            )
+            raise IRGeneratorError(f"Call to '{call.f.name}' has {len(call.args)} arguments, expected {len(call.f.args)}")
 
         self.builder.insert(CallOp(call.f.name, args, []))
 
@@ -446,9 +386,7 @@ class IRGenerator:
         elif isinstance(expr, LoopIR.Extern):
             return self.generate_extern_expr(expr)
         else:
-            raise IRGeneratorError(
-                f"Unknown expression type '{type(expr)}' for expression '{expr}'"
-            )
+            raise IRGeneratorError(f"Unknown expression type '{type(expr)}' for expression '{expr}'")
 
     def generate_read_expr(self, read):
         idx = self.generate_expr_list(read.idx)
@@ -461,9 +399,7 @@ class IRGenerator:
         else:
             sizes = []
 
-        self.builder.insert(
-            op := ReadOp(operand, idx, sizes, result_type=self.get_type(read.type))
-        )
+        self.builder.insert(op := ReadOp(operand, idx, sizes, result_type=self.get_type(read.type)))
 
         return op.result
 
@@ -572,9 +508,7 @@ class IRGenerator:
         lhs = self.generate_expr(binop.lhs)
         rhs = self.generate_expr(binop.rhs)
 
-        assert lhs.type == rhs.type, (
-            f"Cannot compare {lhs.type} and {rhs.type} with operator '{binop.op}'"
-        )
+        assert lhs.type == rhs.type, f"Cannot compare {lhs.type} and {rhs.type} with operator '{binop.op}'"
 
         # boolean operations
         if lhs.type == i1:
@@ -588,18 +522,14 @@ class IRGenerator:
         elif lhs.type in [i8, i16, i32, i64]:
             op = INTEGER_CMP_TABLE[binop.op]
             if op is None:
-                raise IRGeneratorError(
-                    f"Unknown integer comparison operator '{binop.op}'"
-                )
+                raise IRGeneratorError(f"Unknown integer comparison operator '{binop.op}'")
 
             binop = CmpiOp(lhs, rhs, op)
         # cmpf
         else:
             op = FLOAT_CMP_TABLE[binop.op]
             if op is None:
-                raise IRGeneratorError(
-                    f"Unknown float comparison operator '{binop.op}'"
-                )
+                raise IRGeneratorError(f"Unknown float comparison operator '{binop.op}'")
 
             binop = CmpfOp(lhs, rhs, op)
 
@@ -616,11 +546,7 @@ class IRGenerator:
         input_sizes = self.get_dynamic_shape(self.get_sym_exo_type(window.name))
         output_sizes = self.get_dynamic_shape(window.type.as_tensor)
 
-        self.builder.insert(
-            op := WindowOp(
-                self.get_sym(window.name), idx, input_sizes, output_sizes, dest_type
-            )
-        )
+        self.builder.insert(op := WindowOp(self.get_sym(window.name), idx, input_sizes, output_sizes, dest_type))
 
         return op.result
 
@@ -628,9 +554,7 @@ class IRGenerator:
         if isinstance(w_access, LoopIR.Point):
             return self.generate_expr(w_access.pt)
 
-        assert isinstance(w_access, LoopIR.Interval), (
-            f"Unknown window access type '{type(w_access)}' for '{w_access}'"
-        )
+        assert isinstance(w_access, LoopIR.Interval), f"Unknown window access type '{type(w_access)}' for '{w_access}'"
 
         lo = self.generate_expr(w_access.lo)
         hi = self.generate_expr(w_access.hi)

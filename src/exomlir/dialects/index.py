@@ -1,16 +1,6 @@
-from xdsl.dialects.builtin import (
-    AnySignlessIntegerOrIndexType,
-    IndexType,
-    IntegerType,
-)
+from xdsl.dialects.builtin import AnySignlessIntegerOrIndexType, IndexType, IntegerType
 from xdsl.ir import Dialect, Operation, SSAValue
-from xdsl.irdl import (
-    Attribute,
-    IRDLOperation,
-    irdl_op_definition,
-    operand_def,
-    result_def,
-)
+from xdsl.irdl import Attribute, IRDLOperation, irdl_op_definition, operand_def, result_def
 
 
 @irdl_op_definition
@@ -30,14 +20,10 @@ class CastsOp(IRDLOperation):
 
     def verify_(self):
         if isinstance(self.input.type, IndexType):
-            assert isinstance(self.result.type, IntegerType) and not isinstance(
-                self.result.type, IndexType
-            ), "result type must be integer for index type input"
+            assert isinstance(self.result.type, IntegerType) and not isinstance(self.result.type, IndexType), "result type must be integer for index type input"
 
         elif isinstance(self.input.type, IntegerType):
-            assert isinstance(self.result.type, IndexType), (
-                "result type must be index type for integer type input"
-            )
+            assert isinstance(self.result.type, IndexType), "result type must be index type for integer type input"
 
 
 Index = Dialect(

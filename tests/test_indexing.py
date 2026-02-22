@@ -1,6 +1,4 @@
-from exomlir.rewrites.convert_memref_to_llvm import (
-    compute_memref_strides,
-)
+from exomlir.rewrites.convert_memref_to_llvm import compute_memref_strides
 
 
 def test_strides_4_4():

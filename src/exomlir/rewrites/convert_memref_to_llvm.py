@@ -4,28 +4,11 @@ from functools import reduce
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import arith, llvm, memref
-from xdsl.dialects.builtin import (
-    IntegerAttr,
-    MemRefType,
-    ModuleOp,
-    UnrealizedConversionCastOp,
-    i8,
-    i16,
-    i32,
-    i64,
-)
+from xdsl.dialects.builtin import IntegerAttr, MemRefType, ModuleOp, UnrealizedConversionCastOp, i8, i16, i32, i64
 from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    TypeConversionPattern,
-    attr_type_rewrite_pattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, TypeConversionPattern, attr_type_rewrite_pattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 
 from exomlir.dialects import exo
@@ -115,17 +98,13 @@ class ConvertReadOp(RewritePattern):
         offest_ops, offsets = compute_memref_offsets(op.indices, strides)
 
         # split static and dynamic offsets
-        static_offsets, dynamic_offsets = split_dynamic_index_list(
-            offsets, llvm.GEP_USE_SSA_VAL
-        )
+        static_offsets, dynamic_offsets = split_dynamic_index_list(offsets, llvm.GEP_USE_SSA_VAL)
 
         rewriter.replace_matched_op(
             (
                 *stride_ops,
                 *offest_ops,
-                cast_op := UnrealizedConversionCastOp.get(
-                    [op.input], [llvm.LLVMPointerType.opaque()]
-                ),
+                cast_op := UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType.opaque()]),
                 # get pointer and load
                 gep_op := llvm.GEPOp(
                     cast_op.results[0],
@@ -152,17 +131,13 @@ class ConvertAssignOp(RewritePattern):
         offset_ops, offsets = compute_memref_offsets(op.indices, strides)
 
         # split static and dynamic offsets
-        static_offsets, dynamic_offsets = split_dynamic_index_list(
-            offsets, llvm.GEP_USE_SSA_VAL
-        )
+        static_offsets, dynamic_offsets = split_dynamic_index_list(offsets, llvm.GEP_USE_SSA_VAL)
 
         rewriter.replace_matched_op(
             (
                 *stride_ops,
                 *offset_ops,
-                cast_op := UnrealizedConversionCastOp.get(
-                    [op.input], [llvm.LLVMPointerType.opaque()]
-                ),
+                cast_op := UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType.opaque()]),
                 # get pointer and store
                 gep_op := llvm.GEPOp(
                     cast_op.results[0],
@@ -189,13 +164,9 @@ class ConvertReduceOp(RewritePattern):
         offset_ops, offsets = compute_memref_offsets(op.indices, strides)
 
         # split static and dynamic offsets
-        static_offsets, dynamic_offsets = split_dynamic_index_list(
-            offsets, llvm.GEP_USE_SSA_VAL
-        )
+        static_offsets, dynamic_offsets = split_dynamic_index_list(offsets, llvm.GEP_USE_SSA_VAL)
 
-        cast_op = UnrealizedConversionCastOp.get(
-            [op.input], [llvm.LLVMPointerType.opaque()]
-        )
+        cast_op = UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType.opaque()])
 
         # get pointer and load
         gep_op = llvm.GEPOp(
@@ -248,17 +219,13 @@ class ConvertWindowOp(RewritePattern):
         offset_ops, offsets = compute_memref_offsets(op.indices, strides)
 
         # split static and dynamic offsets
-        static_offsets, dynamic_offsets = split_dynamic_index_list(
-            offsets, llvm.GEP_USE_SSA_VAL
-        )
+        static_offsets, dynamic_offsets = split_dynamic_index_list(offsets, llvm.GEP_USE_SSA_VAL)
 
         rewriter.replace_matched_op(
             (
                 *stride_ops,
                 *offset_ops,
-                cast_op := UnrealizedConversionCastOp.get(
-                    [op.input], [llvm.LLVMPointerType.opaque()]
-                ),
+                cast_op := UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType.opaque()]),
                 gep_op := llvm.GEPOp(
                     cast_op.results[0],
                     static_offsets,
@@ -282,11 +249,7 @@ class ConvertAllocOp(RewritePattern):
 
         rewriter.replace_matched_op(
             (
-                const_op := arith.ConstantOp(
-                    IntegerAttr(
-                        reduce(lambda x, y: x * y, op.result.type.get_shape()), i64
-                    )
-                ),
+                const_op := arith.ConstantOp(IntegerAttr(reduce(lambda x, y: x * y, op.result.type.get_shape()), i64)),
                 alloc_op := llvm.CallOp(
                     "malloc",
                     const_op.result,
@@ -305,9 +268,7 @@ class ConvertFreeOp(RewritePattern):
 
         rewriter.replace_matched_op(
             (
-                cast_op := UnrealizedConversionCastOp.get(
-                    [op.input], [llvm.LLVMPointerType.opaque()]
-                ),
+                cast_op := UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType.opaque()]),
                 llvm.CallOp("free", cast_op.results[0]),
             )
         )

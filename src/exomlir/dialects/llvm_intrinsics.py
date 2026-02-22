@@ -1,26 +1,9 @@
 from typing import ClassVar
 
-from xdsl.dialects import arith
-from xdsl.dialects.builtin import (
-    I1,
-    IntegerAttr,
-    VectorType,
-    i32,
-)
+from xdsl.dialects.builtin import I1, IntegerAttr, VectorType, i32
 from xdsl.dialects.llvm import LLVMCompatibleFloatConstraint, LLVMPointerType
 from xdsl.ir import Dialect
-from xdsl.irdl import (
-    Attribute,
-    IRDLOperation,
-    Operation,
-    ParsePropInAttrDict,
-    SSAValue,
-    VarConstraint,
-    irdl_op_definition,
-    operand_def,
-    prop_def,
-    result_def,
-)
+from xdsl.irdl import Attribute, IRDLOperation, Operation, ParsePropInAttrDict, SSAValue, VarConstraint, irdl_op_definition, operand_def, prop_def, result_def
 
 
 @irdl_op_definition
@@ -32,9 +15,7 @@ class FAbsOp(IRDLOperation):
     input = operand_def(T)
     result = result_def(T)
 
-    assembly_format = (
-        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
-    )
+    assembly_format = "`(` operands `)` attr-dict `:` functional-type(operands, results)"
 
     irdl_options = [ParsePropInAttrDict()]
 

@@ -23,16 +23,12 @@ eprint(f"target: {directory}")
 
 print("compiler,level,proc,instcount")
 
-INSTR_COUNT_REGEX = re.compile(
-    r"(\d+) instcount\s+- Number of instructions \(of all types\)"
-)
+INSTR_COUNT_REGEX = re.compile(r"(\d+) instcount\s+- Number of instructions \(of all types\)")
 
 for bytecode in directory.glob(f"**/*.{ext}"):
     eprint(f"{bytecode}")
 
-    result = os.popen(
-        f"{opt} -passes=strip,instcount -disable-output -disable-verify -stats {bytecode} 2>&1"
-    ).read()
+    result = os.popen(f"{opt} -passes=strip,instcount -disable-output -disable-verify -stats {bytecode} 2>&1").read()
 
     # get the first match
     match = INSTR_COUNT_REGEX.search(result)

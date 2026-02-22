@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from exo import *
-from exo.stdlib.scheduling import *
 from exo.API_cursors import *
-from exo.libs.memories import DRAM_STATIC
-
-from exoblas.codegen_helpers import *
+from exo.stdlib.scheduling import *
 from exoblas.blaslib import *
+from exoblas.codegen_helpers import *
 from exoblas.memories import ALIGNED_DRAM_STATIC
 
 
@@ -84,18 +82,14 @@ def schedule(
     sfx += "r" if Side == CblasRightValue else "l"
     sfx += "u" if Uplo == CblasUpperValue else "l"
     gemm_macro_spec = rename(gemm_macro_spec, gemm_macro_spec.name() + sfx)
-    gemm_macro = schedule_compute(
-        gemm_macro_spec, gemm_macro_spec.body()[0], precision, machine, m_r, n_r_fac
-    )
+    gemm_macro = schedule_compute(gemm_macro_spec, gemm_macro_spec.body()[0], precision, machine, m_r, n_r_fac)
     gemm_macro = gemm_macro_spec
 
     symm_tiled = main_symm
     k_loop = get_inner_loop(symm_tiled, get_inner_loop(symm_tiled, i_loop))
     symm_tiled = repeate_n(lift_scope)(symm_tiled, k_loop, n=1)
     symm_tiled = tile_loops_bottom_up(symm_tiled, i_loop, [M_tile, K_tile, N_tile])
-    symm_tiled = apply(repeate_n(reorder_loops))(
-        symm_tiled, symm_tiled.find_loop("ki", many=True), n=1
-    )
+    symm_tiled = apply(repeate_n(reorder_loops))(symm_tiled, symm_tiled.find_loop("ki", many=True), n=1)
 
     def pack_A(proc, block):
         block = proc.forward(block)
@@ -128,17 +122,11 @@ def schedule(
     symm_tiled = apply(pack_A)(symm_tiled, blocks)
 
     # TODO: Look into why analysis is unsatisfiable here
-    symm_tiled = apply(hoist_from_loop)(
-        symm_tiled, symm_tiled.find_loop("jo", many=True)
-    )
+    symm_tiled = apply(hoist_from_loop)(symm_tiled, symm_tiled.find_loop("jo", many=True))
     symm_tiled = squash_buffers(symm_tiled, symm_tiled.find("a_val : _", many=True))
 
     loops = symm_tiled.find_loop("ii", many=True)[1::2]
-    shape = (
-        ((1, N_tile), (0, K_tile))
-        if Side == CblasLeftValue
-        else ((0, M_tile), (1, K_tile))
-    )
+    shape = ((1, N_tile), (0, K_tile)) if Side == CblasLeftValue else ((0, M_tile), (1, K_tile))
     symm_tiled = apply(pack_mem)(symm_tiled, loops, "B", shape, "packed_B")
 
     buffers = symm_tiled.find("packed_B : _", many=True)
@@ -167,12 +155,8 @@ def schedule_symm(symm, loop, precision, machine, Side=None, Uplo=None):
     if Side == CblasRightValue:
         return symm
 
-    symm = schedule(
-        symm, loop, precision, machine, m_r, n_r_fac, M_tile, N_tile, K_tile, Side, Uplo
-    )
+    symm = schedule(symm, loop, precision, machine, m_r, n_r_fac, M_tile, N_tile, K_tile, Side, Uplo)
     return symm
 
 
-variants_generator(schedule_symm, targets=("avx2", "avx512"))(
-    symm_rm, "i", globals=globals()
-)
+variants_generator(schedule_symm, targets=("avx2", "avx512"))(symm_rm, "i", globals=globals())

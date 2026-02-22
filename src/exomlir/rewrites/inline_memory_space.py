@@ -4,13 +4,7 @@ from xdsl.context import Context
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import MemRefType, ModuleOp, NoneAttr, StringAttr
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 from exomlir.dialects import exo
 
@@ -22,9 +16,7 @@ class ConvertAllocOp(RewritePattern):
         if not isinstance(op.result.type, MemRefType):
             return
 
-        assert isinstance(op.result.type.memory_space, StringAttr), (
-            "Memory space should be a string"
-        )
+        assert isinstance(op.result.type.memory_space, StringAttr), "Memory space should be a string"
 
         # only convert DRAM allocs
         if cast(StringAttr, op.result.type.memory_space).data != "DRAM":
@@ -54,10 +46,7 @@ class ConvertWindowOp(RewritePattern):
         if isinstance(input_type.memory_space, NoneAttr):
             return
 
-        if (
-            not isinstance(output_type.memory_space, NoneAttr)
-            and input_type.memory_space.data == output_type.memory_space.data
-        ):
+        if not isinstance(output_type.memory_space, NoneAttr) and input_type.memory_space.data == output_type.memory_space.data:
             return
 
         rewriter.replace_matched_op(
@@ -81,9 +70,7 @@ class ConvertFreeOp(RewritePattern):
         if not isinstance(op.input.type, MemRefType):
             return
 
-        assert isinstance(op.input.type.memory_space, StringAttr), (
-            "Memory space should be a string"
-        )
+        assert isinstance(op.input.type.memory_space, StringAttr), "Memory space should be a string"
 
         rewriter.replace_matched_op(
             memref.DeallocOp.get(
@@ -96,6 +83,4 @@ class InlineMemorySpacePass(ModulePass):
     name = "inline-memory-space"
 
     def apply(self, ctx: Context, m: ModuleOp) -> None:
-        PatternRewriteWalker(
-            GreedyRewritePatternApplier([ConvertWindowOp()])
-        ).rewrite_module(m)
+        PatternRewriteWalker(GreedyRewritePatternApplier([ConvertWindowOp()])).rewrite_module(m)

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from exo import *
-
-from exoblas.codegen_helpers import *
 from exoblas.blaslib import *
+from exoblas.codegen_helpers import *
 
 
 @proc
@@ -19,6 +18,4 @@ def scal_alpha_0(n: size, x: [R][n]):
 
 
 for proc in scal, scal_alpha_0:
-    variants_generator(optimize_level_1, targets=("avx2"), opt_precisions=("f32"))(
-        proc, "i", 4, globals=globals()
-    )
+    variants_generator(optimize_level_1, targets=("avx2"), opt_precisions=("f32"))(proc, "i", 4, globals=globals())

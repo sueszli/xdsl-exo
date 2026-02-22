@@ -1,6 +1,7 @@
 # RUN: EXO-FILECHECK
 
 from __future__ import annotations
+
 from exo import *
 
 

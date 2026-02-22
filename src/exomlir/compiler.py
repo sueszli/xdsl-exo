@@ -16,15 +16,8 @@ from xdsl.context import Context
 from xdsl.dialects import arith, func, memref, scf
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.transforms.canonicalize import CanonicalizePass
-from xdsl.transforms.common_subexpression_elimination import (
-    CommonSubexpressionElimination,
-)
-from xdsl.transforms.convert_memref_to_ptr import ConvertMemRefToPtr
-from xdsl.transforms.convert_ptr_to_llvm import ConvertPtrToLLVMPass
-from xdsl.transforms.convert_ptr_type_offsets import ConvertPtrTypeOffsetsPass
+from xdsl.transforms.common_subexpression_elimination import CommonSubexpressionElimination
 from xdsl.transforms.convert_scf_to_cf import ConvertScfToCf
-from xdsl.transforms.convert_vector_to_ptr import ConvertVectorToPtrPass
-from xdsl.transforms.lower_affine import LowerAffinePass
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 
 from exomlir.dialects.exo import Exo
@@ -32,13 +25,11 @@ from exomlir.dialects.index import Index
 from exomlir.dialects.llvm_intrinsics import LLVMIntrinsics
 from exomlir.generator import IRGenerator
 from exomlir.platforms.avx2 import InlineAVX2Pass
-from exomlir.platforms.blas import InlineBLASPass, InlineBLASAllocPass
+from exomlir.platforms.blas import InlineBLASAllocPass, InlineBLASPass
 from exomlir.rewrites.add_prefix import AddPrefixPass
 from exomlir.rewrites.convert_memref_to_llvm import ConvertMemRefToLLVM
 from exomlir.rewrites.convert_scalar_ref import ConvertScalarRefPass
-from exomlir.rewrites.convert_tensor_ref import ConvertTensorRefPass
 from exomlir.rewrites.inline_memory_space import InlineMemorySpacePass
-from exomlir.rewrites.lower_alloc import LowerAllocPass
 from exomlir.rewrites.reconcile_index_casts import ReconcileIndexCastsPass
 
 logger = logging.getLogger("exo-mlir")
@@ -98,9 +89,7 @@ def compile_many(
     """
     input_procedures = list(
         sorted(
-            find_all_subprocs(
-                [proc._loopir_proc for proc in library if not proc.is_instr()]
-            ),
+            find_all_subprocs([proc._loopir_proc for proc in library if not proc.is_instr()]),
             key=lambda x: x.name,
         )
     )
@@ -160,9 +149,7 @@ def compile_path(
     dest.write_text(str(module))
 
 
-def transform(
-    ctx: Context, module: ModuleOp, opts: CompilerOptions = CompilerOptions()
-) -> ModuleOp:
+def transform(ctx: Context, module: ModuleOp, opts: CompilerOptions = CompilerOptions()) -> ModuleOp:
     """
     Apply transformations to an MLIR module.
     """
