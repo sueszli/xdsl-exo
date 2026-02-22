@@ -1,6 +1,6 @@
 .PHONY: install
 install:
-	brew install llvm pkg-config google-benchmark ninja ccache
+	brew install llvm pkg-config ninja ccache
 
 .PHONY: venv
 venv:
@@ -17,7 +17,3 @@ precommit:
 tests:
 	uv run pytest tests/
 	uv run lit tests/filecheck/
-
-.PHONY: bench
-bench:
-	uv run snakemake --cores all

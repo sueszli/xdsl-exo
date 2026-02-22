@@ -1,6 +1,3 @@
-doc.md
-
-.snakemake
 .lit_test_times.txt
 tests/filecheck/Output/
 

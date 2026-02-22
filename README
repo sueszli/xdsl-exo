@@ -3,6 +3,5 @@ An experimental MLIR backend for the Exo programming language.
 Usage:
 
 ```bash
-uv run exomlir <source.py> [--target {exo,builtin,scf,lowered,llvm}] [-o output.mlir]
-# e.g. uv run exomlir examples/vadd.py --target llvm
+uv run exomlir examples/vadd.py --target llvm
 ```
