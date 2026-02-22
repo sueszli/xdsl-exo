@@ -7,7 +7,7 @@ from exo.core.memory import DRAM
 from exo.core.prelude import SrcInfo, Sym
 from xdsl.dialects.builtin import i32
 from xdsl.utils.scoped_dict import ScopedDict
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.test_value import create_ssa_value
 
 from exomlir import compile_one
 from exomlir.generator import IRGenerator, IRGeneratorError
@@ -58,7 +58,7 @@ def test_get_sym():
         gen.get_sym(sym)
 
     # Test symbol found
-    test_value = TestSSAValue(i32)
+    test_value = create_ssa_value(i32)
     same_value = gen.declare_value(sym, test_value)
 
     assert test_value is same_value
@@ -70,15 +70,16 @@ def test_get_sym():
 
 def test_emit_assign_op():
     # x[0] = 1
+    sym_x = Sym("x")
     ir = LoopIR.Assign(
-        Sym("x"),
+        sym_x,
         TENSOR_TYPE,
         [LoopIR.Const(0, T.index, SRC_INFO)],
         LoopIR.Const(0.0, T.f32, SRC_INFO),
         SRC_INFO,
     )
 
-    gen = IRGenerator().with_empty_scope()._with_test_op(Sym("x"), TENSOR_TYPE)
+    gen = IRGenerator().with_empty_scope()._with_test_op(sym_x, TENSOR_TYPE)
     gen.generate_assign_stmt(ir)
 
     print(gen.module)
@@ -87,15 +88,16 @@ def test_emit_assign_op():
 
 def test_emit_reduce_op():
     # x[0] += 1
+    sym_x = Sym("x")
     ir = LoopIR.Reduce(
-        Sym("x"),
+        sym_x,
         TENSOR_TYPE,
         [LoopIR.Const(0, T.int, SRC_INFO)],
         LoopIR.Const(0.0, T.f32, SRC_INFO),
         SRC_INFO,
     )
 
-    gen = IRGenerator().with_empty_scope()._with_test_op(Sym("x"), TENSOR_TYPE)
+    gen = IRGenerator().with_empty_scope()._with_test_op(sym_x, TENSOR_TYPE)
     gen.generate_reduce_stmt(ir)
 
     print(gen.module)
@@ -156,14 +158,15 @@ def test_emit_alloc_op():
 
 
 def test_emit_free_op():
+    sym_x = Sym("x")
     ir = LoopIR.Free(
-        Sym("x"),
+        sym_x,
         TENSOR_TYPE,
         DRAM,
         SRC_INFO,
     )
 
-    gen = IRGenerator().with_empty_scope()._with_test_op(Sym("x"), TENSOR_TYPE)
+    gen = IRGenerator().with_empty_scope()._with_test_op(sym_x, TENSOR_TYPE)
     gen.generate_free_stmt(ir)
 
     print(gen.module)
@@ -171,13 +174,14 @@ def test_emit_free_op():
 
 
 def test_read_op():
-    ir = LoopIR.Read(Sym("x"), [LoopIR.Const(0, T.index, SRC_INFO)], T.f32, SRC_INFO)
+    sym_x = Sym("x")
+    ir = LoopIR.Read(sym_x, [LoopIR.Const(0, T.index, SRC_INFO)], T.f32, SRC_INFO)
 
     gen = (
         IRGenerator()
         .with_empty_scope()
         ._with_test_op(
-            Sym("x"),
+            sym_x,
             TENSOR_TYPE,
         )
     )

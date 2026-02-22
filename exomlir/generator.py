@@ -69,6 +69,7 @@ class IRGenerator:
         Return this IRGenerator with an empty symbol table.
         """
         self.symbol_table = ScopedDict()
+        self.type_table = ScopedDict()
         return self
 
     def declare_arg(self, sym: Sym, arg: BlockArgument) -> BlockArgument:
@@ -92,6 +93,8 @@ class IRGenerator:
         op = TestOp(result_types=[self.get_type(type)])
         self.builder.insert(op)
         self.symbol_table[sym.__repr__()] = op.res[0]
+        if self.type_table is not None:
+            self.type_table[sym.__repr__()] = type
         return self
 
     def get_sym(self, sym: Sym) -> SSAValue:
