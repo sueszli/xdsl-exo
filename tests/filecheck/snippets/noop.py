@@ -1,3 +1,5 @@
+# RUN: FILECHECK-EXO
+# RUN: FILECHECK-SCF
 # RUN: FILECHECK-LLVM
 
 from __future__ import annotations
