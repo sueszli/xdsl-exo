@@ -1,4 +1,3 @@
-import logging
 import os
 import sys
 from argparse import ArgumentParser
@@ -6,8 +5,6 @@ from pathlib import Path
 
 from xdsl_exo import compile_path
 from xdsl_exo.compiler import CompilerOptions
-
-logging.basicConfig(format="%(levelname)s: %(message)s", stream=sys.stderr)
 
 
 def main():
@@ -21,9 +18,6 @@ def main():
 
     args = parser.parse_args()
     srcs = [Path(src) for src in args.source]
-
-    # set logging level
-    logging.getLogger("exo-mlir").setLevel(logging.DEBUG if args.verbose else logging.ERROR)
 
     if len(srcs) == 0:
         parser.error("Must provide at least one source file.")
