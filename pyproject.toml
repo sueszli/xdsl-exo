@@ -30,5 +30,8 @@ xdsl-exo = "xdsl_exo.main:main"
 where = ["."]
 namespaces = true
 
+[tool.ruff.lint]
+ignore = ["F403", "F405", "F821"]
+
 [tool.uv.sources]
 xdsl = { path = "xdsl" }
