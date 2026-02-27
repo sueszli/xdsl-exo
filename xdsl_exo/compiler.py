@@ -164,7 +164,7 @@ def compile_many(
 
 def compile_path(
     src: Path,
-    dest: Path | None = None,
+    dst: Path | None = None,
     opts: CompilerOptions = CompilerOptions(),
 ):
     """
@@ -174,7 +174,7 @@ def compile_path(
 
     assert src.is_file() and src.suffix == ".py", f"{src} is not a Python source file."
 
-    print(f"Compile[{src}] Destination: {dest}")
+    print(f"Compile[{src}] Destination: {dst}")
 
     # load user code and get procedures from exo
     # procedures tend to do a lot of printing, so we suppress stdout temporarily
@@ -189,14 +189,14 @@ def compile_path(
 
     module = compile_many(library, opts)
 
-    # print to stdout if no dest
-    if not dest:
+    # print to stdout if no dst
+    if not dst:
         print(module)
         return
 
     # write MLIR to file
-    os.makedirs(dest.parent, exist_ok=True)
-    dest.write_text(str(module))
+    os.makedirs(dst.parent, exist_ok=True)
+    dst.write_text(str(module))
 
 
 def transform(ctx: Context, module: ModuleOp, opts: CompilerOptions = CompilerOptions()) -> ModuleOp:

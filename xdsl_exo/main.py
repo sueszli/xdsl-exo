@@ -18,13 +18,9 @@ def main():
     opts.target = args.target
     opts.prefix = args.prefix
 
-    dest = None
+    dst = None
     if args.output and args.output != "-":
-        dest = Path(args.output)
-        os.makedirs(dest.parent, exist_ok=True)
+        dst = Path(args.output)
+        os.makedirs(dst.parent, exist_ok=True)
 
-    compile_path(Path(args.source), dest, opts)
-
-
-if __name__ == "__main__":
-    main()
+    compile_path(Path(args.source), dst, opts)

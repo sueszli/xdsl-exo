@@ -67,7 +67,7 @@ and emits LLVM-compatible IR with platform-specific vectorization (AVX2, BLAS).
   xdsl_exo/
   │
   ├── __init__.py              public API: compile_one / compile_many / compile_path
-  ├── __main__.py              CLI entry point
+  ├── main.py                  CLI entry point
   ├── compiler.py              pipeline orchestration (analyze → generate → transform)
   ├── generator.py             Exo LoopIR AST  →  Exo MLIR dialect  (IRGenerator)
   │
