@@ -346,7 +346,7 @@ class IRGenerator:
             case LoopIR.Reduce():
                 self._store_stmt(stmt, ReduceOp)
             case LoopIR.WriteConfig():
-                raise NotImplementedError("WriteConfig is not supported")
+                raise NotImplementedError()
             case LoopIR.Pass():
                 pass
             case LoopIR.If():
@@ -360,7 +360,7 @@ class IRGenerator:
             case LoopIR.Call():
                 self._call_stmt(stmt)
             case LoopIR.Window():
-                assert False, "window statements are not supported"
+                raise NotImplementedError()
             case _:
                 assert False, f"unknown statement {stmt}"
 
