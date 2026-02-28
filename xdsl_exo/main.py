@@ -106,11 +106,11 @@ class IRGenerator:
         def from_expr(expr):
             match expr:
                 case LoopIR.Const():
-                    return expr.val  # literal - e.g. `f32[16, 16]`
+                    return expr.val  # literal (e.g. `f32[16, 16]`)
                 case LoopIR.Read():
-                    return self.symbol_table[repr(expr.name)] if dynamic else -1  # variable - e.g. `f32[M, K]`
+                    return self.symbol_table[repr(expr.name)] if dynamic else -1  # variable (e.g. `f32[M, K]`)
                 case LoopIR.BinOp():
-                    return self._binop_expr(expr) if dynamic else -1  # computed size - e.g. `f32[M+1, K*2]`
+                    return self._binop_expr(expr) if dynamic else -1  # computed (e.g. `f32[M+1, K*2]`)
                 case _:
                     assert False
 
