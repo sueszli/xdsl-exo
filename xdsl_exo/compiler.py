@@ -116,82 +116,6 @@ def analyze(p):
     return MemoryAnalysis().run(p)
 
 
-def compile_one(proc: Procedure, target: str = "llvm", prefix: str | None = None) -> ModuleOp:
-    """
-    Compile a single procedure. This is an alias for `compile_many([proc])`.
-    """
-    if proc.is_instr():
-        raise TypeError("Cannot compile an instr procedure.")
-    return compile_many([proc], target, prefix)
-
-
-def compile_many(
-    library: Sequence[Procedure],
-    target: str = "llvm",
-    prefix: str | None = None,
-) -> ModuleOp:
-    """
-    Compile a list of procedures into a single MLIR module..
-    """
-    input_procedures = list(
-        sorted(
-            find_all_subprocs([proc._loopir_proc for proc in library if not proc.is_instr()]),
-            key=lambda x: x.name,
-        )
-    )
-
-    # ensure no duplicate procedures
-    seen_procs = set()
-    for proc in input_procedures:
-        if proc.name in seen_procs:
-            raise TypeError(f"multiple procs named {proc.name}")
-        seen_procs.add(proc.name)
-
-    # analyze procedures
-    analyzed_procedures = [analyze(proc) for proc in input_procedures]
-
-    # generate MLIR
-    return transform(context(), IRGenerator().generate(analyzed_procedures), target, prefix)
-
-
-def compile_path(
-    src: Path,
-    dst: Path | None = None,
-    target: str = "llvm",
-    prefix: str | None = None,
-):
-    """
-    Compile all procedures in a Python source file to a single MLIR module, and write it to a file.
-    """
-    assert src.exists(), f"{src} does not exist."
-
-    assert src.is_file() and src.suffix == ".py", f"{src} is not a Python source file."
-
-    print(f"Compile[{src}] Destination: {dst}")
-
-    # load user code and get procedures from exo
-    # procedures tend to do a lot of printing, so we suppress stdout temporarily
-    with contextlib.redirect_stdout(None):
-        library = get_procs_from_module(load_user_code(src))  # type: list[Procedure]
-
-    print(f"Compile[{src}] Loaded {len(library)} procedure(s) from source")
-
-    # invoke exo analysis
-    assert isinstance(library, list)
-    assert all(isinstance(proc, Procedure) for proc in library)
-
-    module = compile_many(library, target, prefix)
-
-    # print to stdout if no dst
-    if not dst:
-        print(module)
-        return
-
-    # write MLIR to file
-    os.makedirs(dst.parent, exist_ok=True)
-    dst.write_text(str(module))
-
-
 def transform(ctx: Context, module: ModuleOp, target: str = "llvm", prefix: str | None = None) -> ModuleOp:
     """
     Apply transformations to an MLIR module.
@@ -237,6 +161,73 @@ def transform(ctx: Context, module: ModuleOp, target: str = "llvm", prefix: str 
     return module
 
 
+def compile_many(
+    library: Sequence[Procedure],
+    target: str = "llvm",
+    prefix: str | None = None,
+) -> ModuleOp:
+    """
+    Compile a list of procedures into a single MLIR module..
+    """
+    input_procedures = list(
+        sorted(
+            find_all_subprocs([proc._loopir_proc for proc in library if not proc.is_instr()]),
+            key=lambda x: x.name,
+        )
+    )
+
+    # ensure no duplicate procedures
+    seen_procs = set()
+    for proc in input_procedures:
+        if proc.name in seen_procs:
+            raise TypeError(f"multiple procs named {proc.name}")
+        seen_procs.add(proc.name)
+
+    # analyze procedures
+    analyzed_procedures = [analyze(proc) for proc in input_procedures]
+
+    # generate MLIR
+    return transform(context(), IRGenerator().generate(analyzed_procedures), target, prefix)
+
+
+def compile_one(proc: Procedure, target: str = "llvm", prefix: str | None = None) -> ModuleOp:
+    """
+    Compile a single procedure. This is an alias for `compile_many([proc])`.
+    """
+    if proc.is_instr():
+        raise TypeError("Cannot compile an instr procedure.")
+    return compile_many([proc], target, prefix)
+
+
+def compile_path_to_mlir(
+    src: Path,
+    dst: Path | None = None,
+    target: str = "llvm",
+    prefix: str | None = None,
+):
+    assert src.is_file() and src.suffix == ".py", f"{src} is not a valid Python source file."
+
+    # load user code and get procedures from exo
+    # procedures tend to do a lot of printing, so we suppress stdout temporarily
+    with contextlib.redirect_stdout(None):
+        library = get_procs_from_module(load_user_code(src))  # type: list[Procedure]
+
+    # invoke exo analysis
+    assert isinstance(library, list)
+    assert all(isinstance(proc, Procedure) for proc in library)
+
+    module = compile_many(library, target, prefix)
+
+    # print to stdout if no dst
+    if not dst:
+        print(module)
+        return
+
+    # write MLIR to file
+    os.makedirs(dst.parent, exist_ok=True)
+    dst.write_text(str(module))
+
+
 def main():
     parser = ArgumentParser(description="Compile an Exo library to MLIR.")
     parser.add_argument("source", type=str, help="Source file to compile")
@@ -250,4 +241,4 @@ def main():
         dst = Path(args.output)
         os.makedirs(dst.parent, exist_ok=True)
 
-    compile_path(Path(args.source), dst=dst, target=args.target, prefix=args.prefix)
+    compile_path_to_mlir(Path(args.source), dst=dst, target=args.target, prefix=args.prefix)
