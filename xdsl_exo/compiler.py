@@ -240,22 +240,8 @@ class IRGenerator:
         return op.result
 
     def _binop_expr_cmp(self, binop):
-        integer_cmp_table = {
-            "==": "eq",
-            "!=": "ne",
-            "<": "slt",
-            "<=": "sle",
-            ">": "sgt",
-            ">=": "sge",
-        }
-        float_cmp_table = {
-            "==": "oeq",
-            "!=": "one",
-            "<": "olt",
-            "<=": "ole",
-            ">": "ogt",
-            ">=": "oge",
-        }
+        integer_cmp_table = {"==": "eq", "!=": "ne", "<": "slt", "<=": "sle", ">": "sgt", ">=": "sge"}
+        float_cmp_table = {"==": "oeq", "!=": "one", "<": "olt", "<=": "ole", ">": "ogt", ">=": "oge"}
 
         lhs = self._expr(binop.lhs)
         rhs = self._expr(binop.rhs)
