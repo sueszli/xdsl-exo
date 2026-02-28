@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from typing import TypeAlias
-
 from exo.API import Sym
 from exo.core.LoopIR import LoopIR, T
 
 from xdsl.builder import Builder
 from xdsl.dialects.arith import AddfOp, AddiOp, AndIOp, CmpfOp, CmpiOp, ConstantOp, DivfOp, DivSIOp, FastMathFlagsAttr, MulfOp, MuliOp, NegfOp, OrIOp, RemSIOp, SubfOp, SubiOp
-from xdsl.dialects.builtin import I8, I16, I32, BoolAttr, Float16Type, Float32Type, Float64Type, FloatAttr, FunctionType, IndexType, IntAttr, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StringAttr, f16, f32, f64, i1, i8, i16, i32, i64
+from xdsl.dialects.builtin import BoolAttr, FloatAttr, FunctionType, IndexType, IntAttr, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StringAttr, f16, f32, f64, i1, i8, i16, i32, i64
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.dialects.memref import CastOp as MemrefCastOp
 from xdsl.dialects.scf import ForOp, IfOp, YieldOp
@@ -17,15 +15,6 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.scoped_dict import ScopedDict
 from xdsl_exo.dialects.exo import AllocOp, AssignOp, ExternOp, FreeOp, InstrOp, IntervalOp, ReadOp, ReduceOp, WindowOp
 from xdsl_exo.dialects.extra import CastsOp
-
-MemRefTypeI8: TypeAlias = MemRefType[I8]
-MemRefTypeI16: TypeAlias = MemRefType[I16]
-MemRefTypeI32: TypeAlias = MemRefType[I32]
-
-MemRefTypeF16: TypeAlias = MemRefType[Float16Type]
-MemRefTypeF32: TypeAlias = MemRefType[Float32Type]
-MemRefTypeF64: TypeAlias = MemRefType[Float64Type]
-
 
 INTEGER_CMP_TABLE = {
     "==": "eq",
@@ -61,25 +50,19 @@ class IRGenerator:
         self.builder = Builder(insertion_point=InsertPoint.at_end(self.module.body.blocks[0]))
 
     def with_empty_scope(self):
-        """
-        Return this IRGenerator with an empty symbol table.
-        """
+        # return this IRGenerator with an empty symbol table.
         self.symbol_table = ScopedDict()
         self.type_table = ScopedDict()
         return self
 
     def declare_arg(self, sym: Sym, arg: BlockArgument) -> BlockArgument:
-        """
-        Declare a symbol in the symbol table.
-        """
+        # declare a symbol in the symbol table.
         assert self.symbol_table is not None
         self.declare_value(sym, arg)
         return arg
 
     def declare_value(self, sym: Sym, value: SSAValue) -> SSAValue:
-        """
-        Declare a value in the symbol table.
-        """
+        # declare a value in the symbol table.
         assert self.symbol_table is not None
         self.symbol_table[sym.__repr__()] = value
         return value
@@ -94,22 +77,20 @@ class IRGenerator:
         return self
 
     def get_sym(self, sym: Sym) -> SSAValue:
-        """Get the SSAValue for a symbol."""
+        # get the SSAValue for a symbol.
         assert self.symbol_table is not None
 
         assert sym.__repr__() in self.symbol_table, f"unknown symbol {sym.__repr__()}"
         return self.symbol_table[sym.__repr__()]
 
     def declare_sym_exo_type(self, sym: Sym, type):
-        """
-        Declare a type for a symbol in the type table.
-        """
+        # declare a type for a symbol in the type table.
         assert self.type_table is not None
         self.type_table[sym.__repr__()] = type
         return type
 
     def get_sym_exo_type(self, sym: Sym):
-        """Get the type for a symbol."""
+        # get the type for a symbol.
         assert self.type_table is not None
 
         assert sym.__repr__() in self.type_table, f"unknown symbol {sym.__repr__()}"
@@ -145,9 +126,7 @@ class IRGenerator:
         return result
 
     def generate(self, procs) -> ModuleOp:
-        """
-        Generate the MLIR module from the given procedures and verify it.
-        """
+        # generate the MLIR module from the given procedures and verify it.
         for proc in procs:
             self.generate_procedure(proc)
 
@@ -162,7 +141,7 @@ class IRGenerator:
         return self.module
 
     def generate_procedure(self, procedure):
-        """Generate a procedure."""
+        # generate a procedure.
 
         if procedure.name in self.seen_procs:
             return
@@ -221,7 +200,7 @@ class IRGenerator:
         module_builder.insert(FuncOp(procedure.name, func_type, Region(block)))
 
     def generate_stmt_list(self, stmts):
-        """Generate a list of statements."""
+        # generate a list of statements.
         for stmt in stmts:
             self.generate_stmt(stmt)
 
@@ -416,9 +395,7 @@ class IRGenerator:
         return const.result
 
     def generate_usub_expr(self, usub):
-        """
-        Generate a unary negation expression.
-        """
+        # generate a unary negation expression.
 
         expr = self.generate_expr(usub.arg)
         # float case
@@ -436,9 +413,7 @@ class IRGenerator:
         return usub.result
 
     def generate_binop_expr(self, binop):
-        """
-        Generate a binary operation expression.
-        """
+        # generate a binary operation expression.
 
         type = self.get_type(binop.type)
 
@@ -452,9 +427,7 @@ class IRGenerator:
             assert False, f"unknown type '{type.name}'"
 
     def generate_binop_expr_float(self, binop):
-        """
-        Generate a floating point binary operation expression.
-        """
+        # generate a floating point binary operation expression.
 
         type = self.get_type(binop.type)
         lhs = self.generate_expr(binop.lhs)
@@ -475,9 +448,7 @@ class IRGenerator:
         return binop.result
 
     def generate_binop_expr_int(self, binop):
-        """
-        Generate an integer binary operation expression.
-        """
+        # generate an integer binary operation expression.
 
         type = self.get_type(binop.type)
         lhs = self.generate_expr(binop.lhs)
@@ -571,18 +542,9 @@ class IRGenerator:
         raise NotImplementedError()
 
     def get_type(self, t, mem_space=StringAttr("DRAM")) -> Attribute:
-        """
-        Get the type of a LoopIR type as an MLIR type.
-        """
+        # get the type of a LoopIR type as an MLIR type.
 
-        memref_types = {
-            f16: MemRefTypeF16,
-            f32: MemRefTypeF32,
-            f64: MemRefTypeF64,
-            i8: MemRefTypeI8,
-            i16: MemRefTypeI16,
-            i32: MemRefTypeI32,
-        }
+        _MEMREF_ELEMENT_TYPES = {f16, f32, f64, i8, i16, i32}
 
         match t:
             case SSAValue():
@@ -605,16 +567,14 @@ class IRGenerator:
                 return i1
             case T.Tensor():
                 inner = self.get_type(t.type)
-                assert inner in memref_types, f"unknown tensor inner type '{inner}'"
+                assert inner in _MEMREF_ELEMENT_TYPES, f"unknown tensor inner type '{inner}'"
                 shape = self.get_static_shape(t)
-                return memref_types[inner](inner, shape, NoneAttr(), mem_space)
+                return MemRefType(inner, shape, NoneAttr(), mem_space)
             case _:
                 assert False, f"unknown type '{t}'"
 
     def get_shape(self, type) -> tuple[list[IntegerAttr], list[SSAValue]]:
-        """
-        Get the shape of a tensor type as a list of integer attributes.
-        """
+        # get the shape of a tensor type as a list of integer attributes.
         assert isinstance(type, T.Tensor)
 
         dynamic_shapes = []
@@ -637,9 +597,7 @@ class IRGenerator:
         return ([attr_from_expr(expr) for expr in type.shape()], dynamic_shapes)
 
     def get_static_shape(self, type) -> list[int]:
-        """
-        Get the shape of a tensor type as a list of integer attributes.
-        """
+        # get the shape of a tensor type as a list of integer attributes.
         assert isinstance(type, T.Tensor)
 
         def attr_from_expr(expr):
@@ -654,9 +612,7 @@ class IRGenerator:
         return [attr_from_expr(expr) for expr in type.shape()]
 
     def get_dynamic_shape(self, type) -> list[SSAValue[Attribute] | int]:
-        """
-        Get the shape of a tensor type as a list of integer attributes.
-        """
+        # get the shape of a tensor type as a list of integer attributes.
         assert isinstance(type, T.Tensor)
 
         def attr_from_expr(expr):
