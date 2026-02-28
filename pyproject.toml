@@ -1,7 +1,3 @@
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "xdsl-exo"
 version = "0.1.0"
@@ -10,6 +6,10 @@ dependencies = [
     "exo-lang==1.0.0",
     "xdsl==0.57.0",
 ]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
 [project.scripts]
 xdsl-exo = "xdsl_exo.main:main"
