@@ -518,7 +518,6 @@ class IRGenerator:
     def _procedure(self, procedure):
         if procedure.name in self.seen_procs:
             return
-
         self.seen_procs.add(procedure.name)
 
         input_types = [self._get_type(arg.type) for arg in procedure.args]
