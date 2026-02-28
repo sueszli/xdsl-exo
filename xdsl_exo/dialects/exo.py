@@ -145,15 +145,12 @@ class ReadOp(IRDLOperation):
 
     def verify_(self):
         if isinstance(self.input.type, MemRefType) and isinstance(self.result.type, MemRefType):
-            if self.input.type != self.result.type:
-                raise ValueError(f"Input type {self.input.type} does not match result type {self.result.type}")
+            assert self.input.type == self.result.type, f"input type {self.input.type} does not match result type {self.result.type}"
 
         if isinstance(self.input.type, MemRefType) and not isinstance(self.result.type, MemRefType):
-            if self.input.type.element_type != self.result.type:
-                raise ValueError(f"Input element type {self.input.type.element_type} does not match result type {self.result.type}")
+            assert self.input.type.element_type == self.result.type, f"input element type {self.input.type.element_type} does not match result type {self.result.type}"
         else:
-            if len(self.indices) > 0:
-                raise ValueError(f"Expected no indices for non-memref input, but got {self.indices}")
+            assert len(self.indices) == 0, f"expected no indices for non-memref input, but got {self.indices}"
 
     def print(self, printer: Printer):
         printer.print_string(" ")

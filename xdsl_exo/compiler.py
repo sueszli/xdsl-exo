@@ -50,39 +50,35 @@ def transform(analyzed_procs: list, target: str = "llvm", prefix: str | None = N
     ctx = context()
     module = IRGenerator().generate(analyzed_procs)  # exo LoopIR -> xdsl MLIR
 
+    # lower exo dialect to standard mlir
     InlineMemorySpacePass().apply(ctx, module)
-    module.verify()
-
     ConvertScalarRefPass().apply(ctx, module)
-    module.verify()
-
     ReconcileIndexCastsPass().apply(ctx, module)
     module.verify()
 
+    # optimize
     CanonicalizePass().apply(ctx, module)
     CommonSubexpressionElimination().apply(ctx, module)
-
     module.verify()
 
     if target == "exo":
         return module
 
+    # optional function renaming
     if prefix is not None:
         AddPrefixPass(prefix).apply(ctx, module)
         module.verify()
 
+    # lower to llvm
     InlineBLASAllocPass().apply(ctx, module)
-    module.verify()
-
     ConvertMemRefToLLVM().apply(ctx, module)
-    module.verify()
     InlineAVX2Pass().apply(ctx, module)
-    module.verify()
     InlineBLASPass().apply(ctx, module)
-    module.verify()
-
     ConvertScfToCf().apply(ctx, module)
     ReconcileUnrealizedCastsPass().apply(ctx, module)
+    module.verify()
+
+    # optimize
     CanonicalizePass().apply(ctx, module)
     CommonSubexpressionElimination().apply(ctx, module)
     module.verify()

@@ -10,7 +10,7 @@ from xdsl.dialects.builtin import i32
 from xdsl.utils.scoped_dict import ScopedDict
 from xdsl.utils.test_value import create_ssa_value
 from xdsl_exo.compiler import compile_procs
-from xdsl_exo.generator import IRGenerator, IRGeneratorError
+from xdsl_exo.generator import IRGenerator
 
 SRC_INFO = SrcInfo("test_mlir.py", 0)
 TENSOR_TYPE = T.Tensor(
@@ -54,7 +54,7 @@ def test_get_sym():
     gen = IRGenerator().with_empty_scope()
     sym = Sym("test")
 
-    with pytest.raises(IRGeneratorError, match="Unknown symbol test"):
+    with pytest.raises(AssertionError, match="unknown symbol test"):
         gen.get_sym(sym)
 
     # Test symbol found

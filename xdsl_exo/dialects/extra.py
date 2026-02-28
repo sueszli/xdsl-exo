@@ -1,3 +1,5 @@
+# custom dialect definitions for ops that xdsl doesn't provide upstream
+
 from typing import ClassVar
 
 from xdsl.dialects.builtin import I1, AnySignlessIntegerOrIndexType, IndexType, IntegerAttr, IntegerType, VectorType, i32

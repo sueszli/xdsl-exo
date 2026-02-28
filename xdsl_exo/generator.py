@@ -46,10 +46,6 @@ FLOAT_CMP_TABLE = {
 }
 
 
-class IRGeneratorError(Exception):
-    pass
-
-
 class IRGenerator:
     module: ModuleOp
     builder: Builder
@@ -101,9 +97,7 @@ class IRGenerator:
         """Get the SSAValue for a symbol."""
         assert self.symbol_table is not None
 
-        if sym.__repr__() not in self.symbol_table:
-            raise IRGeneratorError(f"Unknown symbol {sym.__repr__()}")
-
+        assert sym.__repr__() in self.symbol_table, f"unknown symbol {sym.__repr__()}"
         return self.symbol_table[sym.__repr__()]
 
     def declare_sym_exo_type(self, sym: Sym, type):
@@ -118,9 +112,7 @@ class IRGenerator:
         """Get the type for a symbol."""
         assert self.type_table is not None
 
-        if sym.__repr__() not in self.type_table:
-            raise IRGeneratorError(f"Unknown symbol {sym.__repr__()}")
-
+        assert sym.__repr__() in self.type_table, f"unknown symbol {sym.__repr__()}"
         return self.type_table[sym.__repr__()]
 
     def cast_to_index(self, value: SSAValue) -> SSAValue:
@@ -142,13 +134,12 @@ class IRGenerator:
 
         elif isinstance(type, MemRefType) and isinstance(value.type, MemRefType):
             # check inner types are equal
-            if type.element_type != value.type.element_type:
-                raise IRGeneratorError(f"Cannot cast from {value.type} to {type} as inner types do not match")
+            assert type.element_type == value.type.element_type, f"cannot cast from {value.type} to {type} as inner types do not match"
 
             cast = MemrefCastOp.get(value, type)
             result = cast.results[0]
         else:
-            raise IRGeneratorError(f"Unknown cast from {value.type} to {type}")
+            assert False, f"unknown cast from {value.type} to {type}"
 
         self.builder.insert(cast)
         return result
@@ -255,9 +246,9 @@ class IRGenerator:
         elif isinstance(stmt, LoopIR.Call):
             self.generate_call_stmt(stmt)
         elif isinstance(stmt, LoopIR.Window):
-            raise IRGeneratorError("Window statements are not supported")
+            assert False, "window statements are not supported"
         else:
-            raise IRGeneratorError(f"Unknown statement {stmt}")
+            assert False, f"unknown statement {stmt}"
 
     def generate_assign_stmt(self, assign):
         idx = self.generate_expr_list(assign.idx)
@@ -364,7 +355,7 @@ class IRGenerator:
 
         # ensure arg lengths match
         if len(call.args) != len(call.f.args):
-            raise IRGeneratorError(f"Call to '{call.f.name}' has {len(call.args)} arguments, expected {len(call.f.args)}")
+            assert False, f"call to '{call.f.name}' has {len(call.args)} arguments, expected {len(call.f.args)}"
 
         self.builder.insert(CallOp(call.f.name, args, []))
 
@@ -389,7 +380,7 @@ class IRGenerator:
         elif isinstance(expr, LoopIR.Extern):
             return self.generate_extern_expr(expr)
         else:
-            raise IRGeneratorError(f"Unknown expression type '{type(expr)}' for expression '{expr}'")
+            assert False, f"unknown expression type '{type(expr)}' for expression '{expr}'"
 
     def generate_read_expr(self, read):
         idx = self.generate_expr_list(read.idx)
@@ -417,7 +408,7 @@ class IRGenerator:
         elif type == i1:
             attr = BoolAttr(const.val, i1)
         else:
-            raise IRGeneratorError(f"Unknown type {type} passed to Const")
+            assert False, f"unknown type {type} passed to Const"
 
         const = ConstantOp(attr, self.get_type(const.type))
         self.builder.insert(const)
@@ -438,7 +429,7 @@ class IRGenerator:
             usub = SubiOp(zero.result, expr, result_type=self.get_type(usub.type))
             self.builder.insert(zero)
         else:
-            raise IRGeneratorError(f"Bad type {type} passed to USub")
+            assert False, f"bad type {type} passed to USub"
 
         self.builder.insert(usub)
         return usub.result
@@ -457,7 +448,7 @@ class IRGenerator:
         elif type == i1:
             return self.generate_binop_expr_cmp(binop)
         else:
-            raise IRGeneratorError(f"Unknown type '{type.name}'")
+            assert False, f"unknown type '{type.name}'"
 
     def generate_binop_expr_float(self, binop):
         """
@@ -477,7 +468,7 @@ class IRGenerator:
         elif binop.op == "/":
             binop = DivfOp(lhs, rhs, result_type=type, flags=FastMathFlagsAttr("none"))
         else:
-            raise IRGeneratorError(f"Unknown binop {binop.op}")
+            assert False, f"unknown binop {binop.op}"
 
         self.builder.insert(binop)
         return binop.result
@@ -502,7 +493,7 @@ class IRGenerator:
         elif binop.op == "%":
             binop = RemSIOp(lhs, rhs, result_type=type)
         else:
-            raise IRGeneratorError(f"Unknown binop {binop.op}")
+            assert False, f"unknown binop {binop.op}"
 
         self.builder.insert(binop)
         return binop.result
@@ -511,7 +502,7 @@ class IRGenerator:
         lhs = self.generate_expr(binop.lhs)
         rhs = self.generate_expr(binop.rhs)
 
-        assert lhs.type == rhs.type, f"Cannot compare {lhs.type} and {rhs.type} with operator '{binop.op}'"
+        assert lhs.type == rhs.type, f"cannot compare {lhs.type} and {rhs.type} with operator '{binop.op}'"
 
         # boolean operations
         if lhs.type == i1:
@@ -520,19 +511,19 @@ class IRGenerator:
             elif binop.op == "or":
                 binop = OrIOp(lhs, rhs)
             else:
-                raise IRGeneratorError(f"Unknown boolean operator '{binop.op}'")
+                assert False, f"unknown boolean operator '{binop.op}'"
         # cmpi
         elif lhs.type in [i8, i16, i32, i64]:
             op = INTEGER_CMP_TABLE[binop.op]
             if op is None:
-                raise IRGeneratorError(f"Unknown integer comparison operator '{binop.op}'")
+                assert False, f"unknown integer comparison operator '{binop.op}'"
 
             binop = CmpiOp(lhs, rhs, op)
         # cmpf
         else:
             op = FLOAT_CMP_TABLE[binop.op]
             if op is None:
-                raise IRGeneratorError(f"Unknown float comparison operator '{binop.op}'")
+                assert False, f"unknown float comparison operator '{binop.op}'"
 
             binop = CmpfOp(lhs, rhs, op)
 
@@ -557,7 +548,7 @@ class IRGenerator:
         if isinstance(w_access, LoopIR.Point):
             return self.generate_expr(w_access.pt)
 
-        assert isinstance(w_access, LoopIR.Interval), f"Unknown window access type '{type(w_access)}' for '{w_access}'"
+        assert isinstance(w_access, LoopIR.Interval), f"unknown window access type '{type(w_access)}' for '{w_access}'"
 
         lo = self.generate_expr(w_access.lo)
         hi = self.generate_expr(w_access.hi)
@@ -608,7 +599,7 @@ class IRGenerator:
             inner = self.get_type(t.type)
 
             if inner not in [f16, f32, f64, i8, i16, i32]:
-                raise IRGeneratorError(f"Unknown tensor inner type '{inner}'")
+                assert False, f"unknown tensor inner type '{inner}'"
 
             # compute shape and strides
             shape = self.get_static_shape(t)
@@ -626,10 +617,10 @@ class IRGenerator:
             elif inner == i32:
                 return MemRefTypeI32(i32, shape, NoneAttr(), mem_space)
             else:
-                raise IRGeneratorError("Entered unreachable code")
+                assert False, "entered unreachable code"
 
         else:
-            raise IRGeneratorError(f"Unknown type '{t}'")
+            assert False, f"unknown type '{t}'"
 
     def get_shape(self, type) -> tuple[list[IntegerAttr], list[SSAValue]]:
         """
@@ -651,7 +642,7 @@ class IRGenerator:
                     dynamic_shapes.append(self.generate_binop_expr(expr))
                 return IntAttr(-1)
             else:
-                raise IRGeneratorError(f"Invalid shape argument {expr}")
+                assert False, f"invalid shape argument {expr}"
 
         return ([attr_from_expr(expr) for expr in type.shape()], dynamic_shapes)
 
@@ -669,7 +660,7 @@ class IRGenerator:
             elif isinstance(expr, LoopIR.BinOp):
                 return -1
             else:
-                raise IRGeneratorError(f"Invalid shape argument {expr}")
+                assert False, f"invalid shape argument {expr}"
 
         return [attr_from_expr(expr) for expr in type.shape()]
 
@@ -687,6 +678,6 @@ class IRGenerator:
             elif isinstance(expr, LoopIR.BinOp):
                 return self.generate_binop_expr(expr)
             else:
-                raise IRGeneratorError(f"Invalid shape argument {expr}")
+                assert False, f"invalid shape argument {expr}"
 
         return [attr_from_expr(expr) for expr in type.shape()]

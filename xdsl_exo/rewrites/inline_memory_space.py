@@ -15,7 +15,7 @@ class ConvertAllocOp(RewritePattern):
         if not isinstance(op.result.type, MemRefType):
             return
 
-        assert isinstance(op.result.type.memory_space, StringAttr), "Memory space should be a string"
+        assert isinstance(op.result.type.memory_space, StringAttr), "memory space should be a string"
 
         # only convert DRAM allocs
         if cast(StringAttr, op.result.type.memory_space).data != "DRAM":
@@ -69,7 +69,7 @@ class ConvertFreeOp(RewritePattern):
         if not isinstance(op.input.type, MemRefType):
             return
 
-        assert isinstance(op.input.type.memory_space, StringAttr), "Memory space should be a string"
+        assert isinstance(op.input.type.memory_space, StringAttr), "memory space should be a string"
 
         rewriter.replace_matched_op(
             memref.DeallocOp.get(

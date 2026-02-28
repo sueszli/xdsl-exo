@@ -42,7 +42,7 @@ class ConvertAssignOp(RewritePattern):
 
         # if the value is a scalar memref, we need to load
         if isinstance(op.value.type, MemRefType):
-            assert op.value.type.get_shape() == (1,), f"Expected scalar memref type, got {op.value.type}"
+            assert op.value.type.get_shape() == (1,), f"expected scalar memref type, got {op.value.type}"
 
             return rewriter.replace_matched_op(
                 (
@@ -71,7 +71,7 @@ class ConvertReduceOp(RewritePattern):
 
         # if the value is a scalar memref, we need to load
         if isinstance(op.value.type, MemRefType):
-            assert op.value.type.get_shape() == (1,), f"Expected scalar memref type, got {op.value.type}"
+            assert op.value.type.get_shape() == (1,), f"expected scalar memref type, got {op.value.type}"
 
             ops.append(zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())))
             ops.append(
