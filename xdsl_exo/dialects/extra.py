@@ -2,7 +2,7 @@
 
 from typing import ClassVar
 
-from xdsl.dialects.builtin import AnyFloatConstr, I1, AnySignlessIntegerOrIndexType, IndexType, IntegerAttr, IntegerType, VectorType, i32
+from xdsl.dialects.builtin import I1, AnyFloatConstr, AnySignlessIntegerOrIndexType, IndexType, IntegerAttr, IntegerType, VectorType, i32
 from xdsl.dialects.llvm import LLVMPointerType
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import Attribute, IRDLOperation, ParsePropInAttrDict, VarConstraint, irdl_op_definition, operand_def, prop_def, result_def
