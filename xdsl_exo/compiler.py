@@ -1,6 +1,7 @@
 import os
 from argparse import ArgumentParser
 from collections.abc import Sequence
+from functools import cache
 from pathlib import Path
 
 from exo.API import Procedure
@@ -89,7 +90,8 @@ class AddPrefixPass(ModulePass):
         ).rewrite_module(m)
 
 
-def context() -> Context:
+@cache
+def create_context() -> Context:
     ctx = Context()
     ctx.load_dialect(arith.Arith)
     ctx.load_dialect(Builtin)
@@ -102,23 +104,9 @@ def context() -> Context:
     return ctx
 
 
-def analyze(p):
-    """
-    Perform the default Exo analysis on a procedure.
-    """
-
-    assert isinstance(p, LoopIR.proc)
-
-    p = ParallelAnalysis().run(p)
-    p = PrecisionAnalysis().run(p)
-    p = WindowAnalysis().apply_proc(p)
-    return MemoryAnalysis().run(p)
-
-
-def transform(ctx: Context, module: ModuleOp, target: str = "llvm", prefix: str | None = None) -> ModuleOp:
-    """
-    Apply transformations to an MLIR module.
-    """
+def transform_xdsl(analyzed_procs: list, target: str = "llvm", prefix: str | None = None) -> ModuleOp:
+    ctx = create_context()
+    module = IRGenerator().generate(analyzed_procs)
 
     InlineMemorySpacePass().apply(ctx, module)
     module.verify()
@@ -165,25 +153,20 @@ def compile_procs(
     target: str = "llvm",
     prefix: str | None = None,
 ) -> ModuleOp:
-    input_procedures = list(
-        sorted(
-            find_all_subprocs([proc._loopir_proc for proc in library if not proc.is_instr()]),
-            key=lambda x: x.name,
-        )
-    )
+    compilable = [proc._loopir_proc for proc in library if not proc.is_instr()]
+    all_procs = sorted(find_all_subprocs(compilable), key=lambda x: x.name)
+    unique_procs = list({p.name: p for p in all_procs}.values())
 
-    # ensure no duplicate procedures
-    seen_procs = set()
-    for proc in input_procedures:
-        if proc.name in seen_procs:
-            raise TypeError(f"multiple procs named {proc.name}")
-        seen_procs.add(proc.name)
+    # run exo analysis passes
+    def analyze(proc):
+        assert isinstance(proc, LoopIR.proc)
+        proc = ParallelAnalysis().run(proc)
+        proc = PrecisionAnalysis().run(proc)
+        proc = WindowAnalysis().apply_proc(proc)
+        return MemoryAnalysis().run(proc)
 
-    # analyze procedures
-    analyzed_procedures = [analyze(proc) for proc in input_procedures]
-
-    # generate MLIR
-    return transform(context(), IRGenerator().generate(analyzed_procedures), target, prefix)
+    analyzed_procs = [analyze(proc) for proc in unique_procs]
+    return transform_xdsl(analyzed_procs, target, prefix)
 
 
 def main():
