@@ -9,8 +9,7 @@ from exo.core.prelude import SrcInfo, Sym
 from xdsl.dialects.builtin import i32
 from xdsl.utils.scoped_dict import ScopedDict
 from xdsl.utils.test_value import create_ssa_value
-from xdsl_exo.compiler import compile_procs
-from xdsl_exo.generator import IRGenerator
+from xdsl_exo.compiler import IRGenerator, compile_procs
 
 SRC_INFO = SrcInfo("test_mlir.py", 0)
 TENSOR_TYPE = T.Tensor(
