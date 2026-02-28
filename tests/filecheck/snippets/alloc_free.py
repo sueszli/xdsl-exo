@@ -1,4 +1,4 @@
-# RUN: FILECHECK-EXO
+# RUN: uv run xdsl-exo --target exo -o - %s | filecheck %s
 
 from __future__ import annotations
 

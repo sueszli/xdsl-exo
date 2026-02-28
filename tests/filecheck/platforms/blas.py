@@ -1,4 +1,4 @@
-# RUN: FILECHECK-LLVM
+# RUN: uv run xdsl-exo --target llvm -o - %s | filecheck %s
 
 from __future__ import annotations
 

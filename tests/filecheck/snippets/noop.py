@@ -1,5 +1,5 @@
-# RUN: FILECHECK-EXO
-# RUN: FILECHECK-LLVM
+# RUN: uv run xdsl-exo --target exo -o - %s | filecheck %s
+# RUN: uv run xdsl-exo --target llvm -o - %s | filecheck %s
 
 from __future__ import annotations
 
