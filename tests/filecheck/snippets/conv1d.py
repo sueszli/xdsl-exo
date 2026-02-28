@@ -12,7 +12,7 @@ from exo import *
 # CHECK-NEXT:   %8 = arith.constant 0 : i32
 # CHECK-NEXT:   scf.for %9 = %c0 to %1 step %7  : i64 {
 # CHECK-NEXT:     scf.for %10 = %c0 to %2 step %7  : i64 {
-# CHECK-NEXT:       exo.assign %8, %6[%9, %10]
+# CHECK-NEXT:       exo.assign %8, %6[%9, %10], sizes : [%1, %2], {static_sizes = array<i64: -9223372036854775808, -9223372036854775808>} : i32, memref<-1x-1xi32, "DRAM">
 # CHECK-NEXT:       scf.for %11 = %c0 to %0 step %7  : i64 {
 # CHECK-NEXT:         scf.for %12 = %c0 to %3 step %7  : i64 {
 # CHECK-NEXT:           %13 = exo.alloc "DRAM" : memref<1xi32, "DRAM">
@@ -20,14 +20,14 @@ from exo import *
 # CHECK-NEXT:           %15 = arith.cmpi slt, %14, %2 : i64
 # CHECK-NEXT:           scf.if %15 {
 # CHECK-NEXT:             %16 = exo.read %4[%11, %14] -> i32
-# CHECK-NEXT:             exo.assign %16, %13[%c0]
+# CHECK-NEXT:             exo.assign %16, %13[%c0], sizes : [], {static_sizes = array<i64: 1>} : i32, memref<1xi32, "DRAM">
 # CHECK-NEXT:           } else {
-# CHECK-NEXT:             exo.assign %8, %13[%c0]
+# CHECK-NEXT:             exo.assign %8, %13[%c0], sizes : [], {static_sizes = array<i64: 1>} : i32, memref<1xi32, "DRAM">
 # CHECK-NEXT:           }
 # CHECK-NEXT:           %17 = exo.read %5[%9, %11, %12] -> i32
 # CHECK-NEXT:           %18 = exo.read %13[%c0] -> i32
 # CHECK-NEXT:           %19 = arith.muli %17, %18 : i32
-# CHECK-NEXT:           exo.reduce %19, %6[%9, %10]
+# CHECK-NEXT:           exo.reduce %19, %6[%9, %10], sizes : [%1, %2], {static_sizes = array<i64: -9223372036854775808, -9223372036854775808>} : i32, memref<-1x-1xi32, "DRAM">
 # CHECK-NEXT:           exo.free %13 "DRAM" : memref<1xi32, "DRAM">
 # CHECK-NEXT:         }
 # CHECK-NEXT:       }
