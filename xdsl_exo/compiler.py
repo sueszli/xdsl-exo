@@ -106,7 +106,7 @@ def context() -> Context:
 
 def transform(analyzed_procs: list, target: str = "llvm", prefix: str | None = None) -> ModuleOp:
     ctx = context()
-    module = IRGenerator().generate(analyzed_procs)
+    module = IRGenerator().generate(analyzed_procs)  # exo LoopIR -> xdsl MLIR
 
     InlineMemorySpacePass().apply(ctx, module)
     module.verify()
