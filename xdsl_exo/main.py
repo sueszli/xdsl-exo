@@ -42,11 +42,11 @@ from xdsl_exo.rewrites.reconcile_index_casts import ReconcileIndexCastsPass
 
 
 class IRGenerator:
-    module: ModuleOp  # container for IR
-    builder: Builder  # string builder
+    module: ModuleOp
+    builder: Builder
     symbol_table: ScopedDict[str, SSAValue] | None
     type_table: ScopedDict[str, Attribute] | None
-    seen_procs: set[str]  # avoid duplicates
+    seen_procs: set[str]
 
     def __init__(self):
         self.module = ModuleOp([])
@@ -57,7 +57,7 @@ class IRGenerator:
 
     @contextmanager
     def _tmp_state(self, *, inherit=True):
-        # saves builder, symbol_table, and type_table, restoring them on exit
+        # saves state, restores on exit
         parent_builder = self.builder
         parent_symbol_table = self.symbol_table
         parent_type_table = self.type_table
@@ -369,16 +369,13 @@ class IRGenerator:
         func_type = FunctionType.from_lists(input_types, [])
 
         with self._tmp_state(inherit=False):
-            # initialise function block
             block = Block(arg_types=input_types)
             self.builder = Builder(insertion_point=InsertPoint.at_end(block))
 
-            # init symbol table
             for proc_arg, block_arg in zip(procedure.args, block.args):
                 self.symbol_table[repr(proc_arg.name)] = block_arg
                 self.type_table[repr(proc_arg.name)] = proc_arg.type
 
-            # generate function body
             for s in procedure.body:
                 self._stmt(s)
             self.builder.insert(ReturnOp())
