@@ -1,7 +1,7 @@
 todo:
 
 - streamline / minimize code: https://github.com/sueszli/aziz-lang/blob/main/aziz-lang-tiny/main.py
-- drop everything but the llvm dialect
+- drop everything but the llvm dialect (@proc annotated functions -> llvm dialect in mlir)
 - monkey patch latest xdsl instead of using old snapshot?
 
 
