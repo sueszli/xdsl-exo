@@ -44,15 +44,16 @@ from xdsl_exo.rewrites.reconcile_index_casts import ReconcileIndexCastsPass
 class IRGenerator:
     module: ModuleOp
     builder: Builder
-
-    symbol_table: ScopedDict[str, SSAValue] | None = None
-    type_table: ScopedDict[str, Attribute] | None = None
-
-    seen_procs: set[str] = set()
+    symbol_table: ScopedDict[str, SSAValue] | None
+    type_table: ScopedDict[str, Attribute] | None
+    seen_procs: set[str]
 
     def __init__(self):
         self.module = ModuleOp([])
         self.builder = Builder(insertion_point=InsertPoint.at_end(self.module.body.blocks[0]))
+        self.symbol_table = None
+        self.type_table = None
+        self.seen_procs = set()
 
     #
     # helpers
@@ -108,7 +109,7 @@ class IRGenerator:
                 case LoopIR.Const():
                     return expr.val
                 case LoopIR.Read():
-                    return self.symbol_table[expr.name.__repr__()]
+                    return self.symbol_table[repr(expr.name)]
                 case LoopIR.BinOp():
                     return self._binop_expr(expr)
                 case _:
@@ -117,7 +118,7 @@ class IRGenerator:
         return [attr_from_expr(expr) for expr in type.shape()]
 
     def _sizes_for(self, name) -> list:
-        exo_type = self.type_table[name.__repr__()]
+        exo_type = self.type_table[repr(name)]
         if isinstance(exo_type, T.Tensor):
             return self._get_dynamic_shape(exo_type)
         return []
@@ -170,7 +171,7 @@ class IRGenerator:
 
     def _read_expr(self, read):
         idx = [self._expr(e) for e in read.idx]
-        operand = self.symbol_table[read.name.__repr__()]
+        operand = self.symbol_table[repr(read.name)]
         sizes = self._sizes_for(read.name)
 
         self.builder.insert(op := ReadOp(operand, idx, sizes, result_type=self._get_type(read.type)))
@@ -184,8 +185,8 @@ class IRGenerator:
             usub = NegfOp(expr)
         elif self._get_type(usub.type) in [i8, i16, i32, i64]:
             zero = ConstantOp(IntegerAttr(0, self._get_type(usub.type)))
-            usub = SubiOp(zero.result, expr, result_type=self._get_type(usub.type))
             self.builder.insert(zero)
+            usub = SubiOp(zero.result, expr, result_type=self._get_type(usub.type))
         else:
             assert False, f"bad type {type} passed to USub"
 
@@ -232,17 +233,9 @@ class IRGenerator:
             else:
                 assert False, f"unknown boolean operator '{binop.op}'"
         elif lhs.type in [i8, i16, i32, i64]:
-            op = integer_cmp_table[binop.op]
-            if op is None:
-                assert False, f"unknown integer comparison operator '{binop.op}'"
-
-            binop = CmpiOp(lhs, rhs, op)
+            binop = CmpiOp(lhs, rhs, integer_cmp_table[binop.op])
         else:
-            op = float_cmp_table[binop.op]
-            if op is None:
-                assert False, f"unknown float comparison operator '{binop.op}'"
-
-            binop = CmpfOp(lhs, rhs, op)
+            binop = CmpfOp(lhs, rhs, float_cmp_table[binop.op])
 
         self.builder.insert(binop)
         return binop.result
@@ -250,13 +243,13 @@ class IRGenerator:
     def _window_expr(self, window):
         idx = [self._w_access(w_access) for w_access in window.idx]
 
-        input = self.symbol_table[window.name.__repr__()]
+        input = self.symbol_table[repr(window.name)]
         dest_type = self._get_type(window.type.as_tensor, input.type.memory_space)
 
-        input_sizes = self._get_dynamic_shape(self.type_table[window.name.__repr__()])
+        input_sizes = self._get_dynamic_shape(self.type_table[repr(window.name)])
         output_sizes = self._get_dynamic_shape(window.type.as_tensor)
 
-        self.builder.insert(op := WindowOp(self.symbol_table[window.name.__repr__()], idx, input_sizes, output_sizes, dest_type))
+        self.builder.insert(op := WindowOp(input, idx, input_sizes, output_sizes, dest_type))
 
         return op.result
 
@@ -302,7 +295,7 @@ class IRGenerator:
     def _store_stmt(self, stmt, op_cls):
         idx = [self._expr(e) for e in stmt.idx]
         value = self._expr(stmt.rhs)
-        memref = self.symbol_table[stmt.name.__repr__()]
+        memref = self.symbol_table[repr(stmt.name)]
         sizes = self._sizes_for(stmt.name)
         self.builder.insert(op_cls(value, memref, idx, sizes))
 
@@ -347,8 +340,8 @@ class IRGenerator:
         self.symbol_table = ScopedDict(parent_scope)
 
         # add loop variable to symbol table
-        self.symbol_table[for_stmt.iter.__repr__()] = loop_block.args[0]
-        self.type_table[for_stmt.iter.__repr__()] = T.Index
+        self.symbol_table[repr(for_stmt.iter)] = loop_block.args[0]
+        self.type_table[repr(for_stmt.iter)] = T.Index
 
         # generate loop body
         for s in for_stmt.body:
@@ -364,12 +357,12 @@ class IRGenerator:
     def _alloc_stmt(self, alloc):
         type = self._get_type(alloc.type, StringAttr(alloc.mem.name()))
         self.builder.insert(op := AllocOp(alloc.mem.name(), type))
-        self.symbol_table[alloc.name.__repr__()] = op.results[0]
-        self.type_table[alloc.name.__repr__()] = alloc.type
+        self.symbol_table[repr(alloc.name)] = op.results[0]
+        self.type_table[repr(alloc.name)] = alloc.type
         return op.result
 
     def _free_stmt(self, free):
-        self.builder.insert(FreeOp(self.symbol_table[free.name.__repr__()], free.mem.name()))
+        self.builder.insert(FreeOp(self.symbol_table[repr(free.name)], free.mem.name()))
 
     def _call_stmt(self, call):
         args = [self._expr(arg) for arg in call.args]
@@ -415,8 +408,12 @@ class IRGenerator:
             return
         self.seen_procs.add(procedure.name)
 
-        input_types = [self._get_type(arg.type) for arg in procedure.args]
-        input_types = [(MemRefType(ty.element_type, ty.shape, ty.layout, StringAttr(arg.mem.name())) if isinstance(ty, MemRefType) else ty) for (ty, arg) in zip(input_types, procedure.args)]
+        def _with_mem_space(ty, arg):
+            if isinstance(ty, MemRefType):
+                return MemRefType(ty.element_type, ty.shape, ty.layout, StringAttr(arg.mem.name()))
+            return ty
+
+        input_types = [_with_mem_space(self._get_type(arg.type), arg) for arg in procedure.args]
 
         func_type = FunctionType.from_lists(input_types, [])
 
@@ -439,8 +436,8 @@ class IRGenerator:
 
         # add arguments to symbol table
         for proc_arg, block_arg in zip(procedure.args, block.args):
-            self.symbol_table[proc_arg.name.__repr__()] = block_arg
-            self.type_table[proc_arg.name.__repr__()] = proc_arg.type
+            self.symbol_table[repr(proc_arg.name)] = block_arg
+            self.type_table[repr(proc_arg.name)] = proc_arg.type
 
         # generate function body
         for s in procedure.body:

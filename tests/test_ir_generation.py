@@ -26,9 +26,9 @@ def with_test_op(gen: IRGenerator, sym: Sym, type) -> IRGenerator:
     assert gen.symbol_table is not None
     op = TestOp(result_types=[gen._get_type(type)])
     gen.builder.insert(op)
-    gen.symbol_table[sym.__repr__()] = op.res[0]
+    gen.symbol_table[repr(sym)] = op.res[0]
     if gen.type_table is not None:
-        gen.type_table[sym.__repr__()] = type
+        gen.type_table[repr(sym)] = type
     return gen
 
 
@@ -74,13 +74,13 @@ def test_get_sym():
     sym = Sym("test")
 
     with pytest.raises(KeyError):
-        gen.symbol_table[sym.__repr__()]
+        gen.symbol_table[repr(sym)]
 
     # Test symbol found
     test_value = create_ssa_value(i32)
-    gen.symbol_table[sym.__repr__()] = test_value
+    gen.symbol_table[repr(sym)] = test_value
 
-    res_value = gen.symbol_table[sym.__repr__()]
+    res_value = gen.symbol_table[repr(sym)]
 
     assert res_value is test_value
 
