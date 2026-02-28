@@ -373,7 +373,7 @@ class IRGenerator:
             block = Block(arg_types=input_types)
             self.builder = Builder(insertion_point=InsertPoint.at_end(block))
 
-            # add arguments to symbol table
+            # init symbol table
             for proc_arg, block_arg in zip(procedure.args, block.args):
                 self.symbol_table[repr(proc_arg.name)] = block_arg
                 self.type_table[repr(proc_arg.name)] = proc_arg.type
