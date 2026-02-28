@@ -118,7 +118,7 @@ class IRGenerator:
         if type in [f16, f32, f64]:
             attr = FloatAttr(const.val, type)
         elif type in [i8, i16, i32, i64]:
-            attr = IntegerAttr(IntAttr(const.val), type)
+            attr = IntegerAttr(IntAttr(int(const.val)), type)
         elif type == i1:
             attr = BoolAttr(const.val, i1)
         else:

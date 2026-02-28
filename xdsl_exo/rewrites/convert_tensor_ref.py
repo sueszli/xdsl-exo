@@ -186,7 +186,7 @@ def convert_all_to_index(
     ops = []
     output_dyn_values = []
 
-    static_values, dyn_values = split_dynamic_index_list(input, memref.SubviewOp.DYNAMIC_INDEX)
+    static_values, dyn_values = split_dynamic_index_list(input, memref.DYNAMIC_INDEX)
 
     for value in dyn_values:
         ops.append(cast_op := arith.IndexCastOp(value, IndexType()))
@@ -197,7 +197,7 @@ def convert_all_to_index(
         get_dynamic_index_list(
             static_values,
             output_dyn_values,
-            memref.SubviewOp.DYNAMIC_INDEX,
+            memref.DYNAMIC_INDEX,
         ),
     )
 
@@ -215,7 +215,7 @@ class ConvertWindowOp(RewritePattern):
             get_dynamic_index_list(
                 op.static_input_sizes.get_values(),
                 op.input_sizes,
-                memref.SubviewOp.DYNAMIC_INDEX,
+                memref.DYNAMIC_INDEX,
             )
         )
         offset_ops, offsets = compute_memref_offsets(op.indices, strides)
@@ -227,7 +227,7 @@ class ConvertWindowOp(RewritePattern):
             get_dynamic_index_list(
                 op.static_output_sizes.get_values(),
                 op.output_sizes,
-                memref.SubviewOp.DYNAMIC_INDEX,
+                memref.DYNAMIC_INDEX,
             )
         )
 

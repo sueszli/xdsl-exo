@@ -6,7 +6,7 @@ from exo import *
 
 
 # CHECK: builtin.module {
-# CHECK-NEXT: func.func @conv1d(%0 : i64, %1 : i64, %2 : i64, %3 : i64, %4 : memref<?x?xi32, "DRAM">, %5 : memref<?x?x?xi32, "DRAM">, %6 : memref<?x?xi32, "DRAM">) {
+# CHECK-NEXT: func.func @conv1d(%0 : i64, %1 : i64, %2 : i64, %3 : i64, %4 : memref<-1x-1xi32, "DRAM">, %5 : memref<-1x-1x-1xi32, "DRAM">, %6 : memref<-1x-1xi32, "DRAM">) {
 # CHECK-NEXT:   %c0 = arith.constant 0 : i64
 # CHECK-NEXT:   %7 = arith.constant 1 : i64
 # CHECK-NEXT:   %8 = arith.constant 0 : i32

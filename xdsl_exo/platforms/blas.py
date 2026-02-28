@@ -26,7 +26,7 @@ class ConvertAllocOp(RewritePattern):
                     )
                 ),
                 alloc_op := llvm.AllocaOp(const_op.result, op.result.type.element_type),
-                UnrealizedConversionCastOp.get(alloc_op.results[0], op.result.type),
+                UnrealizedConversionCastOp.get(alloc_op.res, op.result.type),
             )
         )
 
@@ -856,11 +856,10 @@ class ConvertVecReduceAddSclF32x8(RewritePattern):
                 ),
                 reduce_op := vector.ReductionOp(
                     load_op.dereferenced_value,
-                    vector.CombiningKindFlag.ADD,
-                    f32,
+                    vector.CombiningKindAttr([vector.CombiningKindFlag.ADD]),
                     acc=op.arguments[0],
                 ),
-                llvm.StoreOp(reduce_op.result, acc_load_op.ptr),
+                llvm.StoreOp(reduce_op.dest, acc_load_op.ptr),
             )
         )
 
@@ -896,11 +895,10 @@ class ConvertVecReduceAddSclF64x4(RewritePattern):
                 ),
                 reduce_op := vector.ReductionOp(
                     load_op.dereferenced_value,
-                    vector.CombiningKindFlag.ADD,
-                    f64,
+                    vector.CombiningKindAttr([vector.CombiningKindFlag.ADD]),
                     acc=op.arguments[0],
                 ),
-                llvm.StoreOp(reduce_op.result, acc_load_op.ptr),
+                llvm.StoreOp(reduce_op.dest, acc_load_op.ptr),
             )
         )
 

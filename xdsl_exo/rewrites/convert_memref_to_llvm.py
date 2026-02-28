@@ -92,7 +92,7 @@ class ConvertReadOp(RewritePattern):
             get_dynamic_index_list(
                 op.static_sizes.get_values(),
                 op.sizes,
-                memref.SubviewOp.DYNAMIC_INDEX,
+                memref.DYNAMIC_INDEX,
             )
         )
         offest_ops, offsets = compute_memref_offsets(op.indices, strides)
@@ -104,13 +104,13 @@ class ConvertReadOp(RewritePattern):
             (
                 *stride_ops,
                 *offest_ops,
-                cast_op := UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType.opaque()]),
+                cast_op := UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType()]),
                 # get pointer and load
                 gep_op := llvm.GEPOp(
                     cast_op.results[0],
                     static_offsets,
-                    dynamic_offsets,
-                    pointee_type=op.result.type,
+                    op.result.type,
+                    ssa_indices=dynamic_offsets,
                 ),
                 llvm.LoadOp(gep_op, op.result.type),
             )
@@ -125,7 +125,7 @@ class ConvertAssignOp(RewritePattern):
             get_dynamic_index_list(
                 op.static_sizes.get_values(),
                 op.sizes,
-                memref.SubviewOp.DYNAMIC_INDEX,
+                memref.DYNAMIC_INDEX,
             )
         )
         offset_ops, offsets = compute_memref_offsets(op.indices, strides)
@@ -137,13 +137,13 @@ class ConvertAssignOp(RewritePattern):
             (
                 *stride_ops,
                 *offset_ops,
-                cast_op := UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType.opaque()]),
+                cast_op := UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType()]),
                 # get pointer and store
                 gep_op := llvm.GEPOp(
                     cast_op.results[0],
                     static_offsets,
-                    dynamic_offsets,
-                    pointee_type=op.value.type,
+                    op.value.type,
+                    ssa_indices=dynamic_offsets,
                 ),
                 llvm.StoreOp(op.value, gep_op),
             )
@@ -158,7 +158,7 @@ class ConvertReduceOp(RewritePattern):
             get_dynamic_index_list(
                 op.static_sizes.get_values(),
                 op.sizes,
-                memref.SubviewOp.DYNAMIC_INDEX,
+                memref.DYNAMIC_INDEX,
             )
         )
         offset_ops, offsets = compute_memref_offsets(op.indices, strides)
@@ -166,14 +166,14 @@ class ConvertReduceOp(RewritePattern):
         # split static and dynamic offsets
         static_offsets, dynamic_offsets = split_dynamic_index_list(offsets, llvm.GEP_USE_SSA_VAL)
 
-        cast_op = UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType.opaque()])
+        cast_op = UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType()])
 
         # get pointer and load
         gep_op = llvm.GEPOp(
             cast_op.results[0],
             static_offsets,
-            dynamic_offsets,
-            pointee_type=op.value.type,
+            op.value.type,
+            ssa_indices=dynamic_offsets,
         )
         load_op = llvm.LoadOp(gep_op, op.value.type)
 
@@ -213,7 +213,7 @@ class ConvertWindowOp(RewritePattern):
             get_dynamic_index_list(
                 op.static_input_sizes.get_values(),
                 op.input_sizes,
-                memref.SubviewOp.DYNAMIC_INDEX,
+                memref.DYNAMIC_INDEX,
             )
         )
         offset_ops, offsets = compute_memref_offsets(op.indices, strides)
@@ -225,12 +225,12 @@ class ConvertWindowOp(RewritePattern):
             (
                 *stride_ops,
                 *offset_ops,
-                cast_op := UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType.opaque()]),
+                cast_op := UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType()]),
                 gep_op := llvm.GEPOp(
                     cast_op.results[0],
                     static_offsets,
-                    dynamic_offsets,
-                    pointee_type=op.result.type.element_type,
+                    op.result.type.element_type,
+                    ssa_indices=dynamic_offsets,
                 ),
                 UnrealizedConversionCastOp.get([gep_op.result], [op.result.type]),
             )
@@ -253,9 +253,9 @@ class ConvertAllocOp(RewritePattern):
                 alloc_op := llvm.CallOp(
                     "malloc",
                     const_op.result,
-                    return_type=llvm.LLVMPointerType.opaque(),
+                    return_type=llvm.LLVMPointerType(),
                 ),
-                UnrealizedConversionCastOp.get(alloc_op.results[0], op.result.type),
+                UnrealizedConversionCastOp.get(alloc_op.returned, op.result.type),
             )
         )
 
@@ -268,7 +268,7 @@ class ConvertFreeOp(RewritePattern):
 
         rewriter.replace_matched_op(
             (
-                cast_op := UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType.opaque()]),
+                cast_op := UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType()]),
                 llvm.CallOp("free", cast_op.results[0]),
             )
         )
@@ -280,7 +280,7 @@ class RewriteMemRefTypes(TypeConversionPattern):
 
     @attr_type_rewrite_pattern
     def convert_type(self, type: MemRefType):
-        return llvm.LLVMPointerType.opaque()
+        return llvm.LLVMPointerType()
 
 
 class EraseIntervalOp(RewritePattern):
@@ -300,14 +300,14 @@ class ConvertMemRefToLLVM(ModulePass):
         builder.insert(
             llvm.FuncOp(
                 "malloc",
-                llvm.LLVMFunctionType([i64], llvm.LLVMPointerType.opaque()),
+                llvm.LLVMFunctionType([i64], llvm.LLVMPointerType()),
                 llvm.LinkageAttr("external"),
             )
         )
         builder.insert(
             llvm.FuncOp(
                 "free",
-                llvm.LLVMFunctionType([llvm.LLVMPointerType.opaque()]),
+                llvm.LLVMFunctionType([llvm.LLVMPointerType()]),
                 llvm.LinkageAttr("external"),
             )
         )

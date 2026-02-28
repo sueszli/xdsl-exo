@@ -75,7 +75,7 @@ class AssignOp(IRDLOperation):
         indices: Sequence[SSAValue | Operation],
         sizes: Sequence[SSAValue | int],
     ) -> None:
-        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, memref.SubviewOp.DYNAMIC_INDEX)
+        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, memref.DYNAMIC_INDEX)
         super().__init__(
             operands=[value, SSAValue.get(input), indices, dyn_sizes],
             result_types=[],
@@ -104,7 +104,7 @@ class ReduceOp(IRDLOperation):
         indices: Sequence[SSAValue | Operation],
         sizes: Sequence[SSAValue | int],
     ) -> None:
-        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, memref.SubviewOp.DYNAMIC_INDEX)
+        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, memref.DYNAMIC_INDEX)
 
         super().__init__(
             operands=[value, SSAValue.get(input), indices, dyn_sizes],
@@ -132,7 +132,7 @@ class ReadOp(IRDLOperation):
         sizes: Sequence[SSAValue | int],
         result_type: Attribute,
     ) -> None:
-        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, memref.SubviewOp.DYNAMIC_INDEX)
+        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, memref.DYNAMIC_INDEX)
         super().__init__(
             operands=[
                 SSAValue.get(input),
@@ -216,8 +216,8 @@ class WindowOp(IRDLOperation):
         output_sizes: Sequence[SSAValue[Attribute] | int],
         result_type: MemRefType,
     ) -> None:
-        static_input_sizes, dyn_input_sizes = split_dynamic_index_list(input_sizes, memref.SubviewOp.DYNAMIC_INDEX)
-        static_output_sizes, dyn_output_sizes = split_dynamic_index_list(output_sizes, memref.SubviewOp.DYNAMIC_INDEX)
+        static_input_sizes, dyn_input_sizes = split_dynamic_index_list(input_sizes, memref.DYNAMIC_INDEX)
+        static_output_sizes, dyn_output_sizes = split_dynamic_index_list(output_sizes, memref.DYNAMIC_INDEX)
 
         super().__init__(
             operands=[SSAValue.get(input), indices, dyn_input_sizes, dyn_output_sizes],

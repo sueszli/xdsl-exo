@@ -1766,12 +1766,16 @@ wheels = [
 
 [[package]]
 name = "xdsl"
-version = "0.1.dev3734+g5e799fc50"
-source = { git = "https://github.com/kaylendog/xdsl?rev=5e799fc5062d392338f9aa9c40e9e1277286cd97#5e799fc5062d392338f9aa9c40e9e1277286cd97" }
+version = "0.57.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "immutabledict" },
     { name = "ordered-set" },
     { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/51/bd/9dc4e0a05998c8661bbc14a56d04d7eca3f7746bcf680e8dd01243712e1f/xdsl-0.57.0.tar.gz", hash = "sha256:efecb7036a650f00ea58ef012cc5754c85ee723bc7652240298bb6f39ca0616f", size = 3999543, upload-time = "2026-02-19T10:35:12.051Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5b/a7/ae7e75797aa5672c4acd5d5ca872fc660511a0747db18d68a972bbc89b9f/xdsl-0.57.0-py3-none-any.whl", hash = "sha256:6d32ec7281f036f867621ec09bce1b4c4eb3e6c5b7f133513378de3a5e63cb70", size = 4248399, upload-time = "2026-02-19T10:35:09.882Z" },
 ]
 
 [[package]]
@@ -1810,7 +1814,7 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.15.3" },
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "snakemake", specifier = ">=9.3.4" },
-    { name = "xdsl", git = "https://github.com/kaylendog/xdsl?rev=5e799fc5062d392338f9aa9c40e9e1277286cd97" },
+    { name = "xdsl", specifier = "==0.57.0" },
 ]
 
 [[package]]

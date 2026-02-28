@@ -20,7 +20,7 @@ dependencies = [
     "scipy>=1.15.3",
     "seaborn>=0.13.2",
     "snakemake>=9.3.4",
-    "xdsl",
+    "xdsl==0.57.0",
 ]
 
 [project.scripts]
@@ -35,6 +35,3 @@ filterwarnings = ["ignore::pytest.PytestCollectionWarning"]
 
 [tool.ruff.lint]
 ignore = ["F403", "F405", "F821"]
-
-[tool.uv.sources]
-xdsl = { git = "https://github.com/kaylendog/xdsl", rev = "5e799fc5062d392338f9aa9c40e9e1277286cd97" }

@@ -2,8 +2,8 @@
 
 from typing import ClassVar
 
-from xdsl.dialects.builtin import I1, AnySignlessIntegerOrIndexType, IndexType, IntegerAttr, IntegerType, VectorType, i32
-from xdsl.dialects.llvm import LLVMCompatibleFloatConstraint, LLVMPointerType
+from xdsl.dialects.builtin import AnyFloatConstr, I1, AnySignlessIntegerOrIndexType, IndexType, IntegerAttr, IntegerType, VectorType, i32
+from xdsl.dialects.llvm import LLVMPointerType
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import Attribute, IRDLOperation, ParsePropInAttrDict, VarConstraint, irdl_op_definition, operand_def, prop_def, result_def
 
@@ -40,7 +40,7 @@ Index = Dialect(
 
 @irdl_op_definition
 class FAbsOp(IRDLOperation):
-    T: ClassVar = VarConstraint("T", LLVMCompatibleFloatConstraint)
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
 
     name = "llvm.intr.fabs"
 
@@ -59,7 +59,7 @@ class FAbsOp(IRDLOperation):
 class MaskedStoreOp(IRDLOperation):
     name = "llvm.intr.masked.store"
 
-    value = operand_def(LLVMCompatibleFloatConstraint)
+    value = operand_def(AnyFloatConstr | VectorType.constr(AnyFloatConstr))
     data = operand_def(LLVMPointerType)
     mask = operand_def(I1 | VectorType[I1])
     alignment = prop_def(IntegerAttr[i32])
