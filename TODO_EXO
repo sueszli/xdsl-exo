@@ -11,29 +11,7 @@ better-formed exo ops to prepare for later passes). The order here reflects
 which ops are easiest to eliminate from the codebase one at a time, with each
 step validated by regression tests before moving on.
 
-STEP 1: DROP exo.read (ReadOp)
-===============================
-
-Two lowering paths:
-
-a) Tensor case (convert_tensor_ref.py) → arith.IndexCastOp (per index) + memref.LoadOp
-   Casts i64 indices to index, then loads from memref.
-
-b) Scalar/redundant case (convert_scalar_ref.py) → eliminated or arith.IndexCastOp
-   - Redundant read (same memref type in and out, no indices): replaced with input operand directly.
-   - Index → non-index type: replaced with arith.index_cast.
-   - Same type, block argument: replaced with the block argument directly.
-
-To skip exo.read:
-  - For indexed memref reads: emit arith.index_cast per index → memref.load.
-  - For scalar/identity reads: just use the SSA value directly (no op needed).
-  - For index type conversions: emit arith.index_cast.
-
-`make tests` must pass after this step. Update this TODO_EXO file to reflect
-what was done (delete the completed step, renumber remaining steps).
-
-
-STEP 2: DROP exo.assign (AssignOp)
+STEP 1: DROP exo.assign (AssignOp)
 ===================================
 
 Two lowering paths:
@@ -56,7 +34,7 @@ To skip exo.assign:
 what was done (delete the completed step, renumber remaining steps).
 
 
-STEP 3: DROP exo.window (WindowOp)
+STEP 2: DROP exo.window (WindowOp)
 ===================================
 
 Two lowering paths:
@@ -80,14 +58,14 @@ To skip exo.window:
 what was done (delete the completed step, renumber remaining steps).
 
 
-STEP 4: CONSOLIDATE REWRITE FILES
+STEP 3: CONSOLIDATE REWRITE FILES
 ====================================
 
-After steps 1-3 shrink the exo dialect, merge rewrite files that handle
+After steps 1-2 shrink the exo dialect, merge rewrite files that handle
 overlapping concerns. Current file layout in xdsl_exo/rewrites/:
 
-  convert_tensor_ref.py    — exo read/assign/window → memref ops
-  convert_scalar_ref.py    — scalar exo read/assign → 1-D memref wrappers
+  convert_tensor_ref.py    — exo assign/window → memref ops
+  convert_scalar_ref.py    — scalar exo assign → 1-D memref wrappers
   convert_memory_space.py  — memory space propagation on window
   convert_memref_to_llvm.py — memref.AllocOp (DRAM) → malloc/free
   convert_blas.py          — VEC_AVX2 dealloc erasure + mm256_* intrinsics → vector/LLVM
@@ -101,7 +79,7 @@ Merge candidates:
      Near-complete overlap: both handle mm256_* AVX2 intrinsic lowering.
 
   b) convert_tensor_ref.py + convert_scalar_ref.py → single file
-     Both handle exo.ReadOp and exo.AssignOp, just for different shapes.
+     Both handle exo.AssignOp, just for different shapes.
      After dropping the exo ops (steps 1-2) these may naturally collapse.
 
   c) convert_memory_space.py + convert_memref_to_llvm.py → single file
@@ -119,10 +97,10 @@ fewer ops to route between files.
 what was done (delete the completed step, renumber remaining steps).
 
 
-STEP 5: SEPARATE UPSTREAM (XDSL) VS LOCAL (THIS REPO) CHANGES
+STEP 4: SEPARATE UPSTREAM (XDSL) VS LOCAL (THIS REPO) CHANGES
 ===============================================================
 
-As we make changes throughout steps 1-3, we need to keep a clean separation
+As we make changes throughout steps 1-2, we need to keep a clean separation
 between what gets merged upstream into xDSL and what stays in this repository.
 
 Upstream to xDSL: general-purpose MLIR ops and infrastructure that xDSL is
@@ -153,11 +131,11 @@ PIPELINE ORDER (from main.py, for reference)
 This is the current pass ordering, NOT the recommended drop order:
 
 1. ConvertMemorySpacePass     — propagate memory spaces on window
-2. ConvertScalarRefPass       — handle scalar reads/assigns
+2. ConvertScalarRefPass       — handle scalar assigns
 3. ConvertExternPass          — handle extern calls
 4. ReconcileIndexCastsPass    — clean up index casts
 5. ConvertBLASAllocPass       — dealloc erasure for VEC_AVX2
-6. ConvertTensorRefPass       — read/assign/window → memref ops
+6. ConvertTensorRefPass       — assign/window → memref ops
 7. ConvertAllocFreeToLLVM     — memref.AllocOp → malloc, memref.DeallocOp → free
 
 
@@ -168,7 +146,7 @@ To generate MLIR directly and skip exo lowering entirely:
 
   exo.invert_window → deleted (done)
   exo.alloc         → dropped (done) — DRAM emits memref.AllocOp, VEC_AVX2 emits llvm.AllocaOp directly
-  exo.read          → arith.index_cast per index + memref.load (or SSA forwarding)
+  exo.read          → dropped (done) — arith.index_cast per index + memref.load (or SSA forwarding)
   exo.assign        → arith.index_cast per index + memref.store
   exo.window        → stride/offset math + memref.subview with StridedLayoutAttr
 

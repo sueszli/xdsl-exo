@@ -11,24 +11,6 @@ from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, 
 from xdsl_exo.dialects import exo
 
 
-class ConvertReadOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.ReadOp, rewriter: PatternRewriter):
-        # convert tensor reads only
-        if len(op.indices) < 1:
-            return
-
-        ops = [arith.IndexCastOp(idx, IndexType()) for idx in op.indices]
-        idx = [op.result for op in ops]
-
-        rewriter.replace_matched_op(
-            (
-                *ops,
-                memref.LoadOp.get(op.input, idx),
-            )
-        )
-
-
 class ConvertAssignOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.AssignOp, rewriter: PatternRewriter):
@@ -190,7 +172,6 @@ class ConvertTensorRefPass(ModulePass):
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ConvertReadOp(),
                     ConvertAssignOp(),
                     ConvertWindowOp(),
                 ]

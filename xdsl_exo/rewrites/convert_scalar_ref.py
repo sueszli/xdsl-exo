@@ -1,47 +1,10 @@
 from xdsl.context import Context
 from xdsl.dialects import arith, func
-from xdsl.dialects.builtin import FunctionType, IndexType, IntegerAttr, MemRefType, ModuleOp, NoneAttr, i64
-from xdsl.ir import BlockArgument
+from xdsl.dialects.builtin import FunctionType, IntegerAttr, MemRefType, ModuleOp, NoneAttr, i64
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
 from xdsl_exo.dialects import exo
-
-
-class ConvertRedundantReads(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.ReadOp, rewriter: PatternRewriter):
-        # replace redundant reads
-        if isinstance(op.input.type, MemRefType) and op.result.type == op.input.type and len(op.indices) == 0:
-            rewriter.replace_matched_op((), (op.input,))
-            return
-
-        # convert scalar reads only
-        if isinstance(op.input.type, MemRefType):
-            return
-
-        # replace index -> x with index cast
-        if isinstance(op.input.type, IndexType) and not isinstance(op.result.type, IndexType):
-            rewriter.replace_matched_op(arith.IndexCastOp(op.input, op.result.type))
-
-        if op.input.type == op.result.type and isinstance(op.input, BlockArgument):
-            # replace x -> x with x
-            rewriter.replace_matched_op((), (op.input,))
-
-
-class ConvertReadToTensor(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.ReadOp, rewriter: PatternRewriter):
-        if not isinstance(op.input.type, MemRefType) or op.input.type.get_shape() != (1,) or len(op.indices) != 0:
-            return
-
-        rewriter.replace_matched_op(
-            (
-                zero_op := arith.ConstantOp(IntegerAttr(0, i64)),
-                exo.ReadOp(op.input, [zero_op.result], [1], op.result.type),
-            )
-        )
-        zero_op.result.name_hint = "c0"
 
 
 class ConvertAssignToTensor(RewritePattern):
@@ -101,8 +64,6 @@ class ConvertScalarRefPass(ModulePass):
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ConvertRedundantReads(),
-                    ConvertReadToTensor(),
                     ConvertAssignToTensor(),
                     ConvertScalarFuncArgsToTensor(),
                 ]

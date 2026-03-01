@@ -8,7 +8,7 @@ from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, 
 class ReconcileIndexCasts(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.IndexCastOp, rewriter: PatternRewriter):
-        if len(op.result.uses) == 0:
+        if not any(True for _ in op.result.uses):
             rewriter.erase_op(op)
             return
 

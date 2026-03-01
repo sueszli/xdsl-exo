@@ -19,7 +19,7 @@ from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import arith, func, llvm, memref, ptr, scf
 from xdsl.dialects.arith import AddfOp, AddiOp, AndIOp, CmpfOp, CmpiOp, ConstantOp, DivfOp, DivSIOp, FastMathFlagsAttr, MulfOp, MuliOp, NegfOp, OrIOp, RemSIOp, SubfOp, SubiOp
-from xdsl.dialects.builtin import BoolAttr, Builtin, FloatAttr, FunctionType, IntAttr, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StringAttr, UnrealizedConversionCastOp, f16, f32, f64, i1, i8, i16, i32, i64
+from xdsl.dialects.builtin import BoolAttr, Builtin, FloatAttr, FunctionType, IndexType, IntAttr, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StringAttr, UnrealizedConversionCastOp, f16, f32, f64, i1, i8, i16, i32, i64
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.dialects.scf import ForOp, IfOp, YieldOp
 from xdsl.ir import Attribute, Block, OpResult, Region, SSAValue
@@ -32,7 +32,7 @@ from xdsl.transforms.convert_scf_to_cf import ConvertScfToCf
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.utils.scoped_dict import ScopedDict
 
-from xdsl_exo.dialects.exo import AssignOp, Exo, ReadOp, WindowOp
+from xdsl_exo.dialects.exo import AssignOp, Exo, WindowOp
 from xdsl_exo.dialects.llvm import LLVMIntrinsics
 from xdsl_exo.rewrites.convert_avx2 import ConvertAVX2Pass
 from xdsl_exo.rewrites.convert_blas import ConvertBLASAllocPass, ConvertBLASPass, ConvertExternPass
@@ -142,16 +142,27 @@ class IRGenerator:
         self.builder.insert(const)
         return const.result
 
+    def _memref_load(self, memref_val, idx):
+        if len(idx) == 0:
+            self.builder.insert(zero := arith.ConstantOp(IntegerAttr(0, i64)))
+            idx = [zero.result]
+        cast_ops = [arith.IndexCastOp(i, IndexType()) for i in idx]
+        for op in cast_ops:
+            self.builder.insert(op)
+        self.builder.insert(load := memref.LoadOp.get(memref_val, [op.result for op in cast_ops]))
+        return load.res
+
     def _read_expr(self, read):
-        # lower LoopIR read (scalar or indexed tensor) to exo.read op
+        # lower LoopIR read to arith/memref ops
         assert isinstance(read, LoopIR.Read)
         idx = [self._expr(e) for e in read.idx]
         operand = self.symbol_table[repr(read.name)]
-        exo_type = self.type_table[repr(read.name)]
-        sizes = self._shape(exo_type, dynamic=True) if isinstance(exo_type, T.Tensor) else []
 
-        self.builder.insert(op := ReadOp(operand, idx, sizes, result_type=self._type(read.type)))
-        return op.result
+        if not isinstance(operand.type, MemRefType):
+            return operand
+        if operand.type == self._type(read.type):
+            return operand
+        return self._memref_load(operand, idx)
 
     def _usub_expr(self, usub):
         # lower unary negation to negf (float) or 0-x subi (int)
@@ -199,6 +210,7 @@ class IRGenerator:
     def _binop_expr_cmp(self, binop):
         # lower comparison/logical binop to cmpi, cmpf, andi, or ori
         assert isinstance(binop, LoopIR.BinOp)
+        bool_ops = {"and": AndIOp, "or": OrIOp}
         integer_cmp_table = {"==": "eq", "!=": "ne", "<": "slt", "<=": "sle", ">": "sgt", ">=": "sge"}
         float_cmp_table = {"==": "oeq", "!=": "one", "<": "olt", "<=": "ole", ">": "ogt", ">=": "oge"}
 
@@ -208,19 +220,14 @@ class IRGenerator:
         assert lhs.type == rhs.type, f"cannot compare {lhs.type} and {rhs.type} with operator '{binop.op}'"
 
         if lhs.type == i1:
-            if binop.op == "and":
-                binop = AndIOp(lhs, rhs)
-            elif binop.op == "or":
-                binop = OrIOp(lhs, rhs)
-            else:
-                assert False
+            op = bool_ops[binop.op](lhs, rhs)
         elif lhs.type in [i8, i16, i32, i64]:
-            binop = CmpiOp(lhs, rhs, integer_cmp_table[binop.op])
+            op = CmpiOp(lhs, rhs, integer_cmp_table[binop.op])
         else:
-            binop = CmpfOp(lhs, rhs, float_cmp_table[binop.op])
+            op = CmpfOp(lhs, rhs, float_cmp_table[binop.op])
 
-        self.builder.insert(binop)
-        return binop.result
+        self.builder.insert(op)
+        return op.result
 
     def _window_expr(self, window):
         # lower window expression
@@ -284,7 +291,7 @@ class IRGenerator:
         self.builder.insert(AssignOp(value, memref, idx, sizes))
 
     def _reduce_stmt(self, stmt):
-        # lower reduce to read + add + assign (accumulate into buffer)
+        # lower reduce to load + add + assign (accumulate into buffer)
         assert isinstance(stmt, LoopIR.Reduce)
         idx = [self._expr(e) for e in stmt.idx]
         value = self._expr(stmt.rhs)
@@ -292,11 +299,11 @@ class IRGenerator:
         exo_type = self.type_table[repr(stmt.name)]
         sizes = self._shape(exo_type, dynamic=True) if isinstance(exo_type, T.Tensor) else []
 
-        self.builder.insert(read_op := ReadOp(memref_val, idx, sizes, result_type=value.type))
+        current = self._memref_load(memref_val, idx)
         if value.type in [f16, f32, f64]:
-            add_op = AddfOp(read_op.result, value, result_type=value.type, flags=FastMathFlagsAttr("none"))
+            add_op = AddfOp(current, value, result_type=value.type, flags=FastMathFlagsAttr("none"))
         else:
-            add_op = AddiOp(read_op.result, value, result_type=value.type)
+            add_op = AddiOp(current, value, result_type=value.type)
         self.builder.insert(add_op)
         self.builder.insert(AssignOp(add_op.result, memref_val, idx, sizes))
 
@@ -346,9 +353,9 @@ class IRGenerator:
     def _alloc_stmt(self, alloc):
         # lower alloc to memref.alloc (DRAM) or llvm.alloca (other)
         assert isinstance(alloc, LoopIR.Alloc)
-        type = self._type(alloc.type, StringAttr(alloc.mem.name()))
         mem_name = alloc.mem.name()
         mem_space = StringAttr(mem_name)
+        type = self._type(alloc.type, mem_space)
 
         # scalar allocs: wrap as memref<1x...>
         if not isinstance(type, MemRefType):
@@ -357,15 +364,16 @@ class IRGenerator:
         if mem_name == "DRAM":
             self.builder.insert(op := memref.AllocOp.get(type.element_type, shape=type.shape, layout=type.layout, memory_space=mem_space))
             result = op.memref
-        else:
-            # VEC_AVX2 or other
-            shape = type.get_shape()
-            total_size = reduce(lambda x, y: x * y, shape)
-            self.builder.insert(const_op := arith.ConstantOp(IntegerAttr(total_size, i64)))
-            self.builder.insert(alloc_op := llvm.AllocaOp(const_op.result, type.element_type))
-            self.builder.insert(cast_op := UnrealizedConversionCastOp.get(alloc_op.res, type))
-            result = cast_op.results[0]
+            self.symbol_table[repr(alloc.name)] = result
+            self.type_table[repr(alloc.name)] = alloc.type
+            return result
 
+        # VEC_AVX2 or other
+        total_size = reduce(lambda x, y: x * y, type.get_shape())
+        self.builder.insert(const_op := arith.ConstantOp(IntegerAttr(total_size, i64)))
+        self.builder.insert(alloc_op := llvm.AllocaOp(const_op.result, type.element_type))
+        self.builder.insert(cast_op := UnrealizedConversionCastOp.get(alloc_op.res, type))
+        result = cast_op.results[0]
         self.symbol_table[repr(alloc.name)] = result
         self.type_table[repr(alloc.name)] = alloc.type
         return result
@@ -379,20 +387,16 @@ class IRGenerator:
     def _call_stmt(self, call):
         # lower call to func.call. emit extern decl for intrinsics, recurse for procs
         assert isinstance(call, LoopIR.Call)
-
         args = [self._expr(arg) for arg in call.args]
 
-        if call.f.instr is not None:
-            if call.f.name not in self.seen_procs:
-                self.seen_procs.add(call.f.name)
-                input_types = [SSAValue.get(a).type for a in args]
-                module_builder = Builder(insertion_point=InsertPoint.at_end(self.module.body.blocks[0]))
-                module_builder.insert(FuncOp.external(call.f.name, input_types, []))
-            self.builder.insert(CallOp(call.f.name, args, []))
-            return
-
-        self._procedure(call.f)
-        assert len(call.args) == len(call.f.args)
+        if call.f.instr is None:
+            self._procedure(call.f)
+            assert len(call.args) == len(call.f.args)
+        elif call.f.name not in self.seen_procs:
+            self.seen_procs.add(call.f.name)
+            input_types = [SSAValue.get(a).type for a in args]
+            module_builder = Builder(insertion_point=InsertPoint.at_end(self.module.body.blocks[0]))
+            module_builder.insert(FuncOp.external(call.f.name, input_types, []))
 
         self.builder.insert(CallOp(call.f.name, args, []))
 
