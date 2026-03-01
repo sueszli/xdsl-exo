@@ -46,8 +46,7 @@ goals
 
 longer-term: exo emits LLVM IR (not just C), xdsl gets proper memref descriptor support, compile exo → xdsl → llvmlite and benchmark real workloads
 
-
-# prs
+# PRs
 
 llvm dialect
 
