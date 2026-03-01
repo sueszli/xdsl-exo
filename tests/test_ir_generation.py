@@ -10,7 +10,6 @@ from xdsl.dialects.test import TestOp
 from xdsl.utils.scoped_dict import ScopedDict
 from xdsl.utils.test_value import create_ssa_value
 
-from xdsl_exo.dialects.exo import AssignOp, ReduceOp
 from xdsl_exo.main import IRGenerator, compile_procs
 
 SRC_INFO = SrcInfo("test_mlir.py", 0)
@@ -97,7 +96,7 @@ def test_emit_assign_op():
     )
 
     gen = with_test_op(with_empty_scope(IRGenerator()), sym_x, TENSOR_TYPE, StringAttr("DRAM"))
-    gen._store_stmt(ir, AssignOp)
+    gen._store_stmt(ir)
 
     print(gen.module)
     gen.module.verify()
@@ -115,7 +114,7 @@ def test_emit_reduce_op():
     )
 
     gen = with_test_op(with_empty_scope(IRGenerator()), sym_x, TENSOR_TYPE, StringAttr("DRAM"))
-    gen._store_stmt(ir, ReduceOp)
+    gen._reduce_stmt(ir)
 
     print(gen.module)
     gen.module.verify()

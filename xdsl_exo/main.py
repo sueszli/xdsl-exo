@@ -30,7 +30,7 @@ from xdsl.transforms.convert_scf_to_cf import ConvertScfToCf
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.utils.scoped_dict import ScopedDict
 
-from xdsl_exo.dialects.exo import AllocOp, AssignOp, Exo, InstrOp, IntervalOp, ReadOp, ReduceOp, WindowOp
+from xdsl_exo.dialects.exo import AllocOp, AssignOp, Exo, InstrOp, IntervalOp, ReadOp, WindowOp
 from xdsl_exo.dialects.llvm import LLVMIntrinsics
 from xdsl_exo.rewrites.convert_avx2 import ConvertAVX2Pass
 from xdsl_exo.rewrites.convert_blas import ConvertBLASAllocPass, ConvertBLASPass, ConvertExternPass
@@ -262,15 +262,30 @@ class IRGenerator:
             case _:
                 assert False
 
-    def _store_stmt(self, stmt, op_cls):
-        assert isinstance(stmt, (LoopIR.Assign, LoopIR.Reduce))
-        assert op_cls in (AssignOp, ReduceOp)
+    def _store_stmt(self, stmt):
+        assert isinstance(stmt, LoopIR.Assign)
         idx = [self._expr(e) for e in stmt.idx]
         value = self._expr(stmt.rhs)
         memref = self.symbol_table[repr(stmt.name)]
         exo_type = self.type_table[repr(stmt.name)]
         sizes = self._shape(exo_type, dynamic=True) if isinstance(exo_type, T.Tensor) else []
-        self.builder.insert(op_cls(value, memref, idx, sizes))
+        self.builder.insert(AssignOp(value, memref, idx, sizes))
+
+    def _reduce_stmt(self, stmt):
+        assert isinstance(stmt, LoopIR.Reduce)
+        idx = [self._expr(e) for e in stmt.idx]
+        value = self._expr(stmt.rhs)
+        memref_val = self.symbol_table[repr(stmt.name)]
+        exo_type = self.type_table[repr(stmt.name)]
+        sizes = self._shape(exo_type, dynamic=True) if isinstance(exo_type, T.Tensor) else []
+        # read current value, add, assign back
+        self.builder.insert(read_op := ReadOp(memref_val, idx, sizes, result_type=value.type))
+        if value.type in [f16, f32, f64]:
+            add_op = AddfOp(read_op.result, value, result_type=value.type, flags=FastMathFlagsAttr("none"))
+        else:
+            add_op = AddiOp(read_op.result, value, result_type=value.type)
+        self.builder.insert(add_op)
+        self.builder.insert(AssignOp(add_op.result, memref_val, idx, sizes))
 
     def _if_stmt(self, if_stmt):
         assert isinstance(if_stmt, LoopIR.If)
@@ -352,9 +367,9 @@ class IRGenerator:
     def _stmt(self, stmt):
         match stmt:
             case LoopIR.Assign():
-                self._store_stmt(stmt, AssignOp)
+                self._store_stmt(stmt)
             case LoopIR.Reduce():
-                self._store_stmt(stmt, ReduceOp)
+                self._reduce_stmt(stmt)
             case LoopIR.WriteConfig():
                 raise NotImplementedError()
             case LoopIR.Pass():
@@ -425,14 +440,13 @@ def _context() -> Context:
     return ctx
 
 
-def _transform(analyzed_procs: list, target: str = "llvm") -> ModuleOp:
+def _transform(analyzed_procs: list) -> ModuleOp:
     ctx = _context()
 
     # exo LoopIR -> raw exo IR
     module = IRGenerator().generate(analyzed_procs)
 
     # partial lowering: convert memory spaces, scalar refs, and index casts to standard mlir
-    # (exo memory ops like exo.read, exo.assign, exo.reduce are preserved)
     ConvertMemorySpacePass().apply(ctx, module)
     ConvertScalarRefPass().apply(ctx, module)
     ConvertExternPass().apply(ctx, module)
@@ -443,9 +457,6 @@ def _transform(analyzed_procs: list, target: str = "llvm") -> ModuleOp:
     CanonicalizePass().apply(ctx, module)
     CommonSubexpressionElimination().apply(ctx, module)
     module.verify()
-
-    if target == "exo":
-        return module
 
     # full lowering to llvm dialect
     ConvertBLASAllocPass().apply(ctx, module)
@@ -466,7 +477,6 @@ def _transform(analyzed_procs: list, target: str = "llvm") -> ModuleOp:
 
 def compile_procs(
     library: Sequence[Procedure],  # list of exo funcs decorated with @proc
-    target: str = "llvm",
 ) -> ModuleOp:
     compilable = [proc._loopir_proc for proc in library if not proc.is_instr()]
     all_procs = sorted(find_all_subprocs(compilable), key=lambda x: x.name)
@@ -480,14 +490,13 @@ def compile_procs(
         return MemoryAnalysis().run(proc)
 
     analyzed_procs = [exo_analyze(proc) for proc in unique_procs]
-    return _transform(analyzed_procs, target)
+    return _transform(analyzed_procs)
 
 
 def main():
     parser = ArgumentParser(description="Compile an Exo library to MLIR.")
     parser.add_argument("source", type=str, help="Source file to compile")
     parser.add_argument("-o", "--output", help="Output file. Defaults to stdout.")
-    parser.add_argument("--target", default="llvm", choices=["llvm", "exo"])
     args = parser.parse_args()
 
     src = Path(args.source)
@@ -497,7 +506,7 @@ def main():
     assert isinstance(library, list)
     assert all(isinstance(proc, Procedure) for proc in library)
 
-    module = compile_procs(library, args.target)
+    module = compile_procs(library)
 
     dst = None
     if args.output and args.output != "-":

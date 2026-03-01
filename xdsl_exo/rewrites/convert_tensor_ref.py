@@ -2,7 +2,7 @@ from typing import Sequence
 
 from xdsl.context import Context
 from xdsl.dialects import arith, memref
-from xdsl.dialects.builtin import IndexType, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StridedLayoutAttr, f16, f32, f64, f80, f128, i64
+from xdsl.dialects.builtin import IndexType, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StridedLayoutAttr, i64
 from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
@@ -55,57 +55,6 @@ class ConvertAssignOp(RewritePattern):
             )
 
         rewriter.replace_matched_op((*ops, memref.StoreOp.get(op.value, op.input, idx)))
-
-
-class ConvertReduceOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.ReduceOp, rewriter: PatternRewriter):
-        # convert tensor writes only
-        if len(op.indices) < 1:
-            return
-
-        assert isinstance(op.input.type, MemRefType)
-
-        ops = [arith.IndexCastOp(idx, IndexType()) for idx in op.indices]
-        idx = [op.result for op in ops]
-        value = op.value
-
-        # if the value is a scalar memref, we need to load
-        if isinstance(op.value.type, MemRefType):
-            assert op.value.type.get_shape() == (1,), f"expected scalar memref type, got {op.value.type}"
-
-            ops.append(zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())))
-            ops.append(
-                load_op := memref.LoadOp.get(op.value, [zero_op.result]),
-            )
-            value = load_op.res
-
-        load_op = memref.LoadOp.get(op.input, idx)
-
-        # switch on value type
-        if value.type in [f16, f32, f64, f80, f128]:
-            add_op = arith.AddfOp(
-                operand1=load_op.results[0],
-                operand2=value,
-                flags=arith.FastMathFlagsAttr("none"),
-                result_type=op.input.type.element_type,
-            )
-
-        else:
-            add_op = arith.AddiOp(
-                operand1=load_op.results[0],
-                operand2=value,
-                result_type=op.input.type.element_type,
-            )
-
-        rewriter.replace_matched_op(
-            (
-                *ops,
-                load_op,
-                add_op,
-                memref.StoreOp.get(add_op.result, op.input, idx),
-            ),
-        )
 
 
 def compute_memref_strides(
@@ -273,7 +222,6 @@ class ConvertTensorRefPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     ConvertReadOp(),
-                    ConvertReduceOp(),
                     ConvertAssignOp(),
                     ConvertWindowOp(),
                     EraseUnusedIntervalOp(),

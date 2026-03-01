@@ -62,36 +62,6 @@ class AssignOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ReduceOp(IRDLOperation):
-    name = "exo.reduce"
-
-    value = operand_def()
-    input = operand_def()
-    indices = var_operand_def(i64)
-    sizes = var_operand_def(i64)
-    static_sizes = prop_def(DenseArrayBase)
-
-    assembly_format = "$value `,` $input `[` $indices `]` `,` `sizes` `:` `[` $sizes `]` `,` attr-dict `:` type($value) `,` type($input)"
-
-    irdl_options = (AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict())
-
-    def __init__(
-        self,
-        value: SSAValue | Operation,
-        input: SSAValue | Operation,
-        indices: Sequence[SSAValue | Operation],
-        sizes: Sequence[SSAValue | int],
-    ) -> None:
-        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, memref.DYNAMIC_INDEX)
-
-        super().__init__(
-            operands=[value, SSAValue.get(input), indices, dyn_sizes],
-            result_types=[],
-            properties={"static_sizes": DenseArrayBase.from_list(i64, static_sizes)},
-        )
-
-
-@irdl_op_definition
 class ReadOp(IRDLOperation):
     name = "exo.read"
 
@@ -231,7 +201,6 @@ Exo = Dialect(
     [
         AllocOp,
         AssignOp,
-        ReduceOp,
         ReadOp,
         WindowOp,
         IntervalOp,

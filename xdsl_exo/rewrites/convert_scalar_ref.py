@@ -68,21 +68,6 @@ class ConvertAssignToTensor(RewritePattern):
         zero_op.result.name_hint = "c0"
 
 
-class ConvertReduceToTensor(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.ReduceOp, rewriter: PatternRewriter):
-        if not isinstance(op.input.type, MemRefType) or op.input.type.get_shape() != (1,) or len(op.indices) != 0:
-            return
-
-        rewriter.replace_matched_op(
-            (
-                zero_op := arith.ConstantOp(IntegerAttr(0, i64)),
-                exo.ReduceOp(op.value, op.input, [zero_op.result], [1]),
-            )
-        )
-        zero_op.result.name_hint = "c0"
-
-
 class ConvertScalarFuncArgsToTensor(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter):
@@ -91,7 +76,7 @@ class ConvertScalarFuncArgsToTensor(RewritePattern):
             if isinstance(arg.type, MemRefType):
                 continue
 
-            mutated = any(isinstance(use.operation, exo.AssignOp) and use.operation.input == arg or isinstance(use.operation, exo.ReduceOp) and use.operation.input == arg for use in arg.uses)
+            mutated = any(isinstance(use.operation, exo.AssignOp) and use.operation.input == arg for use in arg.uses)
 
             # ignore unmutated scalar types, these can stay as is
             if not mutated:
@@ -129,7 +114,6 @@ class ConvertScalarRefPass(ModulePass):
                     ConvertAllocToTensor(),
                     ConvertReadToTensor(),
                     ConvertAssignToTensor(),
-                    ConvertReduceToTensor(),
                     ConvertScalarFuncArgsToTensor(),
                 ]
             ),

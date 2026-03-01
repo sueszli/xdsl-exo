@@ -4,7 +4,7 @@ from functools import reduce
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import arith, llvm, memref
-from xdsl.dialects.builtin import IntegerAttr, MemRefType, ModuleOp, StringAttr, UnrealizedConversionCastOp, i8, i16, i32, i64
+from xdsl.dialects.builtin import IntegerAttr, MemRefType, ModuleOp, StringAttr, UnrealizedConversionCastOp, i64
 from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
@@ -150,61 +150,6 @@ class ConvertAssignOp(RewritePattern):
         )
 
 
-class ConvertReduceOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.ReduceOp, rewriter: PatternRewriter):
-        # compute strides and offsets
-        stride_ops, strides = compute_memref_strides(
-            get_dynamic_index_list(
-                op.static_sizes.get_values(),
-                op.sizes,
-                memref.DYNAMIC_INDEX,
-            )
-        )
-        offset_ops, offsets = compute_memref_offsets(op.indices, strides)
-
-        # split static and dynamic offsets
-        static_offsets, dynamic_offsets = split_dynamic_index_list(offsets, llvm.GEP_USE_SSA_VAL)
-
-        cast_op = UnrealizedConversionCastOp.get([op.input], [llvm.LLVMPointerType()])
-
-        # get pointer and load
-        gep_op = llvm.GEPOp(
-            cast_op.results[0],
-            static_offsets,
-            op.value.type,
-            ssa_indices=dynamic_offsets,
-        )
-        load_op = llvm.LoadOp(gep_op, op.value.type)
-
-        # reduce
-        if op.value.type in [i8, i16, i32, i64]:
-            add_op = arith.AddiOp(
-                load_op.dereferenced_value,
-                op.value,
-            )
-        else:
-            add_op = arith.AddfOp(
-                load_op.dereferenced_value,
-                op.value,
-            )
-
-        rewriter.replace_matched_op(
-            (
-                *stride_ops,
-                *offset_ops,
-                cast_op,
-                gep_op,
-                load_op,
-                add_op,
-                llvm.StoreOp(
-                    add_op.result,
-                    gep_op,
-                ),
-            )
-        )
-
-
 class ConvertWindowOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.WindowOp, rewriter: PatternRewriter):
@@ -328,7 +273,6 @@ class ConvertMemRefToLLVM(ModulePass):
                 [
                     ConvertReadOp(),
                     ConvertAssignOp(),
-                    ConvertReduceOp(),
                     ConvertWindowOp(),
                     RewriteMemRefTypes(),
                     EraseIntervalOp(),

@@ -1,4 +1,4 @@
-# RUN: uv run xdsl-exo --target exo -o - %s | filecheck %s
+# RUN: uv run xdsl-exo -o - %s | filecheck %s
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from exo import *
 
 
 # CHECK: builtin.module {
-# CHECK-NEXT: func.func @binary_noop(%0 : memref<16xf32, "DRAM">, %1 : memref<16xf32, "DRAM">) {
+# CHECK-NEXT: func.func @binary_noop(%0 : !llvm.ptr, %1 : !llvm.ptr) {
 # CHECK-NEXT:   func.return
 # CHECK-NEXT: }
 @proc
