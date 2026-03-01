@@ -1,46 +1,60 @@
-## get rid of llvm dialect
-
-see
+(1) get rid of llvm dialect
 
 - https://github.com/xdslproject/xdsl/pull/5683
 - https://github.com/xdslproject/xdsl/pull/5684
 
-## get rid of exo dialect (requires tensor lowering)
+(2) get rid of exo dialect
 
-see
+- https://github.com/xdslproject/xdsl/pull/4371 -> adds lowering for `memref.reinterpret_cast` and `memref.cast` in the upstream `convert-memref-to-ptr` pass. building block for the larger effort below.
+    - [memref.subview](https://mlir.llvm.org/docs/Dialects/MemRef/#memrefsubview-memrefsubviewop)
+    - [memref.reinterpret_cast](https://mlir.llvm.org/docs/Dialects/MemRef/#memrefreinterpret_cast-memrefreinterpretcastop)
 
-- https://github.com/xdslproject/xdsl/pull/4371/changes
-- https://mlir.llvm.org/docs/Dialects/MemRef/#memrefsubview-memrefsubviewop
-- https://mlir.llvm.org/docs/Dialects/MemRef/#memrefreinterpret_cast-memrefreinterpretcastop
+---
 
-option a: raw pointers (current)
+option A: raw pointers (current, single-stage)
 
-- functions take raw pointers. array access is ptr + offset via manual stride math
-- `exo.read %buf[i, j]` → `ptr = cast(buf)` → `gep(ptr, i*stride0 + j*stride1)` → `llvm.load`
-- problem: the offset is baked into the pointer itself. when you do `exo.window` (subview), it computes a new pointer via GEP and casts it back to a memref, but the offset information is lost. you can't recover it later, which means:
-    - you can't invert a window operation (go from inner view back to the outer one) unless the offset is statically known in the type
-    - it's incompatible with standard MLIR memref semantics, making upstream merging with xdsl harder
-- if the offset is in the type, inversion is trivial, because you just negate the offset to go back. otherwise panic (this happens for some ops, this is out of scope for now).
+`ConvertMemRefToLLVM` goes directly from exo ops to LLVM pointer arithmetic in one step.
 
-option b: memref descriptors (standard mlir)
+- `exo.read %buf[i, j]` → cast memref to `llvm.ptr` → `gep(ptr, i*stride0 + j*stride1)` → `llvm.load`
+- problem: offset is baked into the pointer. `exo.window` (subview) computes a new pointer via GEP and casts it back to a memref, but the offset is lost. this means:
+    - can't invert a window operation unless the offset is statically known in the type
+    - incompatible with standard MLIR memref semantics, making upstream merging harder
 
-- functions take descriptor structs `{base_ptr, offset, sizes[], strides[]}`.
-- `memref.load` → extract ptr from descriptor → gep(ptr, linearized offset) → llvm.load
-- code for this approach already exists in `convert_tensor_ref.py` (using memref.load/store/subview) but is not wired into the pipeline.
-  - keeps offset/stride metadata alongside the pointer
-  - makes subview/window trivially invertible (negate the offset)
-  - matches what upstream xdsl/MLIR expects
+---
 
-what PR #4371 does
+option B: memref descriptors (standard MLIR, two-stage)
 
-- this is a building block for the larger effort.
-- it's a small upstream xdsl PR that adds lowering for `memref.reinterpret_cast` and `memref.cast` in the `convert-memref-to-ptr` pass
-- `reinterpret_cast` is lowered to `ptr.ToPtrOp` + `UnrealizedConversionCastOp`, and plain cast is just erased (it's a type-level no-op).
+Splits lowering into two clean stages:
 
-## goals
+1. exo → memref: `exo.{read,assign,window}` → `memref.{load,store,subview}` (code exists in `convert_tensor_ref.py`, currently unused / not wired into pipeline)
+2. memref → ptr/llvm: `memref.*` → `ptr/llvm.*` (upstream xdsl's `convert-memref-to-ptr`, extended by PR #4371)
 
-- do pointer arithmetic at creation time (window/subview), so reads are just load(base_ptr + pre-computed offset) — faster reads
-- track offsets explicitly so inversion is possible (when offset is in the type, just negate it; otherwise panic for now)
-- match upstream MLIR conventions to enable merging with xdsl and eventually hooking into llvmlite for real linear algebra benchmarks
+- functions take descriptor structs `{base_ptr, offset, sizes[], strides[]}`
+- keeps offset/stride metadata alongside the pointer
+- makes subview/window trivially invertible (negate the offset)
+- matches upstream xdsl/MLIR conventions
+- if the offset is in the type, inversion is trivial. otherwise panic (out of scope for now)
 
-longer-term vision: Exo emits LLVM IR (not just C), xdsl gets proper memref descriptor support, and you can compile Exo → xdsl → llvmlite and benchmark real workloads.
+---
+
+pipeline considerations
+
+Current pipeline in `main.py`:
+
+```
+partial lowering → optimize (canonicalize + CSE) → full lowering → optimize (canonicalize + CSE)
+```
+
+Full lowering currently runs: `ConvertBLASAllocPass` → `ConvertMemRefToLLVM` → `ConvertAVX2Pass` → `ConvertBLASPass` → `ConvertScfToCf` → `ReconcileUnrealizedCastsPass`
+
+To adopt option B: insert `ConvertTensorRefPass` before `ConvertMemRefToLLVM` (replaces exo→llvm with exo→memref), then keep a memref→llvm pass after it. Need to consider ordering relative to BLAS/AVX2 passes.
+
+---
+
+goals
+
+- do pointer arithmetic at creation time (window/subview), so reads are just `load(base_ptr + pre-computed offset)`
+- track offsets explicitly so inversion is possible
+- match upstream MLIR conventions for merging with xdsl
+
+longer-term: exo emits LLVM IR (not just C), xdsl gets proper memref descriptor support, compile exo → xdsl → llvmlite and benchmark real workloads
