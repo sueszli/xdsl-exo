@@ -1,0 +1,199 @@
+EXO DIALECT LOWERING REFERENCE
+==============================
+
+Each op in xdsl_exo/dialects/exo.py and what it lowers to.
+
+The steps below are ordered by recommended drop-first priority (simplest and
+most independent first, most complex last). This is intentional — it does NOT
+match the pipeline pass ordering in main.py. The pipeline order reflects
+multi-phase lowering dependencies (early passes rewrite exo ops into
+better-formed exo ops to prepare for later passes). The order here reflects
+which ops are easiest to eliminate from the codebase one at a time, with each
+step validated by regression tests before moving on.
+
+
+STEP 0: ADD REGRESSION TESTS
+=============================
+
+Before touching any lowering code, add a comprehensive set of regression tests
+in tests/regression/ that exercise every exo op through the full pipeline.
+These tests should:
+
+  - Cover every exo op: alloc, assign, read, window, invert_window.
+  - Cover every lowering path per op (e.g. DRAM vs VEC_AVX2 for alloc,
+    scalar vs tensor for read/assign, memory space propagation for window).
+  - Include edge cases: scalar memrefs, identity reads, zero indices,
+    multi-dimensional windows, chained window+invert_window.
+  - Test end-to-end: LoopIR input → full pipeline → expected MLIR output.
+  - All tests must pass on the current codebase before any refactoring begins.
+
+After dropping each exo op (steps 1-5), the same regression tests must still
+pass — the output MLIR should be identical (or functionally equivalent). This
+is the primary correctness guarantee for the refactoring.
+
+
+STEP 1: DROP exo.invert_window (InvertWindowOp)
+================================================
+
+Lowered in convert_tensor_ref.py → eliminated entirely.
+
+If the input comes from exo.WindowOp: replaced with the original input to that WindowOp.
+If the input comes from memref.SubviewOp: replaced with the source of that SubviewOp.
+Otherwise: assertion error.
+
+This is purely a bookkeeping op to recover the original un-windowed memref.
+
+To skip exo.invert_window:
+  - Don't emit it. Just keep a reference to the original memref before windowing/subview.
+
+Regression tests must pass after this step.
+
+
+STEP 2: DROP exo.alloc (AllocOp)
+=================================
+
+Three lowering paths depending on memory space:
+
+a) DRAM (convert_memory_space.py) → memref.AllocOp
+   Intermediate step: strips memory space string, produces a standard memref.alloc.
+
+b) DRAM (convert_memref_to_llvm.py) → arith.ConstantOp + llvm.CallOp("malloc") + UnrealizedConversionCastOp
+   Final LLVM lowering: computes total element count, calls malloc, casts pointer to memref.
+
+c) VEC_AVX2 (convert_blas.py) → arith.ConstantOp + llvm.AllocaOp + UnrealizedConversionCastOp
+   Stack-allocates AVX2 vector storage via alloca.
+
+To skip exo.alloc:
+  - For DRAM: emit memref.AllocOp directly with the right element type, shape, and layout.
+    Or go straight to LLVM: emit arith.constant(num_elements) → llvm.call @malloc → unrealized_conversion_cast.
+  - For VEC_AVX2: emit arith.constant(num_elements) → llvm.alloca → unrealized_conversion_cast.
+
+Regression tests must pass after this step.
+
+
+STEP 3: DROP exo.read (ReadOp)
+===============================
+
+Two lowering paths:
+
+a) Tensor case (convert_tensor_ref.py) → arith.IndexCastOp (per index) + memref.LoadOp
+   Casts i64 indices to index, then loads from memref.
+
+b) Scalar/redundant case (convert_scalar_ref.py) → eliminated or arith.IndexCastOp
+   - Redundant read (same memref type in and out, no indices): replaced with input operand directly.
+   - Index → non-index type: replaced with arith.index_cast.
+   - Same type, block argument: replaced with the block argument directly.
+
+To skip exo.read:
+  - For indexed memref reads: emit arith.index_cast per index → memref.load.
+  - For scalar/identity reads: just use the SSA value directly (no op needed).
+  - For index type conversions: emit arith.index_cast.
+
+Regression tests must pass after this step.
+
+
+STEP 4: DROP exo.assign (AssignOp)
+===================================
+
+Two lowering paths:
+
+a) Tensor case (convert_tensor_ref.py) → arith.IndexCastOp (per index) + memref.StoreOp
+   Casts i64 indices to index type, then stores value into memref.
+   Special case: if value is a scalar memref (shape [1]), first loads from it:
+     arith.constant(0) → memref.load(value, [0]) → memref.store(loaded, input, indices)
+
+b) Scalar memref case (convert_scalar_ref.py) → arith.ConstantOp(0) + new exo.AssignOp(with index [0], size [1])
+   Pre-processing step: rewrites a scalar memref assign (no indices, shape [1])
+   into an indexed assign with explicit zero index, then (a) handles it.
+
+To skip exo.assign:
+  - Cast each i64 index to index type via arith.index_cast.
+  - Emit memref.store(value, memref, [index_cast_results]).
+  - If the value comes from a scalar memref, load it first with memref.load.
+
+Regression tests must pass after this step.
+
+
+STEP 5: DROP exo.window (WindowOp)
+===================================
+
+Two lowering paths:
+
+a) Main lowering (convert_tensor_ref.py) → arith.muli + arith.index_cast + memref.subview
+   Computes strides (product of input sizes), offsets (index * stride), converts everything
+   to index type, then emits memref.subview with computed offsets/sizes/strides and a
+   StridedLayoutAttr on the result type.
+
+b) Memory space propagation (convert_memory_space.py) → new exo.WindowOp with memory space set
+   Pre-processing: copies the input's memory space to the output type, then (a) handles it.
+
+To skip exo.window:
+  - Compute strides manually: stride[i] = product of input_sizes[i+1:].
+  - Compute offsets: offset[i] = index[i] * stride[i].
+  - Cast everything to index type.
+  - Emit memref.subview(input, offsets, output_sizes, strides) with a StridedLayoutAttr.
+  - The result memref type needs a StridedLayoutAttr matching the computed strides.
+
+Regression tests must pass after this step.
+
+
+STEP 6: SEPARATE UPSTREAM (XDSL) VS LOCAL (THIS REPO) CHANGES
+===============================================================
+
+As we make changes throughout steps 1-5, we need to keep a clean separation
+between what gets merged upstream into xDSL and what stays in this repository.
+
+Upstream to xDSL: general-purpose MLIR ops and infrastructure that xDSL is
+missing but MLIR has. These are things we need regardless of Exo — they just
+happen to be required by our lowering. Examples:
+  - memref2pointer and similar standard MLIR ops not yet in xDSL
+  - Missing op variants, type support, or builder methods in existing dialects
+  - Bug fixes or extensions to xDSL's core infrastructure (irdl, rewriting, etc.)
+
+Stays in this repo: anything Exo-specific. This includes:
+  - The exo dialect itself (exo.py) and all its ops
+  - All lowering/conversion passes (convert_tensor_ref, convert_scalar_ref,
+    convert_memory_space, convert_blas, convert_memref_to_llvm, etc.)
+  - Exo-specific pipeline orchestration in main.py
+  - Exo-specific test infrastructure
+
+Rule of thumb: if the change would make sense in a codebase that has never
+heard of Exo, it belongs upstream. If it only exists to support Exo's
+abstractions or lowering, it stays here.
+
+Track this throughout the refactoring — don't let upstream-worthy changes
+accumulate silently in local code. File xDSL PRs as they come up.
+
+
+PIPELINE ORDER (from main.py, for reference)
+==============================================
+
+This is the current pass ordering, NOT the recommended drop order:
+
+1. ConvertMemorySpacePass     — propagate memory spaces on alloc/window
+2. ConvertScalarRefPass       — handle scalar reads/assigns
+3. ConvertExternPass          — handle extern calls
+4. ReconcileIndexCastsPass    — clean up index casts
+5. ConvertBLASAllocPass       — alloc for VEC_AVX2
+6. ConvertTensorRefPass       — read/assign/window/invert_window → memref ops
+7. ConvertAllocFreeToLLVM     — alloc → malloc/alloca
+
+
+SUMMARY: BYPASSING EXO OPS
+===========================
+
+To generate MLIR directly and skip exo lowering entirely:
+
+  exo.invert_window → nothing, just track the original memref
+  exo.alloc         → memref.alloc (or llvm.call @malloc for LLVM-level)
+  exo.read          → arith.index_cast per index + memref.load (or SSA forwarding)
+  exo.assign        → arith.index_cast per index + memref.store
+  exo.window        → stride/offset math + memref.subview with StridedLayoutAttr
+
+The main complexity is in WindowOp: you need to compute strides as products of
+dimension sizes, multiply indices by strides to get offsets, and construct the
+right StridedLayoutAttr for the subview result type. Everything else is straightforward.
+
+Key concern: the exo ops carry memory space information (DRAM, VEC_AVX2) that
+determines the lowering path. If bypassing exo ops, this routing logic needs to
+be handled at the point of emission instead.
