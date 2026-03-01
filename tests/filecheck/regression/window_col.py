@@ -1,7 +1,7 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
 # Exercises: exo.window (column access A[:, j] → 1D subview along columns)
-# Lowering: exo.window → stride/offset with column stride → ptr arithmetic
+# Lowering: stride/offset computation with column stride → ptr arithmetic
 
 from __future__ import annotations
 
@@ -22,8 +22,7 @@ from exo import *
 # CHECK:      ^bb0(%3 : i64):
 # CHECK:        cf.cond_br %4, ^bb1, ^bb2
 # CHECK:      ^bb1:
-# CHECK:        %6 = arith.constant 4 : i64
-# CHECK-NEXT:   %7 = arith.muli %3, %6 : i64
+# CHECK:        %5 = arith.muli %3, %1 : i64
 # CHECK:        func.call @set_col({{.*}}) : (!llvm.ptr) -> ()
 # CHECK:      ^bb2:
 # CHECK-NEXT:   func.return

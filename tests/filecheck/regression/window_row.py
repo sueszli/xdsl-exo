@@ -1,7 +1,7 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
 # Exercises: exo.window (row access A[i, :] → 1D subview of 2D matrix)
-# Lowering: exo.window → stride/offset computation → memref.subview → ptr arithmetic
+# Lowering: stride/offset computation → memref.subview → ptr arithmetic
 
 from __future__ import annotations
 
@@ -19,11 +19,10 @@ from exo import *
 # CHECK-NEXT: }
 # CHECK:      func.func @window_row(%offset_pointer : !llvm.ptr) {
 # CHECK:        cf.br ^bb0(%0 : i64)
-# CHECK:      ^bb0(%3 : i64):
-# CHECK:        cf.cond_br %4, ^bb1, ^bb2
+# CHECK:      ^bb0(%4 : i64):
+# CHECK:        cf.cond_br %5, ^bb1, ^bb2
 # CHECK:      ^bb1:
-# CHECK:        %5 = arith.constant 16 : i64
-# CHECK-NEXT:   %6 = arith.muli %3, %5 : i64
+# CHECK:        %6 = arith.muli %4, %3 : i64
 # CHECK:        func.call @set_row({{.*}}) : (!llvm.ptr) -> ()
 # CHECK:      ^bb2:
 # CHECK-NEXT:   func.return

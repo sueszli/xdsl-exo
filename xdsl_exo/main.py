@@ -22,7 +22,8 @@ from xdsl.dialects.arith import AddfOp, AddiOp, AndIOp, CmpfOp, CmpiOp, Constant
 from xdsl.dialects.builtin import BoolAttr, Builtin, FloatAttr, FunctionType, IndexType, IntAttr, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StringAttr, UnrealizedConversionCastOp, f16, f32, f64, i1, i8, i16, i32, i64
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.dialects.scf import ForOp, IfOp, YieldOp
-from xdsl.ir import Attribute, Block, OpResult, Region, SSAValue
+from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
+from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.common_subexpression_elimination import CommonSubexpressionElimination
@@ -32,13 +33,10 @@ from xdsl.transforms.convert_scf_to_cf import ConvertScfToCf
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.utils.scoped_dict import ScopedDict
 
-from xdsl_exo.dialects.exo import Exo, WindowOp
 from xdsl_exo.dialects.llvm import LLVMIntrinsics
 from xdsl_exo.rewrites.convert_avx2 import ConvertAVX2Pass
 from xdsl_exo.rewrites.convert_blas import ConvertBLASAllocPass, ConvertBLASPass, ConvertExternPass
-from xdsl_exo.rewrites.convert_memory_space import ConvertMemorySpacePass
 from xdsl_exo.rewrites.convert_memref_to_llvm import ConvertAllocFreeToLLVM, LowerMemRefTypesPass
-from xdsl_exo.rewrites.convert_tensor_ref import ConvertTensorRefPass
 from xdsl_exo.rewrites.extended_memref_to_ptr import ExtendedConvertMemRefToPtr
 from xdsl_exo.rewrites.reconcile_index_casts import ReconcileIndexCastsPass
 
@@ -249,8 +247,49 @@ class IRGenerator:
         self.builder.insert(op)
         return op.result
 
+    @staticmethod
+    def _compute_strides(ops: list[Operation], sizes: list[SSAValue | int]) -> list[SSAValue | int]:
+        # stride[i] = product(sizes[i+1:]), computed right-to-left
+        strides: list[SSAValue | int] = [1]
+        for size in reversed(sizes):
+            last = strides[0]
+            if isinstance(last, int) and isinstance(size, int):
+                strides.insert(0, last * size)
+                continue
+            if isinstance(last, int):
+                ops.append(c := ConstantOp(IntegerAttr(last, i64)))
+                last = c.result
+            if isinstance(size, int):
+                ops.append(c := ConstantOp(IntegerAttr(size, i64)))
+                size = c.result
+            ops.append(mul := MuliOp(operand1=last, operand2=size))
+            strides.insert(0, mul.result)
+        return strides
+
+    @staticmethod
+    def _compute_offsets(ops: list[Operation], indices: list[SSAValue], strides: list[SSAValue | int]) -> list[SSAValue]:
+        # offset[i] = index[i] * stride[i]
+        offsets: list[SSAValue] = []
+        for idx, stride in zip(indices, strides):
+            if isinstance(stride, int):
+                ops.append(c := ConstantOp(IntegerAttr(stride, i64)))
+                stride = c.result
+            ops.append(mul := MuliOp(operand1=idx, operand2=stride))
+            offsets.append(mul.result)
+        return offsets
+
+    @staticmethod
+    def _to_index(ops: list[Operation], values: Sequence[SSAValue | int]) -> list[SSAValue]:
+        # cast i64 SSAValues to index type, pass through static ints as-is for SubviewOp
+        static, dynamic = split_dynamic_index_list(values, memref.DYNAMIC_INDEX)
+        casted = []
+        for v in dynamic:
+            ops.append(cast := arith.IndexCastOp(v, IndexType()))
+            casted.append(cast.result)
+        return get_dynamic_index_list(static, casted, memref.DYNAMIC_INDEX)
+
     def _window_expr(self, window):
-        # lower window expression
+        # lower window expression to stride/offset computation + memref.subview
         assert isinstance(window, LoopIR.WindowExpr)
 
         def w_access(w):
@@ -263,16 +302,23 @@ class IRGenerator:
                     assert False
 
         idx = [w_access(w) for w in window.idx]
-
         input = self.symbol_table[repr(window.name)]
         dest_type = self._type(window.type.as_tensor, input.type.memory_space)
-
         input_sizes = self._shape(self.type_table[repr(window.name)], dynamic=True)
         output_sizes = self._shape(window.type.as_tensor, dynamic=True)
 
-        self.builder.insert(op := WindowOp(input, idx, input_sizes, output_sizes, dest_type))
+        # compute strides/offsets in i64, then cast to index for subview
+        ops: list[Operation] = []
+        strides = self._compute_strides(ops, input_sizes)
+        offsets = self._compute_offsets(ops, idx, strides)
+        strides_idx = self._to_index(ops, strides)
+        offsets_idx = self._to_index(ops, offsets)
+        sizes_idx = self._to_index(ops, output_sizes)
+        for op in ops:
+            self.builder.insert(op)
 
-        return op.result
+        self.builder.insert(subview := memref.SubviewOp.get(input, offsets_idx, sizes_idx, strides_idx, dest_type))
+        return subview.result
 
     def _extern_expr(self, extern):
         # lower extern function call to func.call with return value
@@ -503,7 +549,6 @@ def _context() -> Context:
     ctx.load_dialect(func.Func)
     ctx.load_dialect(memref.MemRef)
     ctx.load_dialect(scf.Scf)
-    ctx.load_dialect(Exo)
     ctx.load_dialect(LLVMIntrinsics)
     ctx.load_dialect(ptr.Ptr)
     return ctx
@@ -515,8 +560,7 @@ def _transform(analyzed_procs: list) -> ModuleOp:
     # exo LoopIR -> raw exo IR
     module = IRGenerator().generate(analyzed_procs)
 
-    # partial lowering: convert memory spaces, externs, and index casts to standard mlir
-    ConvertMemorySpacePass().apply(ctx, module)
+    # partial lowering: convert externs and index casts to standard mlir
     ConvertExternPass().apply(ctx, module)
     ReconcileIndexCastsPass().apply(ctx, module)
     module.verify()
@@ -528,7 +572,6 @@ def _transform(analyzed_procs: list) -> ModuleOp:
 
     # full lowering to llvm dialect
     ConvertBLASAllocPass().apply(ctx, module)
-    ConvertTensorRefPass().apply(ctx, module)  # exo.window → memref.subview
     ConvertAllocFreeToLLVM().apply(ctx, module)  # memref.AllocOp → malloc, memref.DeallocOp → free
     ExtendedConvertMemRefToPtr().apply(ctx, module)  # memref.{load,store,subview} → ptr.*
     ConvertPtrTypeOffsetsPass().apply(ctx, module)  # ptr.TypeOffsetOp → arith.constant(sizeof)

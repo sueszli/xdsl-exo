@@ -11,38 +11,12 @@ better-formed exo ops to prepare for later passes). The order here reflects
 which ops are easiest to eliminate from the codebase one at a time, with each
 step validated by regression tests before moving on.
 
-STEP 1: DROP exo.window (WindowOp)
-===================================
-
-Two lowering paths:
-
-a) Main lowering (convert_tensor_ref.py) → arith.muli + arith.index_cast + memref.subview
-   Computes strides (product of input sizes), offsets (index * stride), converts everything
-   to index type, then emits memref.subview with computed offsets/sizes/strides and a
-   StridedLayoutAttr on the result type.
-
-b) Memory space propagation (convert_memory_space.py) → new exo.WindowOp with memory space set
-   Pre-processing: copies the input's memory space to the output type, then (a) handles it.
-
-To skip exo.window:
-  - Compute strides manually: stride[i] = product of input_sizes[i+1:].
-  - Compute offsets: offset[i] = index[i] * stride[i].
-  - Cast everything to index type.
-  - Emit memref.subview(input, offsets, output_sizes, strides) with a StridedLayoutAttr.
-  - The result memref type needs a StridedLayoutAttr matching the computed strides.
-
-`make tests` must pass after this step. Update this TODO_EXO file to reflect
-what was done (delete the completed step, renumber remaining steps).
-
-
-STEP 2: CONSOLIDATE REWRITE FILES
+STEP 1: CONSOLIDATE REWRITE FILES
 ====================================
 
-After step 1 drops the last exo op, merge rewrite files that handle
+After dropping the last exo op, merge rewrite files that handle
 overlapping concerns. Current file layout in xdsl_exo/rewrites/:
 
-  convert_tensor_ref.py    — exo.window → memref.subview
-  convert_memory_space.py  — memory space propagation on window
   convert_memref_to_llvm.py — memref.AllocOp (DRAM) → malloc/free
   convert_blas.py          — VEC_AVX2 dealloc erasure + mm256_* intrinsics → vector/LLVM
   convert_avx2.py          — mm256_* intrinsics → LLVM (duplicates convert_blas.py)
@@ -54,22 +28,17 @@ Merge candidates:
   a) convert_avx2.py → merge into convert_blas.py
      Near-complete overlap: both handle mm256_* AVX2 intrinsic lowering.
 
-  b) convert_memory_space.py + convert_memref_to_llvm.py → single file
-     Sequential stages of the same pipeline: memory space annotation →
-     malloc/free lowering.
-
-  c) convert_blas.py + convert_memref_to_llvm.py (after merge b)
+  b) convert_blas.py + convert_memref_to_llvm.py
      Both handle memref deallocation, dispatched by memory space
      (DRAM vs VEC_AVX2). Could become a single alloc-lowering file.
 
-Do this after dropping exo ops — the merges will be cleaner once there are
-fewer ops to route between files.
+Do this now that exo ops are dropped — the merges will be cleaner.
 
 `make tests` must pass after this step. Update this TODO_EXO file to reflect
 what was done (delete the completed step, renumber remaining steps).
 
 
-STEP 3: SEPARATE UPSTREAM (XDSL) VS LOCAL (THIS REPO) CHANGES
+STEP 2: SEPARATE UPSTREAM (XDSL) VS LOCAL (THIS REPO) CHANGES
 ===============================================================
 
 As we make changes, we need to keep a clean separation between what gets
@@ -83,9 +52,7 @@ happen to be required by our lowering. Examples:
   - Bug fixes or extensions to xDSL's core infrastructure (irdl, rewriting, etc.)
 
 Stays in this repo: anything Exo-specific. This includes:
-  - The exo dialect itself (exo.py) and its remaining ops
-  - All lowering/conversion passes (convert_tensor_ref, convert_memory_space,
-    convert_blas, convert_memref_to_llvm, etc.)
+  - All lowering/conversion passes (convert_blas, convert_memref_to_llvm, etc.)
   - Exo-specific pipeline orchestration in main.py
   - Exo-specific test infrastructure
 
@@ -100,14 +67,12 @@ accumulate silently in local code. File xDSL PRs as they come up.
 PIPELINE ORDER (from main.py, for reference)
 ==============================================
 
-This is the current pass ordering, NOT the recommended drop order:
+This is the current pass ordering:
 
-1. ConvertMemorySpacePass     — propagate memory spaces on window
-2. ConvertExternPass          — handle extern calls
-3. ReconcileIndexCastsPass    — clean up index casts
-4. ConvertBLASAllocPass       — dealloc erasure for VEC_AVX2
-5. ConvertTensorRefPass       — exo.window → memref.subview
-6. ConvertAllocFreeToLLVM     — memref.AllocOp → malloc, memref.DeallocOp → free
+1. ConvertExternPass          — handle extern calls
+2. ReconcileIndexCastsPass    — clean up index casts
+3. ConvertBLASAllocPass       — dealloc erasure for VEC_AVX2
+4. ConvertAllocFreeToLLVM     — memref.AllocOp → malloc, memref.DeallocOp → free
 
 
 SUMMARY: BYPASSING EXO OPS
@@ -119,12 +84,8 @@ To generate MLIR directly and skip exo lowering entirely:
   exo.alloc         → dropped (done) — DRAM emits memref.AllocOp, VEC_AVX2 emits llvm.AllocaOp directly
   exo.read          → dropped (done) — arith.index_cast per index + memref.load (or SSA forwarding)
   exo.assign        → dropped (done) — arith.index_cast per index + memref.store (+ scalar memref wrapping)
-  exo.window        → stride/offset math + memref.subview with StridedLayoutAttr
+  exo.window        → dropped (done) — stride/offset math + memref.subview with NoneAttr layout
 
-The main complexity is in WindowOp: you need to compute strides as products of
-dimension sizes, multiply indices by strides to get offsets, and construct the
-right StridedLayoutAttr for the subview result type. Everything else is straightforward.
-
-Key concern: the exo ops carry memory space information (DRAM, VEC_AVX2) that
-determines the lowering path. If bypassing exo ops, this routing logic needs to
-be handled at the point of emission instead.
+All exo ops have been eliminated. The exo dialect (xdsl_exo/dialects/exo.py),
+ConvertTensorRefPass (convert_tensor_ref.py), and ConvertMemorySpacePass
+(convert_memory_space.py) have been deleted.
