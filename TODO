@@ -1,6 +1,5 @@
 todo:
 
-- inversion logic (negating offsets for window inversion) — not visible in the current code.
 - now that we have built out this infrastructure, can we get rid of @xdsl_exo/dialects/exo.py entirely by lowering directly?
 
 ---
