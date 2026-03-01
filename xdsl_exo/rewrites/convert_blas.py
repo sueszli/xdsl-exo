@@ -99,7 +99,7 @@ class ConvertVecAbsF32x8(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_abs_f32x8":
             return
 
@@ -141,7 +141,7 @@ class ConvertVecAbsF32x8Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_abs_f32x8_pfx":
             return
 
@@ -199,7 +199,7 @@ class ConvertVecAbsF64x4(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_abs_f64x4":
             return
 
@@ -241,7 +241,7 @@ class ConvertVecAbsF64x4Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_abs_f64x4_pfx":
             return
 
@@ -300,7 +300,7 @@ class ConvertVecAddRedF32x8(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_add_red_f32x8":
             return
 
@@ -343,7 +343,7 @@ class ConvertVecAddRedF32x8Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_add_red_f32x8_pfx":
             return
 
@@ -398,7 +398,7 @@ class ConvertVecAddRedF64x4(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_add_red_f64x4":
             return
 
@@ -441,7 +441,7 @@ class ConvertVecAddRedF64x4Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_add_red_f64x4_pfx":
             return
 
@@ -497,7 +497,7 @@ class ConvertVecCopyF32x8(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_copy_f32x8":
             return
 
@@ -535,7 +535,7 @@ class ConvertVecCopyF32x8Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_copy_f32x8_pfx":
             return
 
@@ -585,7 +585,7 @@ class ConvertVecCopyF64x4(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_copy_f64x4":
             return
 
@@ -623,7 +623,7 @@ class ConvertVecCopyF64x4Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_copy_f64x4_pfx":
             return
 
@@ -675,7 +675,7 @@ class ConvertVecLoadF32x8(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_load_f32x8":
             return
 
@@ -713,7 +713,7 @@ class ConvertVecLoadF32x8Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_load_f32x8_pfx":
             return
 
@@ -761,7 +761,7 @@ class ConvertVecLoadF64x4(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_load_f64x4":
             return
 
@@ -799,7 +799,7 @@ class ConvertVecLoadF64x4Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_load_f64x4_pfx":
             return
 
@@ -849,7 +849,7 @@ class ConvertVecReduceAddSclF32x8(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_reduce_add_scl_f32x8":
             return
 
@@ -888,7 +888,7 @@ class ConvertVecReduceAddSclF64x4(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_reduce_add_scl_f64x4":
             return
 
@@ -927,7 +927,7 @@ class ConvertVecZeroF32x8(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_zero_f32x8":
             return
 
@@ -956,7 +956,7 @@ class ConvertVecZeroF64x4(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_zero_f64x4":
             return
 
@@ -988,7 +988,7 @@ class ConvertVecAddF32x8(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_add_f32x8":
             return
 
@@ -1037,7 +1037,7 @@ class ConvertVecAddF32x8Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_add_f32x8_pfx":
             return
 
@@ -1096,7 +1096,7 @@ class ConvertVecAddF64x4(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_add_f64x4":
             return
 
@@ -1142,7 +1142,7 @@ class ConvertVecAddF64x4Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_add_f64x4_pfx":
             return
 
@@ -1198,7 +1198,7 @@ class ConvertVecBrdcstSclF32x8(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_brdcst_scl_f32x8":
             return
 
@@ -1235,7 +1235,7 @@ class ConvertVecBrdcstSclF32x8Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_brdcst_scl_f32x8_pfx":
             return
 
@@ -1284,7 +1284,7 @@ class ConvertVecBrdcstSclF64x4(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_brdcst_scl_f64x4":
             return
 
@@ -1321,7 +1321,7 @@ class ConvertVecBrdcstSclF64x4Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_brdcst_scl_f64x4_pfx":
             return
 
@@ -1374,7 +1374,7 @@ class ConvertVecFmadd2F32x8(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_fmadd2_f32x8":
             return
 
@@ -1437,7 +1437,7 @@ class ConvertVecFmadd2F32x8Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_fmadd2_f32x8_pfx":
             return
 
@@ -1512,7 +1512,7 @@ class ConvertVecFmadd2F64x4(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_fmadd2_f64x4":
             return
 
@@ -1578,7 +1578,7 @@ class ConvertVecFmadd2F64x4Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_fmadd2_f64x4_pfx":
             return
 
@@ -1650,7 +1650,7 @@ class ConvertVecStoreF32x8(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_store_f32x8":
             return
 
@@ -1688,7 +1688,7 @@ class ConvertVecStoreF32x8Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_store_f32x8_pfx":
             return
 
@@ -1738,7 +1738,7 @@ class ConvertVecStoreF64x4(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_store_f64x4":
             return
 
@@ -1776,7 +1776,7 @@ class ConvertVecStoreF64x4Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_store_f64x4_pfx":
             return
 
@@ -1828,7 +1828,7 @@ class ConvertVecFmaddRedF32x8(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_fmadd_red_f32x8":
             return
 
@@ -1892,7 +1892,7 @@ class ConvertVecFmaddRedF32x8Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_fmadd_red_f32x8_pfx":
             return
 
@@ -1968,7 +1968,7 @@ class ConvertVecFmaddRedF64x4(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_fmadd_red_f64x4":
             return
 
@@ -2029,7 +2029,7 @@ class ConvertVecFmaddRedF64x4Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_fmadd_red_f64x4_pfx":
             return
 
@@ -2106,7 +2106,7 @@ class ConvertVecFmadd1F32x8(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_fmadd1_f32x8":
             return
 
@@ -2171,7 +2171,7 @@ class ConvertVecFmadd1F32x8Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_fmadd1_f32x8_pfx":
             return
 
@@ -2247,7 +2247,7 @@ class ConvertVecFmadd1F64x4(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_fmadd1_f64x4":
             return
 
@@ -2310,7 +2310,7 @@ class ConvertVecFmadd1F64x4Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_fmadd1_f64x4_pfx":
             return
 
@@ -2384,7 +2384,7 @@ class ConvertVecMulF32x8(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_mul_f32x8":
             return
 
@@ -2433,7 +2433,7 @@ class ConvertVecMulF32x8Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_mul_f32x8_pfx":
             return
 
@@ -2495,7 +2495,7 @@ class ConvertVecMulF64x4(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_mul_f64x4":
             return
 
@@ -2541,7 +2541,7 @@ class ConvertVecMulF64x4Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_mul_f64x4_pfx":
             return
 
@@ -2598,7 +2598,7 @@ class ConvertVecNegF32x8(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_neg_f32x8":
             return
 
@@ -2642,7 +2642,7 @@ class ConvertVecNegF32x8Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_neg_f32x8_pfx":
             return
 
@@ -2695,7 +2695,7 @@ class ConvertVecNegF64x4(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_neg_f64x4":
             return
 
@@ -2740,7 +2740,7 @@ class ConvertVecNegF64x4Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_neg_f64x4_pfx":
             return
 
@@ -2797,7 +2797,7 @@ class ConvertVecZeroF32x8Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_zero_f32x8_pfx":
             return
 
@@ -2843,7 +2843,7 @@ class ConvertVecZeroF64x4Pfx(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "vec_zero_f64x4_pfx":
             return
 

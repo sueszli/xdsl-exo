@@ -10,6 +10,15 @@ from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, 
 
 from xdsl_exo.dialects import exo
 
+"""
+alternative memref based implementation
+
+- ConvertReadOp — exo.ReadOp → memref.LoadOp
+- ConvertAssignOp — exo.AssignOp → memref.StoreOp
+- ConvertWindowOp — exo.WindowOp → memref.SubviewOp (with stride/offset computation)
+- EraseUnusedIntervalOp — cleans up leftover exo.IntervalOps with no uses
+"""
+
 
 class ConvertReadOp(RewritePattern):
     @op_type_rewrite_pattern

@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import ClassVar, TypeAlias
 
 from xdsl.dialects import memref
-from xdsl.dialects.builtin import DenseArrayBase, FlatSymbolRefAttrConstr, MemRefType, StringAttr, SymbolRefAttr, TupleType, i64
+from xdsl.dialects.builtin import DenseArrayBase, MemRefType, StringAttr, TupleType, i64
 from xdsl.dialects.utils import split_dynamic_index_list
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import AnyAttr, Attribute, AttrSizedOperandSegments, IRDLOperation, ParsePropInAttrDict, VarConstraint, irdl_op_definition, operand_def, prop_def, result_def, var_operand_def
@@ -177,25 +177,6 @@ class WindowOp(IRDLOperation):
         )
 
 
-@irdl_op_definition
-class InstrOp(IRDLOperation):
-    name = "exo.instr"
-
-    arguments = var_operand_def()
-    callee = prop_def(FlatSymbolRefAttrConstr)
-
-    assembly_format = "$callee attr-dict `(` $arguments `)` `:` type($arguments)"
-
-    def __init__(
-        self,
-        callee: str | SymbolRefAttr,
-        arguments: Sequence[SSAValue | Operation],
-    ) -> None:
-        if isinstance(callee, str):
-            callee = SymbolRefAttr(callee)
-        super().__init__(operands=[arguments], result_types=[], properties={"callee": callee})
-
-
 Exo = Dialect(
     "exo",
     [
@@ -204,7 +185,6 @@ Exo = Dialect(
         ReadOp,
         WindowOp,
         IntervalOp,
-        InstrOp,
     ],
     [],
 )

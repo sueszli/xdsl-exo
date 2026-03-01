@@ -1,15 +1,13 @@
 from xdsl.context import Context
-from xdsl.dialects import arith, llvm, memref, vector
+from xdsl.dialects import arith, func, llvm, memref, vector
 from xdsl.dialects.builtin import Float32Type, IndexType, IntegerAttr, MemRefType, ModuleOp, VectorType
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
 
-from xdsl_exo.dialects import exo
-
 
 class ConvertMM256StoreuPsOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "mm256_storeu_ps":
             return
 
@@ -33,7 +31,7 @@ class ConvertMM256StoreuPsOp(RewritePattern):
 
 class ConvertMM256FmaddPsOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "mm256_fmadd_ps":
             return
 
@@ -70,7 +68,7 @@ class ConvertMM256FmaddPsOp(RewritePattern):
 
 class ConvertMM256BroadcastSsOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "mm256_broadcast_ss":
             return
 
@@ -100,7 +98,7 @@ class ConvertMM256BroadcastSsOp(RewritePattern):
 
 class ConvertMM256LoaduPsOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "mm256_loadu_ps":
             return
 

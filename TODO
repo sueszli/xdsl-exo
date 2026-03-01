@@ -30,3 +30,18 @@ fix memref lowering
     - for xdsl: reimplement exo in xdsl?
 
 hook that up to llvmlite using xdsl then we could compare real linear algebra things
+
+
+---
+
+
+option a: raw pointers (current)
+
+- functions take raw pointers. array access is ptr + offset via manual stride math.
+- exo.read → cast memref to ptr → gep(ptr, i*stride0 + j*stride1) → llvm.load
+
+option b: memref descriptors (standard mlir)
+
+- functions take descriptor structs {base_ptr, offset, sizes[], strides[]}.
+- memref.load → extract ptr from descriptor → gep(ptr, linearized offset) → llvm.load
+

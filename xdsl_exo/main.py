@@ -30,7 +30,7 @@ from xdsl.transforms.convert_scf_to_cf import ConvertScfToCf
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.utils.scoped_dict import ScopedDict
 
-from xdsl_exo.dialects.exo import AllocOp, AssignOp, Exo, InstrOp, IntervalOp, ReadOp, WindowOp
+from xdsl_exo.dialects.exo import AllocOp, AssignOp, Exo, IntervalOp, ReadOp, WindowOp
 from xdsl_exo.dialects.llvm import LLVMIntrinsics
 from xdsl_exo.rewrites.convert_avx2 import ConvertAVX2Pass
 from xdsl_exo.rewrites.convert_blas import ConvertBLASAllocPass, ConvertBLASPass, ConvertExternPass
@@ -352,9 +352,14 @@ class IRGenerator:
         # lower all args to ssa values
         args = [self._expr(arg) for arg in call.args]
 
-        # hardware intrinsic: emit opaque instr op
+        # hardware intrinsic: emit func.call (with external declaration)
         if call.f.instr is not None:
-            self.builder.insert(InstrOp(call.f.name, args))
+            if call.f.name not in self.seen_procs:
+                self.seen_procs.add(call.f.name)
+                input_types = [SSAValue.get(a).type for a in args]
+                module_builder = Builder(insertion_point=InsertPoint.at_end(self.module.body.blocks[0]))
+                module_builder.insert(FuncOp.external(call.f.name, input_types, []))
+            self.builder.insert(CallOp(call.f.name, args, []))
             return
 
         # recursively lower callee, then emit call op
