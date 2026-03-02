@@ -1,8 +1,8 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# Exercises: exo.alloc (scalar), memref.store (scalar memref value → tensor),
+# exercises: exo.alloc (scalar), memref.store (scalar memref value → tensor),
 #            memref.load (scalar memref load before tensor store)
-# Lowering: scalar alloc → malloc(1), scalar value loaded before storing into tensor
+# lowering: scalar alloc → malloc(1), scalar value loaded before storing into tensor
 
 from __future__ import annotations
 

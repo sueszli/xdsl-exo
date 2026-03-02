@@ -1,7 +1,7 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# Exercises: exo.read (scalar identity / memref[1] path), exo.assign (scalar memref path)
-# Lowering: scalar memref → memref[1], exo.read/assign → indexed load/store with zero index
+# exercises: exo.read (scalar identity / memref[1] path), exo.assign (scalar memref path)
+# lowering: scalar memref → memref[1], exo.read/assign → indexed load/store with zero index
 
 from __future__ import annotations
 

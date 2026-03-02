@@ -1,7 +1,7 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# Exercises: exo.read (tensor indexed), exo.assign (tensor indexed) in a loop
-# Lowering: exo.read → arith.index_cast + memref.load → llvm.load
+# exercises: exo.read (tensor indexed), exo.assign (tensor indexed) in a loop
+# lowering: exo.read → arith.index_cast + memref.load → llvm.load
 #           exo.assign → arith.index_cast + memref.store → llvm.store
 
 from __future__ import annotations

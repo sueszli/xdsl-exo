@@ -1,8 +1,8 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# Exercises: exo.alloc (scalar → memref[1]), memref.store (scalar memref),
+# exercises: exo.alloc (scalar → memref[1]), memref.store (scalar memref),
 #            memref.load (scalar memref), reduce (scalar += via load + add + store)
-# Lowering: scalar alloc → malloc(1), scalar read/assign → indexed with zero index
+# lowering: scalar alloc → malloc(1), scalar read/assign → indexed with zero index
 
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# Exercises: exo.alloc with multiple types (f32 and i32), scalar alloc + read + assign
-# Lowering: two malloc calls, f32 and i32 stores/loads
+# exercises: exo.alloc with multiple types (f32 and i32), scalar alloc + read + assign
+# lowering: two malloc calls, f32 and i32 stores/loads
 
 from __future__ import annotations
 

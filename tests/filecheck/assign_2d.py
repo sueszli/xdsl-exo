@@ -1,7 +1,7 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# Exercises: exo.assign (multi-dimensional tensor, 2D indexing)
-# Lowering: 2D indices → stride computation + offset + llvm.store
+# exercises: exo.assign (multi-dimensional tensor, 2D indexing)
+# lowering: 2D indices → stride computation + offset + llvm.store
 
 from __future__ import annotations
 

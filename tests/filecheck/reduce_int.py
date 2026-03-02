@@ -1,7 +1,7 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# Exercises: reduce (+=) with integer type (arith.addi instead of arith.addf)
-# Lowering: read → llvm.load, add → arith.addi, assign → llvm.store
+# exercises: reduce (+=) with integer type (arith.addi instead of arith.addf)
+# lowering: read → llvm.load, add → arith.addi, assign → llvm.store
 
 from __future__ import annotations
 
