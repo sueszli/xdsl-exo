@@ -82,13 +82,7 @@ class MaskedStoreOp(IRDLOperation):
         mask: Operation | SSAValue,
         alignment: int = 32,
     ):
-        super().__init__(
-            operands=[value, data, mask],
-            result_types=[],
-            properties={
-                "alignment": IntegerAttr(alignment, 32),
-            },
-        )
+        super().__init__(operands=[value, data, mask], result_types=[], properties={"alignment": IntegerAttr(alignment, 32)})
 
 
 LLVMIntrinsics = Dialect(
