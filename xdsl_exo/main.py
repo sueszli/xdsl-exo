@@ -169,6 +169,8 @@ class IRGenerator:
 
         if not isinstance(operand.type, MemRefType):
             return operand
+        if isinstance(read.type, T.Window):
+            return operand
         if operand.type == self._type(read.type):
             return operand
         return self._memref_load(operand, idx)
@@ -408,6 +410,13 @@ class IRGenerator:
         assert isinstance(free, LoopIR.Free)
         self.builder.insert(memref.DeallocOp.get(self.symbol_table[repr(free.name)]))
 
+    def _window_stmt(self, stmt):
+        # lower window statement to subview and bind result in symbol/type tables
+        assert isinstance(stmt, LoopIR.WindowStmt)
+        result = self._window_expr(stmt.rhs)
+        self.symbol_table[repr(stmt.name)] = result
+        self.type_table[repr(stmt.name)] = stmt.rhs.type.as_tensor
+
     def _call_stmt(self, call):
         # lower call to func.call. emit extern decl for intrinsics, recurse for procs
         assert isinstance(call, LoopIR.Call)
@@ -445,8 +454,8 @@ class IRGenerator:
                 self._free_stmt(stmt)
             case LoopIR.Call():
                 self._call_stmt(stmt)
-            case LoopIR.Window():
-                raise NotImplementedError()
+            case LoopIR.WindowStmt():
+                self._window_stmt(stmt)
             case _:
                 assert False
 
