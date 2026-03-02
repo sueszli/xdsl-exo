@@ -1,8 +1,6 @@
 """
-End-to-end tests that compile Exo → xDSL IR → MLIR → LLVM IR → native object,
+End-to-end tests that compile Exo -> xDSL IR -> MLIR -> LLVM IR -> native object,
 link with a C harness, execute, and verify runtime output.
-
-Requires: LLVM toolchain (mlir-opt, mlir-translate, llc, clang) installed via brew.
 """
 
 from __future__ import annotations
@@ -24,8 +22,8 @@ MLIR_OPT = os.path.join(LLVM_PREFIX, "bin", "mlir-opt")
 MLIR_TRANSLATE = os.path.join(LLVM_PREFIX, "bin", "mlir-translate")
 LLC = os.path.join(LLVM_PREFIX, "bin", "llc")
 CLANG = os.path.join(LLVM_PREFIX, "bin", "clang")
+assert all(shutil.which(t) or os.path.isfile(t) for t in [MLIR_OPT, MLIR_TRANSLATE, LLC, CLANG])
 
-HAS_MLIR_TOOLCHAIN = all(shutil.which(t) or os.path.isfile(t) for t in [MLIR_OPT, MLIR_TRANSLATE, LLC, CLANG])
 
 MLIR_LOWER_FLAGS = [
     "--convert-arith-to-llvm",
@@ -34,14 +32,10 @@ MLIR_LOWER_FLAGS = [
     "--reconcile-unrealized-casts",
 ]
 
-pytestmark = pytest.mark.skipif(not HAS_MLIR_TOOLCHAIN, reason="LLVM/MLIR toolchain not found")
-
 
 def _compile_and_run(exo_procs, c_harness: str) -> subprocess.CompletedProcess:
-    """
-    Compile Exo procs through the full pipeline and link with a C harness.
-    Returns the CompletedProcess from running the resulting executable.
-    """
+    # compile exo procs through the full pipeline and link with a C harness.
+    # returns the CompletedProcess from running the resulting executable.
     module = compile_procs(exo_procs)
     mlir_text = str(module)
 
@@ -54,7 +48,7 @@ def _compile_and_run(exo_procs, c_harness: str) -> subprocess.CompletedProcess:
         Path(mlir_file).write_text(mlir_text)
         Path(c_file).write_text(c_harness)
 
-        # MLIR → lowered MLIR → LLVM IR → object
+        # MLIR -> lowered MLIR -> LLVM IR -> object
         mlir_opt = subprocess.run(
             [MLIR_OPT, *MLIR_LOWER_FLAGS, mlir_file],
             capture_output=True,
@@ -90,9 +84,9 @@ def _compile_and_run(exo_procs, c_harness: str) -> subprocess.CompletedProcess:
         return result
 
 
-# ---------------------------------------------------------------------------
-# Integer arithmetic
-# ---------------------------------------------------------------------------
+#
+# integer arithmetic
+#
 
 
 @proc
@@ -122,9 +116,9 @@ def test_int_arithmetic():
     assert result.stdout.strip() == "3"
 
 
-# ---------------------------------------------------------------------------
-# Float arithmetic
-# ---------------------------------------------------------------------------
+#
+# float arithmetic
+#
 
 
 @proc
@@ -145,7 +139,7 @@ def test_float_arithmetic():
             int main() {
                 float a = 10.0f, b = 3.0f, out = 0.0f;
                 float_arithmetic(&out, &a, &b);
-                // last op is a/b = 10.0/3.0 ≈ 3.333...
+                // last op is a/b = 10.0/3.0 ~= 3.333...
                 printf("%.6f\\n", out);
                 return (fabsf(out - 10.0f/3.0f) < 1e-5f) ? 0 : 1;
             }
@@ -154,9 +148,9 @@ def test_float_arithmetic():
     assert result.returncode == 0, f"stdout: {result.stdout}\nstderr: {result.stderr}"
 
 
-# ---------------------------------------------------------------------------
+#
 # f64 arithmetic
-# ---------------------------------------------------------------------------
+#
 
 
 @proc
@@ -185,9 +179,9 @@ def test_f64_arithmetic():
     assert result.returncode == 0, f"stdout: {result.stdout}\nstderr: {result.stderr}"
 
 
-# ---------------------------------------------------------------------------
-# Unary negation
-# ---------------------------------------------------------------------------
+#
+# unary negation
+#
 
 
 @proc
@@ -237,9 +231,9 @@ def test_negate_int():
     assert result.stdout.strip() == "-7"
 
 
-# ---------------------------------------------------------------------------
-# If/else branching
-# ---------------------------------------------------------------------------
+#
+# if/else branching
+#
 
 
 @proc
@@ -261,7 +255,7 @@ def test_if_else_true_branch():
             extern void if_else(float* out, long a, long b);
             int main() {
                 float out = 0.0f;
-                if_else(&out, 1, 5);  // a < b → out = 1.0
+                if_else(&out, 1, 5);  // a < b -> out = 1.0
                 printf("%.1f\\n", out);
                 return (fabsf(out - 1.0f) < 1e-5f) ? 0 : 1;
             }
@@ -280,7 +274,7 @@ def test_if_else_false_branch():
             extern void if_else(float* out, long a, long b);
             int main() {
                 float out = 0.0f;
-                if_else(&out, 5, 1);  // a >= b → out = 2.0
+                if_else(&out, 5, 1);  // a >= b -> out = 2.0
                 printf("%.1f\\n", out);
                 return (fabsf(out - 2.0f) < 1e-5f) ? 0 : 1;
             }
@@ -290,9 +284,9 @@ def test_if_else_false_branch():
     assert result.stdout.strip() == "2.0"
 
 
-# ---------------------------------------------------------------------------
-# For loop with reduce (accumulation)
-# ---------------------------------------------------------------------------
+#
+# for loop with reduce (accumulation)
+#
 
 
 @proc
@@ -347,9 +341,9 @@ def test_reduce_int():
     assert result.stdout.strip() == "36"
 
 
-# ---------------------------------------------------------------------------
-# Alloc / free (internal malloc/free through the pipeline)
-# ---------------------------------------------------------------------------
+#
+# alloc / free (internal malloc/free through the pipeline)
+#
 
 
 @proc
@@ -381,9 +375,9 @@ def test_alloc_copy():
     assert result.stdout.strip() == "OK"
 
 
-# ---------------------------------------------------------------------------
-# 2D array access (assign_2d)
-# ---------------------------------------------------------------------------
+#
+# 2d array access (assign_2d)
+#
 
 
 @proc
@@ -417,9 +411,9 @@ def test_assign_2d():
     assert result.stdout.strip() == "OK"
 
 
-# ---------------------------------------------------------------------------
-# Fixed-size matrix multiply (16x16)
-# ---------------------------------------------------------------------------
+#
+# fixed-size matrix multiply (16x16)
+#
 
 
 @proc
@@ -432,7 +426,7 @@ def fixed_matmul(C: f32[16, 16] @ DRAM, A: f32[16, 16] @ DRAM, B: f32[16, 16] @ 
 
 
 def test_matmul_identity():
-    """A = Identity, B = known values → C should equal B."""
+    # A = identity, B = known values -> C should equal B
     result = _compile_and_run(
         fixed_matmul,
         dedent("""\
@@ -461,7 +455,7 @@ def test_matmul_identity():
 
 
 def test_matmul_values():
-    """Verify actual matrix multiplication with known small values."""
+    # verify actual matrix multiplication with known small values
     result = _compile_and_run(
         fixed_matmul,
         dedent("""\
@@ -495,9 +489,9 @@ def test_matmul_values():
     assert "19" in result.stdout and "22" in result.stdout
 
 
-# ---------------------------------------------------------------------------
-# Scalar memref (mutable scalar argument)
-# ---------------------------------------------------------------------------
+#
+# scalar memref (mutable scalar argument)
+#
 
 
 @proc
@@ -524,9 +518,9 @@ def test_scalar_double():
     assert result.stdout.strip() == "42.0"
 
 
-# ---------------------------------------------------------------------------
-# Boolean / comparison operations
-# ---------------------------------------------------------------------------
+#
+# boolean / comparison operations
+#
 
 
 @proc
@@ -548,11 +542,11 @@ def test_compare_and_branch():
             extern void compare_and_branch(float* out, long a, long b);
             int main() {
                 float out = 0.0f;
-                compare_and_branch(&out, 3, 7);  // a < b → 10.0
+                compare_and_branch(&out, 3, 7);  // a < b -> 10.0
                 printf("%.1f\\n", out);
                 int ok1 = (fabsf(out - 10.0f) < 1e-5f);
 
-                compare_and_branch(&out, 7, 3);  // a >= b → 20.0
+                compare_and_branch(&out, 7, 3);  // a >= b -> 20.0
                 printf("%.1f\\n", out);
                 int ok2 = (fabsf(out - 20.0f) < 1e-5f);
 
@@ -566,9 +560,9 @@ def test_compare_and_branch():
     assert lines[1] == "20.0"
 
 
-# ---------------------------------------------------------------------------
-# Nested loops with index arithmetic
-# ---------------------------------------------------------------------------
+#
+# nested loops with index arithmetic
+#
 
 
 @proc
@@ -603,9 +597,9 @@ def test_vec_add():
     assert result.stdout.strip() == "11 22 33 44 55"
 
 
-# ---------------------------------------------------------------------------
-# Dot product (reduce with multiply)
-# ---------------------------------------------------------------------------
+#
+# dot product (reduce with multiply)
+#
 
 
 @proc
@@ -636,9 +630,9 @@ def test_dot_product():
     assert result.stdout.strip() == "70.0"
 
 
-# ---------------------------------------------------------------------------
+#
 # i8 copy
-# ---------------------------------------------------------------------------
+#
 
 
 @proc
@@ -668,9 +662,9 @@ def test_i8_copy():
     assert result.stdout.strip() == "OK"
 
 
-# ---------------------------------------------------------------------------
-# Window / subview (row extraction via sub-procedure)
-# ---------------------------------------------------------------------------
+#
+# window / subview (row extraction via sub-procedure)
+#
 
 
 @proc
