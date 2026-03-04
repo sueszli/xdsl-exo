@@ -1,3 +1,5 @@
+end to end tests compare against custom c code, not exo generated c code, comparing the two backends.
+
 memref doesnt support strides (see examples/window_roundtrip.py)
 
 ---
