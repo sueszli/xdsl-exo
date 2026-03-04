@@ -1,3 +1,8 @@
+================================================================================
+memref explained through C
+================================================================================
+
+
 To summarize: Both casts are zero-cost at runtime. The only difference is what
 type information changes: cast tweaks static/dynamic dims, reinterpret_cast
 changes the entire shape and stride layout.
@@ -8,11 +13,6 @@ memref<NxT>          T arr[N]  (fat pointer)       none (it's a type)
 memref<?xT>          T *arr    (size unknown)      none (it's a type)
 memref.cast          T arr[10] -> T *arr           zero (same pointer)
 memref.reinterpret   (T(*)[4])raw_ptr              zero (same pointer)
-
-
-================================================================================
-memref explained through C
-================================================================================
 
 
 1. What is a memref?
