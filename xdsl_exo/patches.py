@@ -20,6 +20,7 @@ from xdsl.utils.hints import isa
 
 @irdl_op_definition
 class FAbsOp(IRDLOperation):
+    # https://github.com/xdslproject/xdsl/commit/5f30cfdd78d8dbaddb70b15358c406ab63524b5b
     T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
 
     name = "llvm.intr.fabs"
@@ -37,6 +38,7 @@ class FAbsOp(IRDLOperation):
 
 @irdl_op_definition
 class FNegOp(IRDLOperation):
+    # todo
     T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
 
     name = "llvm.fneg"
@@ -60,6 +62,7 @@ class FNegOp(IRDLOperation):
 
 @irdl_op_definition
 class MaskedStoreOp(IRDLOperation):
+    # https://github.com/xdslproject/xdsl/commit/726e2c40df108e700fc9eab071555adc4fff8b75
     name = "llvm.intr.masked.store"
 
     value = operand_def(AnyFloatConstr | VectorType.constr(AnyFloatConstr))
@@ -109,6 +112,7 @@ class ConvertReinterpretCastOp(RewritePattern):
 
 @dataclass(frozen=True)
 class ExtendedConvertMemRefToPtr(ModulePass):
+    # https://github.com/xdslproject/xdsl/pull/5692
     name = "extended-convert-memref-to-ptr"
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
