@@ -1,6 +1,8 @@
 memref doesnt support strides (see examples/window_roundtrip.py)
 
 
+simplify tests, increase test quality
+
 study rewrites
 
 ---
