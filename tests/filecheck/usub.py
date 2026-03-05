@@ -1,8 +1,5 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# exercises: unary negation for float (arith.negf) and int (0 - x via arith.subi)
-# lowering: USub → arith.negf (float), arith.subi with zero (int)
-
 from __future__ import annotations
 
 from exo import *

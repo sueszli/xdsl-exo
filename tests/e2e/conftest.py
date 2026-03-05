@@ -17,10 +17,7 @@ from exo.core.LoopIR import LoopIR
 
 from xdsl_exo.main import compile_procs as xdsl_compile_procs
 
-# xDSL's IRDL type system segfaults during garbage collection when many
-# compilations run in a single process. Disable GC for the test session and
-# force-exit before Python's finalization re-enables it.
-gc.disable()
+gc.disable()  # xdsl's IRDL segfaults on GC
 
 
 def pytest_sessionfinish(session, exitstatus):

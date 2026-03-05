@@ -1,8 +1,5 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# exercises: f64 type lowering (8-byte element width, arith ops on f64)
-# lowering: f64 tensors → !llvm.ptr, loads/stores as f64, arith.addf/mulf on f64
-
 from __future__ import annotations
 
 from exo import *

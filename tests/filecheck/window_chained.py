@@ -1,8 +1,5 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# exercises: chained window (subview of subview), multi-proc lowering
-# lowering: T[2, :, :] → 2D subview of 3D tensor, then M[1, :] → 1D subview of 2D
-
 from __future__ import annotations
 
 from exo import *

@@ -1,7 +1,3 @@
-#
-# to be merged into upstream xdsl
-#
-
 from dataclasses import dataclass
 from typing import ClassVar
 

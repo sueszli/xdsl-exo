@@ -1,8 +1,5 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# exercises: i8 type lowering (1-byte element width)
-# lowering: i8 tensors → !llvm.ptr, loads/stores as i8
-
 from __future__ import annotations
 
 from exo import *

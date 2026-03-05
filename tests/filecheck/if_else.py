@@ -1,8 +1,5 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# exercises: if/else with non-empty else branch
-# lowering: scf.if → cf.cond_br with both true (^bb0) and false (^bb1) blocks populated
-
 from __future__ import annotations
 
 from exo import *

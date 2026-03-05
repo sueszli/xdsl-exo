@@ -1,8 +1,5 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# exercises: exo.window (column access A[:, j] → 1D subview along columns)
-# lowering: stride/offset computation with column stride → ptr arithmetic
-
 from __future__ import annotations
 
 from exo import *

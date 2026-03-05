@@ -1,8 +1,5 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# exercises: exo.window (row access A[i, :] → 1D subview of 2D matrix)
-# lowering: stride/offset computation → memref.subview → ptr arithmetic
-
 from __future__ import annotations
 
 from exo import *

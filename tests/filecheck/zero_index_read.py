@@ -1,8 +1,5 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# exercises: exo.read with zero constant index, arithmetic on loaded value, exo.assign
-# edge case: index 0 produces a zero-offset load
-
 from __future__ import annotations
 
 from exo import *

@@ -16,7 +16,6 @@ def window_fill(x: f32[8] @ DRAM):
     fill_val(x[4:8])
 
 
-# BUG: Non-zero-offset window subview produces memref<-1xf32> instead of memref<4xf32>
 @pytest.mark.xfail(
     reason="BUG: Non-zero-offset window subview produces memref<-1xf32> instead of memref<4xf32>",
     raises=Exception,
@@ -46,7 +45,6 @@ def sum_second_half(out: f32[1] @ DRAM, x: f32[8] @ DRAM):
     sum_slice(out, x[4:8])
 
 
-# BUG: Bare buffer arg `out` in sub-proc call triggers _type() mem_space assertion
 @pytest.mark.xfail(
     reason="BUG: Bare buffer arg `out` in sub-proc call triggers _type() mem_space assertion",
     raises=AssertionError,
@@ -67,7 +65,6 @@ def scale_row_2(M: f32[4, 4] @ DRAM, factor: f32[1] @ DRAM):
     scale_row(M[2, :], factor)
 
 
-# BUG: Bare buffer arg `factor` in sub-proc call triggers _type() mem_space assertion
 @pytest.mark.xfail(
     reason="BUG: Bare buffer arg `factor` in sub-proc call triggers _type() mem_space assertion",
     raises=AssertionError,

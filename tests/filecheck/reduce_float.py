@@ -1,8 +1,5 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# exercises: reduce (+=) which internally generates exo.read + arith.addf + exo.assign
-# lowering: read → llvm.load, add → arith.addf, assign → llvm.store
-
 from __future__ import annotations
 
 from exo import *

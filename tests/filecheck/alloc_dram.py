@@ -1,8 +1,5 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
-# exercises: exo.alloc (DRAM path), exo.read (tensor indexed), exo.assign (tensor indexed)
-# lowering: exo.alloc → malloc, exo.read/assign → memref.load/store → llvm.load/store
-
 from __future__ import annotations
 
 from exo import *

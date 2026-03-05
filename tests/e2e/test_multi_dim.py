@@ -56,7 +56,6 @@ def test_scale_3d():
     assert_match(scale_3d, dst=[0.0] * 24, src=src, s=[3.0])
 
 
-# BUG: ConvertMemRefToPtr asserts positive strides, but dynamic 2D memref has stride -1
 @proc
 def dynamic_2d_copy(M: size, N: size, dst: f32[M, N] @ DRAM, src: f32[M, N] @ DRAM):
     for i in seq(0, M):
@@ -64,19 +63,20 @@ def dynamic_2d_copy(M: size, N: size, dst: f32[M, N] @ DRAM, src: f32[M, N] @ DR
             dst[i, j] = src[i, j]
 
 
-_xfail_dynamic_2d = pytest.mark.xfail(
+@pytest.mark.xfail(
     reason="BUG: ConvertMemRefToPtr asserts positive strides, but dynamic 2D memref has stride -1",
     raises=AssertionError,
     strict=True,
 )
-
-
-@_xfail_dynamic_2d
 def test_dynamic_2d_3x4():
     src = [float(x) for x in range(12)]
     assert_match(dynamic_2d_copy, M=3, N=4, dst=[0.0] * 12, src=src)
 
 
-@_xfail_dynamic_2d
+@pytest.mark.xfail(
+    reason="BUG: ConvertMemRefToPtr asserts positive strides, but dynamic 2D memref has stride -1",
+    raises=AssertionError,
+    strict=True,
+)
 def test_dynamic_2d_1x1():
     assert_match(dynamic_2d_copy, M=1, N=1, dst=[0.0], src=[42.0])
