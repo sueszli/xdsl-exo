@@ -79,12 +79,12 @@ class FCmpOp(IRDLOperation):
 class SelectOp(IRDLOperation):
     name = "llvm.select"
 
-    _T: ClassVar = VarConstraint("T", AnyAttr())
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     cond = operand_def(I1)
-    lhs = operand_def(_T)
-    rhs = operand_def(_T)
-    res = result_def(_T)
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
 
     traits = traits_def(Pure())
 
