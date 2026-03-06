@@ -1,1 +1,3 @@
 use llvmlite to jit instead of compiling mlir
+- is there support form xdsl?
+- what would it take us to achieve this?
