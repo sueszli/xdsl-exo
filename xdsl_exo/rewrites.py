@@ -179,11 +179,10 @@ def _pfx_handler(builder: Builder, vec_type: VectorType, mask_fn: MaskFn) -> Han
 
 
 def _reduce_handler(vec_type: VectorType) -> Handler:
-    # acc_scalar += sum(src_vector); args[0] must come from llvm.LoadOp to recover the store pointer.
+    # acc_scalar += sum(src_vector); acc_val must come from llvm.LoadOp to recover the store pointer.
     def handle(args: list[SSAValue]) -> tuple[Operation, ...]:
         acc_val, src_ptr = args[0], args[1]
-        if not isinstance(acc_val.owner, llvm.LoadOp):
-            raise ValueError(f"_reduce: expected first argument from llvm.LoadOp, got {type(acc_val.owner).__name__}")
+        assert isinstance(acc_val.owner, llvm.LoadOp)
         src_load = llvm.LoadOp(src_ptr, vec_type)
         reduce = vector.ReductionOp(src_load.dereferenced_value, vector.CombiningKindAttr([vector.CombiningKindFlag.ADD]), acc=acc_val)
         return (src_load, reduce, llvm.StoreOp(reduce.dest, acc_val.owner.ptr))
@@ -217,15 +216,9 @@ def _build_mm256_broadcast_ss(dst: SSAValue, scalar_ptr: SSAValue) -> tuple[Oper
 
 def _make_intrinsics() -> dict[str, Handler]:
     entries: dict[str, Handler] = {}
-
-    # (name, plain_builder, pfx_builder | None, f64_mask_fn)
-    # pfx_builder=None: the mask alone covers partial writes; only abs needs a separate pfx
-    # builder to pre-fill inactive lanes first (see _build_abs_pfx).
-    # f64_mask_fn: some f64x4 call sites pass i32; _mask_f64x4_ext upcasts it.
     for name, builder, pfx_builder, f64_mask in [
         ("abs", _build_abs, _build_abs_pfx, _mask_f64x4_ext),
         ("add_red", _build_add_red, None, _mask_f64x4_ext),
-        # copy/load/store all lower the same way at the IR level
         ("copy", _build_copy, None, _mask_f64x4_ext),
         ("load", _build_copy, None, _mask_f64x4_ext),
         ("store", _build_copy, None, _mask_f64x4),
@@ -249,7 +242,6 @@ def _make_intrinsics() -> dict[str, Handler]:
     entries["vec_reduce_add_scl_f32x8"] = _reduce_handler(VectorType(f32, [8]))
     entries["vec_reduce_add_scl_f64x4"] = _reduce_handler(VectorType(f64, [4]))
 
-    # loadu and storeu both lower to load-then-store
     entries["mm256_storeu_ps"] = lambda args: _build_mm256_storeu_ps(*args)
     entries["mm256_loadu_ps"] = lambda args: _build_mm256_storeu_ps(*args)
     entries["mm256_fmadd_ps"] = lambda args: _build_mm256_fmadd_ps(*args)
