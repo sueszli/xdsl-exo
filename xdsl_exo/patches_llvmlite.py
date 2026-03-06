@@ -42,7 +42,6 @@ def _emit_op(op: Operation, builder: ir.IRBuilder, block_map: BlockMap, phi_map:
             method = "mul" if isinstance(op, arith.MuliOp) else "add"
             val_map[op.result] = getattr(builder, method)(val_map[op.lhs], val_map[op.rhs])
         case arith.CmpiOp():
-            # for loop exit conditions
             preds = {0: ("==", True), 1: ("!=", True), 2: ("<", True), 3: ("<=", True), 4: (">", True), 5: (">=", True), 6: ("<", False), 7: ("<=", False), 8: (">", False), 9: (">=", False)}
             pred, is_signed = preds[op.predicate.value.data]
             val_map[op.result] = (builder.icmp_signed if is_signed else builder.icmp_unsigned)(pred, val_map[op.lhs], val_map[op.rhs])
@@ -57,7 +56,6 @@ def _emit_op(op: Operation, builder: ir.IRBuilder, block_map: BlockMap, phi_map:
             val_map[op.res] = cmp_fn(pred, val_map[op.lhs], val_map[op.rhs])
         case SelectOp():
             val_map[op.res] = builder.select(val_map[op.cond], val_map[op.lhs], val_map[op.rhs])
-        # control flow from scf->cf lowering
         case cf.BranchOp():
             cur = builder.block
             for a, v in zip(op.successor.args, op.operands):
