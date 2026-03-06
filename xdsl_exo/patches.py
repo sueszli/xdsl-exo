@@ -9,8 +9,8 @@ from xdsl.ir import BlockArgument, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import AnyAttr, Attribute, IRDLOperation, ParsePropInAttrDict, VarConstraint, irdl_op_definition, operand_def, prop_def, result_def, traits_def
 from xdsl.parser.core import Parser
 from xdsl.passes import ModulePass
-from xdsl.printer import Printer
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, op_type_rewrite_pattern
+from xdsl.printer import Printer
 from xdsl.traits import Pure, SameOperandsAndResultType
 from xdsl.transforms.convert_memref_to_ptr import ConvertLoadPattern, ConvertStorePattern, ConvertSubviewPattern, get_bytes_offset, get_offset_pointer
 from xdsl.utils.hints import isa
@@ -88,7 +88,7 @@ class FCmpOp(IRDLOperation):
         rhs = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
         input_type = parser.parse_type()
-        (lhs, rhs) = parser.resolve_operands([lhs, rhs], [input_type, input_type], parser.pos)
+        lhs, rhs = parser.resolve_operands([lhs, rhs], [input_type, input_type], parser.pos)
         return cls(lhs, rhs, pred_str)
 
     def print(self, printer: Printer) -> None:
@@ -121,8 +121,6 @@ class SelectOp(IRDLOperation):
         super().__init__(operands=[cond, lhs, rhs], result_types=[lhs_val.type])
 
 
-
-
 @irdl_op_definition
 class MaskedStoreOp(IRDLOperation):
     # https://github.com/xdslproject/xdsl/commit/726e2c40df108e700fc9eab071555adc4fff8b75
@@ -143,7 +141,12 @@ class MaskedStoreOp(IRDLOperation):
 
 LLVMIntrinsics = Dialect(
     "llvm.intr",
-    [FAbsOp, FCmpOp, SelectOp, MaskedStoreOp,],
+    [
+        FAbsOp,
+        FCmpOp,
+        SelectOp,
+        MaskedStoreOp,
+    ],
     [],
 )
 
