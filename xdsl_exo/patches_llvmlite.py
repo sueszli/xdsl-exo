@@ -14,27 +14,19 @@ BlockMap = dict[Block, ir.Block]
 PhiMap = dict[SSAValue, ir.PhiInstr]
 
 
-def _convert_type(xdsl_type) -> ir.Type:
-    match xdsl_type:
+def _convert_type(mlir_type) -> ir.Type:
+    match mlir_type:
+        case llvm.FuncOp():
+            return _convert_type(mlir_type.function_type.output)
+        case func.FuncOp():
+            outputs = list(mlir_type.function_type.outputs)
+            return _convert_type(outputs[0]) if outputs else ir.VoidType()
         case IndexType():
             return ir.IntType(64)
         case LLVMVoidType():
             return ir.VoidType()
         case _:
-            return _xdsl_convert_type(xdsl_type)
-
-
-def _return_type(func_op: func.FuncOp | llvm.FuncOp) -> ir.Type:
-    match func_op:
-        case llvm.FuncOp():
-            return _convert_type(func_op.function_type.output)
-        case func.FuncOp():
-            outputs = list(func_op.function_type.outputs)
-            return _convert_type(outputs[0]) if outputs else ir.VoidType()
-
-
-# FCmpOp predicate string -> (operator string, is_ordered)
-_CMPF_PRED: dict[str, tuple[str, bool]] = {"oeq": ("==", True), "ogt": (">", True), "oge": (">=", True), "olt": ("<", True), "ole": ("<=", True), "one": ("!=", True), "ord": ("ord", True), "ueq": ("==", False), "ugt": (">", False), "uge": (">=", False), "ult": ("<", False), "ule": ("<=", False), "une": ("!=", False), "uno": ("uno", False)}
+            return _xdsl_convert_type(mlir_type)
 
 
 def _emit_op(op: Operation, builder: ir.IRBuilder, block_map: BlockMap, phi_map: PhiMap, val_map: ValMap) -> None:
@@ -50,9 +42,8 @@ def _emit_op(op: Operation, builder: ir.IRBuilder, block_map: BlockMap, phi_map:
         case FNegOp():
             val_map[op.res] = builder.fneg(val_map[op.arg])
         case FCmpOp():
-            pred, is_ordered = _CMPF_PRED[op.predicate.data]
-            cmp_fn = builder.fcmp_ordered if is_ordered else builder.fcmp_unordered
-            val_map[op.res] = cmp_fn(pred, val_map[op.lhs], val_map[op.rhs])
+            pred, is_ordered = {"oeq": ("==", True), "ogt": (">", True), "oge": (">=", True), "olt": ("<", True), "ole": ("<=", True), "one": ("!=", True), "ord": ("ord", True), "ueq": ("==", False), "ugt": (">", False), "uge": (">=", False), "ult": ("<", False), "ule": ("<=", False), "une": ("!=", False), "uno": ("uno", False)}[op.predicate.data]
+            val_map[op.res] = (builder.fcmp_ordered if is_ordered else builder.fcmp_unordered)(pred, val_map[op.lhs], val_map[op.rhs])
         case SelectOp():
             val_map[op.res] = builder.select(val_map[op.cond], val_map[op.lhs], val_map[op.rhs])
         case cf.BranchOp():
@@ -70,7 +61,7 @@ def _emit_op(op: Operation, builder: ir.IRBuilder, block_map: BlockMap, phi_map:
                 if a in phi_map:
                     phi_map[a].add_incoming(val_map[v], cur)
             builder.cbranch(val_map[op.cond], block_map[op.successors[0]], block_map[op.successors[1]])
-        case func.ReturnOp() | llvm.ReturnOp():
+        case func.ReturnOp():
             builder.ret(val_map[op.operands[0]]) if op.operands else builder.ret_void()
         case func.CallOp():
             callee = builder.module.get_global(op.callee.string_value())
@@ -81,7 +72,7 @@ def _emit_op(op: Operation, builder: ir.IRBuilder, block_map: BlockMap, phi_map:
             convert_op(op, builder, val_map)
 
 
-def _emit_func_body(func_op: func.FuncOp | llvm.FuncOp, llvm_module: ir.Module) -> None:
+def _emit_func(func_op: func.FuncOp | llvm.FuncOp, llvm_module: ir.Module) -> None:
     ir_func = llvm_module.get_global(func_op.sym_name.data)
     mlir_blocks = list(func_op.body.blocks)
 
@@ -108,7 +99,7 @@ def to_llvmlite(module: ModuleOp) -> ir.Module:
     for op in top_level_ops:
         match op:
             case func.FuncOp() | llvm.FuncOp():
-                ftype = ir.FunctionType(_return_type(op), [_convert_type(t) for t in op.function_type.inputs])
+                ftype = ir.FunctionType(_convert_type(op), [_convert_type(t) for t in op.function_type.inputs])
                 ir.Function(llvm_module, ftype, name=op.sym_name.data)
             case _:
                 assert False
@@ -116,7 +107,7 @@ def to_llvmlite(module: ModuleOp) -> ir.Module:
     # emit bodies
     for op in top_level_ops:
         if isinstance(op, (func.FuncOp, llvm.FuncOp)) and op.body.blocks:
-            _emit_func_body(op, llvm_module)
+            _emit_func(op, llvm_module)
 
     return llvm_module
 
