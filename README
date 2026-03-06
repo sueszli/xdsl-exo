@@ -41,6 +41,12 @@ how it works:
     - - - - - - - - - - - - - - - - - - - - - - - - llvmlite
       Native code
 
+## long term goals
+
+- contribute to exo: emit llvm ir in addition to c
+- contribute to xdsl: get proper memref descriptor support
+- use llvmlite to jit instead of compiling mlir
+
 ## references
 
 xdsl

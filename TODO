@@ -1,9 +1,1 @@
-across all lit tests, change %4 and numbered stuff to {{.*}}
-
-## final step
-
-long term goals:
-
-- exo emits llvm ir (not just c)
-- xdsl gets proper memref descriptor support
-- compile exo -> xdsl -> llvmlite and benchmark real workloads --> try immediately?
+use llvmlite to jit instead of compiling mlir
