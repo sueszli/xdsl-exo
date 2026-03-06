@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TypeAlias
+from typing import ClassVar, TypeAlias
 
 from xdsl.dialects import arith, func, llvm, memref, vector
 from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IndexType, IntegerAttr, MemRefType, VectorType, f32, f64, i64
@@ -47,17 +47,16 @@ MaskResult: TypeAlias = tuple[list[Operation], SSAValue]
 BuildResult: TypeAlias = tuple[list[Operation], SSAValue, SSAValue]
 Builder: TypeAlias = Callable[..., BuildResult]
 MaskFn: TypeAlias = Callable[[SSAValue], MaskResult]
+Handler: TypeAlias = Callable[[list[SSAValue]], tuple[Operation, ...]]
 
 
 def _make_mask(lane_count: SSAValue, n_lanes: int, *, extend_lane_count: bool = False) -> MaskResult:
-    # mask[i] = (i < lane_count)
-    # e.g. for lane_count=3 -> [T, T, T, F, F, ...]
+    # mask[i] = (i < lane_count), e.g. lane_count=3 -> [T, T, T, F, F, ...]
     ops = []
     indices = arith.ConstantOp(DenseIntOrFPElementsAttr.from_list(VectorType(i64, [n_lanes]), list(range(n_lanes))))
     ops.append(indices)
     if extend_lane_count:
-        # upcast i32 -> i64 to match `VectorType(i64, ...)`
-        ext = arith.ExtSIOp(lane_count, i64)
+        ext = arith.ExtSIOp(lane_count, i64)  # i32 -> i64 to match VectorType(i64, ...)
         ops.append(ext)
         lane_count = ext.result
     broadcast = vector.BroadcastOp(operands=[lane_count], result_types=[VectorType(i64, [n_lanes])])
@@ -66,61 +65,64 @@ def _make_mask(lane_count: SSAValue, n_lanes: int, *, extend_lane_count: bool = 
 
 
 def _mask_f32x8(lane_count: SSAValue) -> MaskResult:
-    # 256 AVX2 register width / 32 bit float = 8 lanes
-    return _make_mask(lane_count, 8)
+    return _make_mask(lane_count, 8)  # AVX2: 256-bit / 32-bit = 8 lanes
 
 
 def _mask_f64x4(lane_count: SSAValue) -> MaskResult:
-    # 256 AVX2 register width / 64 bit double = 4 lanes
-    return _make_mask(lane_count, 4)
+    return _make_mask(lane_count, 4)  # AVX2: 256-bit / 64-bit = 4 lanes
 
 
 def _mask_f64x4_ext(lane_count: SSAValue) -> MaskResult:
-    # lane_count is i32 at call site, needs upcasting to i64
-    return _make_mask(lane_count, 4, extend_lane_count=True)
+    return _make_mask(lane_count, 4, extend_lane_count=True)  # lane_count is i32; upcast to i64
 
 
-def _build_identity(dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> BuildResult:
+def _build_copy(dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> BuildResult:
     # dst[:] = src[:]
     load = llvm.LoadOp(src, vec_type)
     return [load], load.dereferenced_value, dst
 
 
 def _build_abs(dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> BuildResult:
-    # dst[:] = [abs(x) for x in src]
+    # dst[:] = abs(src[:])
     load = llvm.LoadOp(src, vec_type)
     fabs = llvm_extra.FAbsOp(load.dereferenced_value, vec_type)
     return [load, fabs], fabs.result, dst
 
 
 def _build_abs_pfx(dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> BuildResult:
-    # dst[:] = src[:]
-    # dst[:n] = [abs(x) for x in src[:n]]
+    # step 1 (here):   dst[:] = src[:]        -- write src to all lanes
+    # step 2 (caller): dst[:n] = abs(src[:n]) -- MaskedStoreOp overwrites active lanes
+    # net:             dst[:n] = abs(src[:n]), dst[n:] = src[n:]
     load = llvm.LoadOp(src, vec_type)
     fabs = llvm_extra.FAbsOp(load.dereferenced_value, vec_type)
     return [load, fabs, llvm.StoreOp(load.dereferenced_value, dst)], fabs.result, dst
 
 
 def _build_neg(dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> BuildResult:
-    # dst[:] = [-x for x in src]
+    # dst[:] = -src[:]
     load = llvm.LoadOp(src, vec_type)
     neg = llvm_extra.FNegOp(load.dereferenced_value)
     return [load, neg], neg.res, dst
 
 
-def _build_binary(binary_op: Callable[[SSAValue, SSAValue], Operation]) -> Builder:
-    # dst[:] = [op(a, b) for a, b in zip(src_a, src_b)]
-    def build(dst: SSAValue, src_a: SSAValue, src_b: SSAValue, *, vec_type: VectorType) -> BuildResult:
-        load_a = llvm.LoadOp(src_a, vec_type)
-        load_b = llvm.LoadOp(src_b, vec_type)
-        result = binary_op(load_a.dereferenced_value, load_b.dereferenced_value)
-        return [load_a, load_b, result], result.res, dst
+def _build_add(dst: SSAValue, src_a: SSAValue, src_b: SSAValue, *, vec_type: VectorType) -> BuildResult:
+    # dst[:] = src_a[:] + src_b[:]
+    load_a = llvm.LoadOp(src_a, vec_type)
+    load_b = llvm.LoadOp(src_b, vec_type)
+    result = llvm.FAddOp(load_a.dereferenced_value, load_b.dereferenced_value)
+    return [load_a, load_b, result], result.res, dst
 
-    return build
+
+def _build_mul(dst: SSAValue, src_a: SSAValue, src_b: SSAValue, *, vec_type: VectorType) -> BuildResult:
+    # dst[:] = src_a[:] * src_b[:]
+    load_a = llvm.LoadOp(src_a, vec_type)
+    load_b = llvm.LoadOp(src_b, vec_type)
+    result = llvm.FMulOp(load_a.dereferenced_value, load_b.dereferenced_value)
+    return [load_a, load_b, result], result.res, dst
 
 
 def _build_add_red(dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> BuildResult:
-    # dst[:] = [d + s for d, s in zip(dst, src)]
+    # dst[:] = dst[:] + src[:]
     load_dst = llvm.LoadOp(dst, vec_type)
     load_src = llvm.LoadOp(src, vec_type)
     add = llvm.FAddOp(load_dst.dereferenced_value, load_src.dereferenced_value)
@@ -128,7 +130,7 @@ def _build_add_red(dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> Bui
 
 
 def _build_fma(dst: SSAValue, src_a: SSAValue, src_b: SSAValue, src_c: SSAValue, *, vec_type: VectorType) -> BuildResult:
-    # dst[:] = [a*b + c for a, b, c in zip(src_a, src_b, src_c)]
+    # dst[:] = src_a[:] * src_b[:] + src_c[:]
     load_a = llvm.LoadOp(src_a, vec_type)
     load_b = llvm.LoadOp(src_b, vec_type)
     load_c = llvm.LoadOp(src_c, vec_type)
@@ -137,7 +139,7 @@ def _build_fma(dst: SSAValue, src_a: SSAValue, src_b: SSAValue, src_c: SSAValue,
 
 
 def _build_fma_red(dst: SSAValue, src_a: SSAValue, src_b: SSAValue, *, vec_type: VectorType) -> BuildResult:
-    # dst[:] = [acc + a*b for acc, a, b in zip(dst, src_a, src_b)]
+    # dst[:] = dst[:] + src_a[:] * src_b[:]
     load_acc = llvm.LoadOp(dst, vec_type)
     load_a = llvm.LoadOp(src_a, vec_type)
     load_b = llvm.LoadOp(src_b, vec_type)
@@ -157,41 +159,47 @@ def _build_zero(dst: SSAValue, *, vec_type: VectorType) -> BuildResult:
     return [zero], zero.result, dst
 
 
-# name -> (builder_fn, vector_type, mask_fn | None)
-_VEC_INTRINSICS: dict[str, tuple[Builder, VectorType, MaskFn | None]] = {}
-for _name, _builder, _pfx_builder, _f64_mask in [
-    ("abs", _build_abs, _build_abs_pfx, _mask_f64x4_ext),
-    ("add_red", _build_add_red, None, _mask_f64x4_ext),
-    ("copy", _build_identity, None, _mask_f64x4_ext),
-    ("load", _build_identity, None, _mask_f64x4_ext),
-    ("store", _build_identity, None, _mask_f64x4),
-    ("add", _build_binary(llvm.FAddOp), None, _mask_f64x4),
-    ("mul", _build_binary(llvm.FMulOp), None, _mask_f64x4),
-    ("neg", _build_neg, None, _mask_f64x4),
-    ("brdcst_scl", _build_broadcast, None, _mask_f64x4),
-    ("fmadd2", _build_fma, None, _mask_f64x4),
-    ("fmadd1", _build_fma, None, _mask_f64x4),
-    ("fmadd_red", _build_fma_red, None, _mask_f64x4),
-    ("zero", _build_zero, None, _mask_f64x4),
-]:
-    _maybe_pfx_builder = _pfx_builder or _builder
-    _VEC_INTRINSICS[f"vec_{_name}_f32x8"] = (_builder, VectorType(f32, [8]), None)
-    _VEC_INTRINSICS[f"vec_{_name}_f32x8_pfx"] = (_maybe_pfx_builder, VectorType(f32, [8]), _mask_f32x8)
-    _VEC_INTRINSICS[f"vec_{_name}_f64x4"] = (_builder, VectorType(f64, [4]), None)
-    _VEC_INTRINSICS[f"vec_{_name}_f64x4_pfx"] = (_maybe_pfx_builder, VectorType(f64, [4]), _f64_mask)
+def _plain_handler(builder: Builder, vec_type: VectorType) -> Handler:
+    def handle(args: list[SSAValue]) -> tuple[Operation, ...]:
+        dst, *srcs = args
+        ops, result, out_dst = builder(dst, *srcs, vec_type=vec_type)
+        return (*ops, llvm.StoreOp(result, out_dst))
+
+    return handle
+
+
+def _pfx_handler(builder: Builder, vec_type: VectorType, mask_fn: MaskFn) -> Handler:
+    def handle(args: list[SSAValue]) -> tuple[Operation, ...]:
+        lane_count, dst, *srcs = args
+        mask_ops, mask = mask_fn(lane_count)
+        core_ops, result, out_dst = builder(dst, *srcs, vec_type=vec_type)
+        return (*mask_ops, *core_ops, llvm_extra.MaskedStoreOp(result, out_dst, mask))
+
+    return handle
+
+
+def _reduce_handler(vec_type: VectorType) -> Handler:
+    # acc_scalar += sum(src_vector); args[0] must come from llvm.LoadOp to recover the store pointer.
+    def handle(args: list[SSAValue]) -> tuple[Operation, ...]:
+        acc_val, src_ptr = args[0], args[1]
+        if not isinstance(acc_val.owner, llvm.LoadOp):
+            raise ValueError(f"_reduce: expected first argument from llvm.LoadOp, got {type(acc_val.owner).__name__}")
+        src_load = llvm.LoadOp(src_ptr, vec_type)
+        reduce = vector.ReductionOp(src_load.dereferenced_value, vector.CombiningKindAttr([vector.CombiningKindFlag.ADD]), acc=acc_val)
+        return (src_load, reduce, llvm.StoreOp(reduce.dest, acc_val.owner.ptr))
+
+    return handle
 
 
 def _build_mm256_storeu_ps(dst: SSAValue, src: SSAValue) -> tuple[Operation, ...]:
     # dst[:] = src[:]
-    # (mm256 = 256-bit AVX register, storeu = store unaligned, ps = packed singles of f32x8)
     load = llvm.LoadOp(src, VectorType(f32, [8]))
     return (load, llvm.StoreOp(load.dereferenced_value, dst))
 
 
 def _build_mm256_fmadd_ps(dst: SSAValue, src_a: SSAValue, src_b: SSAValue) -> tuple[Operation, ...]:
     # dst[:] = dst[:] + src_a[:] * src_b[:]
-    # (fmadd = fused multiply-add, ps = packed singles of f32x8)
-    zero = arith.ConstantOp(IntegerAttr(0, IndexType()))
+    zero = arith.ConstantOp(IntegerAttr(0, IndexType()))  # index constant required by llvm.store
     load_acc = llvm.LoadOp(dst, VectorType(f32, [8]))
     load_a = llvm.LoadOp(src_a, VectorType(f32, [8]))
     load_b = llvm.LoadOp(src_b, VectorType(f32, [8]))
@@ -200,66 +208,70 @@ def _build_mm256_fmadd_ps(dst: SSAValue, src_a: SSAValue, src_b: SSAValue) -> tu
 
 
 def _build_mm256_broadcast_ss(dst: SSAValue, scalar_ptr: SSAValue) -> tuple[Operation, ...]:
-    # dst[:] = [*scalar_ptr] * 8
-    # (broadcast_ss = broadcast scalar single = splat one f32 to all lanes)
-    # (scalar_ptr is a memref / scalar pointer, unlike the llvm ptrs used elsewhere)
-    zero = arith.ConstantOp(IntegerAttr(0, IndexType()))
+    # dst[:] = [*scalar_ptr] * 8  (scalar_ptr is a memref, unlike the llvm ptrs elsewhere)
+    zero = arith.ConstantOp(IntegerAttr(0, IndexType()))  # index constant required by memref.load/store
     load = memref.LoadOp.get(scalar_ptr, [zero.result])
     broadcast = vector.BroadcastOp(operands=[load.results[0]], result_types=[VectorType(f32, [8])])
     return (zero, load, broadcast, llvm.StoreOp(broadcast.results[0], dst, [zero.result]))
 
 
-_MM256_INTRINSICS: dict[str, Callable[..., tuple[Operation, ...]]] = {
-    "mm256_storeu_ps": _build_mm256_storeu_ps,
-    "mm256_fmadd_ps": _build_mm256_fmadd_ps,
-    "mm256_broadcast_ss": _build_mm256_broadcast_ss,
-    "mm256_loadu_ps": _build_mm256_storeu_ps,  # same load-then-store operation
-}
+def _make_intrinsics() -> dict[str, Handler]:
+    entries: dict[str, Handler] = {}
 
+    # (name, plain_builder, pfx_builder | None, f64_mask_fn)
+    # pfx_builder=None: the mask alone covers partial writes; only abs needs a separate pfx
+    # builder to pre-fill inactive lanes first (see _build_abs_pfx).
+    # f64_mask_fn: some f64x4 call sites pass i32; _mask_f64x4_ext upcasts it.
+    for name, builder, pfx_builder, f64_mask in [
+        ("abs", _build_abs, _build_abs_pfx, _mask_f64x4_ext),
+        ("add_red", _build_add_red, None, _mask_f64x4_ext),
+        # copy/load/store all lower the same way at the IR level
+        ("copy", _build_copy, None, _mask_f64x4_ext),
+        ("load", _build_copy, None, _mask_f64x4_ext),
+        ("store", _build_copy, None, _mask_f64x4),
+        ("add", _build_add, None, _mask_f64x4),
+        ("mul", _build_mul, None, _mask_f64x4),
+        ("neg", _build_neg, None, _mask_f64x4),
+        ("brdcst_scl", _build_broadcast, None, _mask_f64x4),
+        ("fmadd2", _build_fma, None, _mask_f64x4),
+        ("fmadd1", _build_fma, None, _mask_f64x4),
+        ("fmadd_red", _build_fma_red, None, _mask_f64x4),
+        ("zero", _build_zero, None, _mask_f64x4),
+    ]:
+        actual_pfx_builder = pfx_builder if pfx_builder is not None else builder
+        for suffix, vec_type, mask_fn in [
+            ("f32x8", VectorType(f32, [8]), _mask_f32x8),
+            ("f64x4", VectorType(f64, [4]), f64_mask),
+        ]:
+            entries[f"vec_{name}_{suffix}"] = _plain_handler(builder, vec_type)
+            entries[f"vec_{name}_{suffix}_pfx"] = _pfx_handler(actual_pfx_builder, vec_type, mask_fn)
 
-def _reduce(op: func.CallOp, rewriter: PatternRewriter, vec_type: VectorType) -> None:
-    # acc_scalar += sum(src_vector)
-    assert isinstance(op.arguments[0].owner, llvm.LoadOp)
-    acc_load = op.arguments[0].owner
-    src_load = llvm.LoadOp(op.arguments[1], vec_type)
-    reduce = vector.ReductionOp(src_load.dereferenced_value, vector.CombiningKindAttr([vector.CombiningKindFlag.ADD]), acc=op.arguments[0])
-    rewriter.replace_matched_op((src_load, reduce, llvm.StoreOp(reduce.dest, acc_load.ptr)))
+    entries["vec_reduce_add_scl_f32x8"] = _reduce_handler(VectorType(f32, [8]))
+    entries["vec_reduce_add_scl_f64x4"] = _reduce_handler(VectorType(f64, [4]))
+
+    # loadu and storeu both lower to load-then-store
+    entries["mm256_storeu_ps"] = lambda args: _build_mm256_storeu_ps(*args)
+    entries["mm256_loadu_ps"] = lambda args: _build_mm256_storeu_ps(*args)
+    entries["mm256_fmadd_ps"] = lambda args: _build_mm256_fmadd_ps(*args)
+    entries["mm256_broadcast_ss"] = lambda args: _build_mm256_broadcast_ss(*args)
+
+    return entries
 
 
 class ConvertVecIntrinsic(RewritePattern):
+    _INTRINSICS: ClassVar[dict[str, Handler]] = _make_intrinsics()
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.CallOp, rewriter: PatternRewriter) -> None:
-        callee = op.callee.root_reference.data
-
-        if callee == "vec_reduce_add_scl_f32x8":
-            return _reduce(op, rewriter, VectorType(f32, [8]))
-        if callee == "vec_reduce_add_scl_f64x4":
-            return _reduce(op, rewriter, VectorType(f64, [4]))
-
-        mm256_builder = _MM256_INTRINSICS.get(callee)
-        if mm256_builder is not None:
-            rewriter.replace_matched_op(mm256_builder(*op.arguments))
+        handler = self._INTRINSICS.get(op.callee.root_reference.data)
+        if handler is None:
             return
-
-        entry = _VEC_INTRINSICS.get(callee)
-        if entry is None:
-            return
-
-        builder, vec_type, mask_fn = entry
-        if mask_fn is not None:
-            lane_count, dst, *srcs = op.arguments
-            mask_ops, mask = mask_fn(lane_count)
-            core_ops, result, out_dst = builder(dst, *srcs, vec_type=vec_type)
-            rewriter.replace_matched_op((*mask_ops, *core_ops, llvm_extra.MaskedStoreOp(result, out_dst, mask)))
-        else:
-            dst, *srcs = op.arguments
-            core_ops, result, out_dst = builder(dst, *srcs, vec_type=vec_type)
-            rewriter.replace_matched_op((*core_ops, llvm.StoreOp(result, out_dst)))
+        rewriter.replace_matched_op(handler(list(op.arguments)))
 
 
 @dataclass
 class RewriteMemRefTypes(TypeConversionPattern):
-    # must run last: after shape/element info is consumed by earlier passes into ops
+    # run last: earlier passes consume shape/element info before types are erased
     recursive: bool = True
 
     @attr_type_rewrite_pattern
