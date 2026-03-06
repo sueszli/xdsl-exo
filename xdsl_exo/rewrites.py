@@ -149,7 +149,7 @@ def _build_zero(args: list[SSAValue], vt: VectorType) -> BuildResult:
 # name -> (builder_fn, vector_type, mask_fn | None)
 _VEC_INTRINSICS: dict[str, tuple[Builder, VectorType, MaskFn | None]] = {}
 for _name, _builder, _pfx_builder, _f64_mask in [
-    # name          plain                         pfx (None = same as plain)  f64 mask
+    # name, plain, pfx (None = same as plain)  f64 mask
     ("abs", _build_abs, _build_abs_pfx, _mask_f64x4_ext),
     ("add_red", _build_add_red, None, _mask_f64x4_ext),
     ("copy", _build_identity, None, _mask_f64x4_ext),
