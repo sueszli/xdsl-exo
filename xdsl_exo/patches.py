@@ -104,18 +104,22 @@ def _get_dynamic_target_ptr(memref_val: SSAValue, memref_type: builtin.MemRefTyp
         if shape[i] != DYNAMIC_INDEX:
             return iconst(shape[i])
         ub = _loop_ub_as_index(indices[i], rewriter)
-        assert ub is not None, f"Dynamic dim {i}: index is not an scf.for induction variable"
+        assert ub is not None, f"dynamic dim {i}: index is not an scf.for induction variable"
         return ub
 
-    # strides[rank-1]=1, strides[i]=strides[i+1]*dim[i+1]  (row-major, right-to-left)
+    # strides[rank-1] = 1
+    # strides[i] = strides[i+1]*dim[i+1]  (row-major, right-to-left)
     strides: list[SSAValue] = [iconst(1)] * len(shape)
     for i in range(len(shape) - 2, -1, -1):
         strides[i] = ins(arith.MuliOp(strides[i + 1], dim_size(i + 1))).result
-    # flat = sum(indices[i] * strides[i])
+
+    # flat offset = sum(indices[i] * strides[i])
     flat: SSAValue | None = None
     for idx, stride in zip(indices, strides):
         term = ins(arith.MuliOp(idx, stride)).result
         flat = term if flat is None else ins(arith.AddiOp(flat, term)).result
+
+    # pointer arithmetic
     ptr_base = ins(ptr.ToPtrOp(memref_val)).res
     return ptr_base if flat is None else get_offset_pointer(ptr_base, get_bytes_offset(flat, memref_type.element_type, rewriter), rewriter)
 
