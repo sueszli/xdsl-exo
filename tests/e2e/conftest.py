@@ -17,6 +17,7 @@ from exo.API import Procedure
 from exo.core.LoopIR import LoopIR
 
 from xdsl_exo.main import compile_procs as xdsl_compile_procs
+from xdsl_exo.patches_llvmlite import jit_compile, to_llvmlite
 
 _TYPES: dict[str, tuple[type, type]] = {
     "f16": (np.float16, ctypes.c_uint16),
@@ -92,11 +93,42 @@ def _call(lib: ctypes.CDLL, proc_ir: Any, kwargs: dict[str, Any], *, has_ctxt: b
     return bufs
 
 
+def _compile_jit(procs: list[Procedure]):
+    return jit_compile(to_llvmlite(xdsl_compile_procs(procs)))
+
+
+def _call_jit(engine, proc_ir: Any, kwargs: dict[str, Any]) -> dict[str, np.ndarray]:
+    addr = engine.get_function_address(proc_ir.name)
+    argtypes: list = []
+    args: list = []
+    bufs: dict[str, np.ndarray] = {}
+
+    for arg in proc_ir.args:
+        name = re.sub(r"_\d+$", "", str(arg.name))
+        val = kwargs[name]
+
+        if isinstance(arg.type, (LoopIR.Size, LoopIR.Index)):
+            argtypes += [ctypes.c_int64]
+            args += [int(val)]
+        elif isinstance(arg.type, LoopIR.Tensor):
+            np_dtype, _ = _TYPES[str(arg.type.basetype())]
+            arr = np.array(val, dtype=np_dtype)
+            bufs[name] = arr
+            argtypes += [ctypes.c_void_p]
+            args += [arr.ctypes.data]
+
+    cfunc = ctypes.CFUNCTYPE(None, *argtypes)(addr)
+    cfunc(*args)
+    return bufs
+
+
 def assert_match(proc: Procedure, **kwargs: Any) -> None:
     ir = proc._loopir_proc
     exo_bufs = _call(_compile_exo_c([proc]), ir, deepcopy(kwargs), has_ctxt=True)
     xdsl_bufs = _call(_compile_xdsl_mlir([proc]), ir, deepcopy(kwargs), has_ctxt=False)
+    jit_bufs = _call_jit(_compile_jit([proc]), ir, deepcopy(kwargs))
 
     for name in exo_bufs:
-        e, x = exo_bufs[name], xdsl_bufs[name]
-        np.testing.assert_allclose(x, e, atol=1e-6, err_msg=f"mismatch on buffer '{name}'")
+        e, x, j = exo_bufs[name], xdsl_bufs[name], jit_bufs[name]
+        np.testing.assert_allclose(x, e, atol=1e-6, err_msg=f"xdsl mismatch on buffer '{name}'")
+        np.testing.assert_allclose(j, e, atol=1e-6, err_msg=f"jit mismatch on buffer '{name}'")

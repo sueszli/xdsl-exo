@@ -35,6 +35,7 @@ from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsP
 from xdsl.utils.scoped_dict import ScopedDict
 
 from xdsl_exo.patches import ExtendedConvertMemRefToPtr, LLVMIntrinsics
+from xdsl_exo.patches_llvmlite import jit_compile, to_llvmlite
 from xdsl_exo.rewrites import ConvertVecIntrinsic, RewriteMemRefTypes
 
 
@@ -591,6 +592,7 @@ def main():
     parser = ArgumentParser(description="Compile an Exo library to MLIR.")
     parser.add_argument("source", type=str, help="Source file to compile")
     parser.add_argument("-o", "--output", help="Output file. Defaults to stdout.")
+    parser.add_argument("--jit", action="store_true", help="JIT-compile to native code via llvmlite")
     args = parser.parse_args()
 
     src = Path(args.source)
@@ -601,6 +603,10 @@ def main():
     assert all(isinstance(proc, Procedure) for proc in library)
 
     module = compile_procs(library)
+
+    if args.jit:
+        jit_compile(to_llvmlite(module))
+        return
 
     if not args.output or args.output == "-":
         print(module)
