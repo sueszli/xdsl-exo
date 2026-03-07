@@ -1,7 +1,7 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
 # CHECK: builtin.module {
-# CHECK-NEXT: func.func @preserves_args({{.*}} : !llvm.ptr, {{.*}} : i64) {
+# CHECK-NEXT: llvm.func @preserves_args({{.*}} : !llvm.ptr, {{.*}} : i64) {
 # CHECK-NEXT:   {{.*}} = llvm.mlir.constant(0.000000e+00 : f32) : f32
 # CHECK-NEXT:   {{.*}} = llvm.mlir.constant(1) : i64
 # CHECK-NEXT:   {{.*}} = llvm.mul {{.*}}, {{.*}} : i64
@@ -11,7 +11,7 @@
 # CHECK-NEXT:   {{.*}} = llvm.add {{.*}}, {{.*}} : i64
 # CHECK-NEXT:   {{.*}} = "llvm.inttoptr"({{.*}}) : (i64) -> !llvm.ptr
 # CHECK-NEXT:   "llvm.store"({{.*}}, {{.*}}) <{ordering = 0 : i64}> : (f32, !llvm.ptr) -> ()
-# CHECK-NEXT:   func.return
+# CHECK-NEXT:   llvm.return
 # CHECK-NEXT: }
 # CHECK-NEXT: llvm.func @malloc(i64) -> !llvm.ptr
 # CHECK-NEXT: llvm.func @free(!llvm.ptr)

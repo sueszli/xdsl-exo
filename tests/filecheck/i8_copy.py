@@ -5,7 +5,7 @@ from __future__ import annotations
 from exo import *
 
 
-# CHECK:      func.func @i8_copy({{.*}}) {
+# CHECK:      llvm.func @i8_copy({{.*}}) {
 # CHECK:        "llvm.load"({{.*}}) <{ordering = 0 : i64}> : (!llvm.ptr) -> i8
 # CHECK:        "llvm.store"({{.*}}) <{ordering = 0 : i64}> : (i8, !llvm.ptr) -> ()
 @proc

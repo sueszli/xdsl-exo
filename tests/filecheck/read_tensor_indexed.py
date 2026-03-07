@@ -1,7 +1,7 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
 # CHECK: builtin.module {
-# CHECK-NEXT: func.func @read_tensor_indexed({{.*}} : !llvm.ptr, {{.*}} : !llvm.ptr) {
+# CHECK-NEXT: llvm.func @read_tensor_indexed({{.*}} : !llvm.ptr, {{.*}} : !llvm.ptr) {
 # CHECK-NEXT:   {{.*}} = llvm.mlir.constant(0) : i64
 # CHECK-NEXT:   {{.*}} = llvm.mlir.constant(8) : i64
 # CHECK-NEXT:   {{.*}} = llvm.mlir.constant(1) : i64
@@ -29,7 +29,7 @@
 # CHECK-NEXT:   {{.*}} = llvm.add {{.*}}, {{.*}} : i64
 # CHECK-NEXT:   cf.br ^bb0({{.*}} : i64)
 # CHECK-NEXT: ^bb2:
-# CHECK-NEXT:   func.return
+# CHECK-NEXT:   llvm.return
 # CHECK-NEXT: }
 # CHECK-NEXT: llvm.func @malloc(i64) -> !llvm.ptr
 # CHECK-NEXT: llvm.func @free(!llvm.ptr)

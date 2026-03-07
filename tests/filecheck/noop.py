@@ -6,8 +6,8 @@ from exo import *
 
 
 # CHECK: builtin.module {
-# CHECK-NEXT: func.func @noop() {
-# CHECK-NEXT:   func.return
+# CHECK-NEXT: llvm.func @noop() {
+# CHECK-NEXT:   llvm.return
 # CHECK-NEXT: }
 @proc
 def noop():

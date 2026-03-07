@@ -17,7 +17,7 @@ from exo.API import Procedure
 from exo.core.LoopIR import LoopIR
 
 from xdsl_exo.main import compile_procs as xdsl_compile_procs
-from xdsl_exo.patches_llvmlite import jit_compile, to_llvmlite
+from xdsl_exo.patches_llvmlite import jit_compile
 
 _TYPES: dict[str, tuple[type, type]] = {
     "f16": (np.float16, ctypes.c_uint16),
@@ -94,7 +94,7 @@ def _call(lib: ctypes.CDLL, proc_ir: Any, kwargs: dict[str, Any], *, has_ctxt: b
 
 
 def _compile_jit(procs: list[Procedure]):
-    return jit_compile(to_llvmlite(xdsl_compile_procs(procs)))
+    return jit_compile(xdsl_compile_procs(procs))
 
 
 def _call_jit(engine, proc_ir: Any, kwargs: dict[str, Any]) -> dict[str, np.ndarray]:

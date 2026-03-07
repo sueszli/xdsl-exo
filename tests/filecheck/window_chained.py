@@ -1,7 +1,7 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
 # CHECK: builtin.module {
-# CHECK-NEXT: func.func @set_first({{.*}} : !llvm.ptr) {
+# CHECK-NEXT: llvm.func @set_first({{.*}} : !llvm.ptr) {
 # CHECK-NEXT:   {{.*}} = llvm.mlir.constant(0) : i64
 # CHECK-NEXT:   {{.*}} = llvm.mlir.constant(1.000000e+00 : f32) : f32
 # CHECK-NEXT:   {{.*}} = llvm.mlir.constant(1) : i64
@@ -12,9 +12,9 @@
 # CHECK-NEXT:   {{.*}} = llvm.add {{.*}}, {{.*}} : i64
 # CHECK-NEXT:   {{.*}} = "llvm.inttoptr"({{.*}}) : (i64) -> !llvm.ptr
 # CHECK-NEXT:   "llvm.store"({{.*}}, {{.*}}) <{ordering = 0 : i64}> : (f32, !llvm.ptr) -> ()
-# CHECK-NEXT:   func.return
+# CHECK-NEXT:   llvm.return
 # CHECK-NEXT: }
-# CHECK-NEXT: func.func @inner({{.*}} : !llvm.ptr) {
+# CHECK-NEXT: llvm.func @inner({{.*}} : !llvm.ptr) {
 # CHECK-NEXT:   {{.*}} = llvm.mlir.constant(1) : i64
 # CHECK-NEXT:   {{.*}} = llvm.mlir.constant(0) : i64
 # CHECK-NEXT:   {{.*}} = llvm.mlir.constant(4) : i64
@@ -26,10 +26,10 @@
 # CHECK-NEXT:   {{.*}} = "llvm.ptrtoint"({{.*}}) : (!llvm.ptr) -> i64
 # CHECK-NEXT:   {{.*}} = llvm.add {{.*}}, {{.*}} : i64
 # CHECK-NEXT:   {{.*}} = "llvm.inttoptr"({{.*}}) : (i64) -> !llvm.ptr
-# CHECK-NEXT:   func.call @set_first({{.*}}) : (!llvm.ptr) -> ()
-# CHECK-NEXT:   func.return
+# CHECK-NEXT:   "llvm.call"({{.*}}) <{callee = @set_first, fastmathFlags = #llvm.fastmath<none>, CConv = #llvm.cconv<ccc>, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 1, 0>, TailCallKind = #llvm.tailcallkind<none>}> : (!llvm.ptr) -> ()
+# CHECK-NEXT:   llvm.return
 # CHECK-NEXT: }
-# CHECK-NEXT: func.func @outer({{.*}} : !llvm.ptr) {
+# CHECK-NEXT: llvm.func @outer({{.*}} : !llvm.ptr) {
 # CHECK-NEXT:   {{.*}} = llvm.mlir.constant(2) : i64
 # CHECK-NEXT:   {{.*}} = llvm.mlir.constant(0) : i64
 # CHECK-NEXT:   {{.*}} = llvm.mlir.constant(1) : i64
@@ -45,8 +45,8 @@
 # CHECK-NEXT:   {{.*}} = "llvm.ptrtoint"({{.*}}) : (!llvm.ptr) -> i64
 # CHECK-NEXT:   {{.*}} = llvm.add {{.*}}, {{.*}} : i64
 # CHECK-NEXT:   {{.*}} = "llvm.inttoptr"({{.*}}) : (i64) -> !llvm.ptr
-# CHECK-NEXT:   func.call @inner({{.*}}) : (!llvm.ptr) -> ()
-# CHECK-NEXT:   func.return
+# CHECK-NEXT:   "llvm.call"({{.*}}) <{callee = @inner, fastmathFlags = #llvm.fastmath<none>, CConv = #llvm.cconv<ccc>, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 1, 0>, TailCallKind = #llvm.tailcallkind<none>}> : (!llvm.ptr) -> ()
+# CHECK-NEXT:   llvm.return
 # CHECK-NEXT: }
 # CHECK-NEXT: llvm.func @malloc(i64) -> !llvm.ptr
 # CHECK-NEXT: llvm.func @free(!llvm.ptr)

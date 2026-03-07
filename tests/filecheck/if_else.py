@@ -5,7 +5,7 @@ from __future__ import annotations
 from exo import *
 
 
-# CHECK:      func.func @if_else({{.*}}) {
+# CHECK:      llvm.func @if_else({{.*}}) {
 # CHECK:        cf.cond_br {{.*}}, ^bb0, ^bb1
 # CHECK:      ^bb0:
 # CHECK:        llvm.mlir.constant(1.000000e+00 : f32) : f32
@@ -16,7 +16,7 @@ from exo import *
 # CHECK:        "llvm.store"({{.*}}) <{ordering = 0 : i64}> : (f32, !llvm.ptr) -> ()
 # CHECK:        cf.br ^bb2
 # CHECK:      ^bb2:
-# CHECK-NEXT:   func.return
+# CHECK-NEXT:   llvm.return
 @proc
 def if_else(out: f32[1] @ DRAM, a: index, b: index):
     assert a >= 0

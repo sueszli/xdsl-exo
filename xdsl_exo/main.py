@@ -17,9 +17,8 @@ from exo.core.LoopIR import LoopIR, T
 from exo.main import get_procs_from_module, load_user_code
 from xdsl.builder import Builder
 from xdsl.context import Context
-from xdsl.dialects import func, llvm, memref, scf
-from xdsl.dialects.builtin import BoolAttr, Builtin, FloatAttr, FunctionType, IndexType, IntAttr, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StringAttr, UnrealizedConversionCastOp, f16, f32, f64, i1, i8, i16, i32, i64
-from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
+from xdsl.dialects import llvm, memref, scf
+from xdsl.dialects.builtin import BoolAttr, Builtin, FloatAttr, IndexType, IntAttr, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StringAttr, UnrealizedConversionCastOp, f16, f32, f64, i1, i8, i16, i32, i64
 from xdsl.dialects.scf import ForOp, IfOp, YieldOp
 from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
 from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
@@ -33,7 +32,7 @@ from xdsl.utils.scoped_dict import ScopedDict
 
 from xdsl_exo.patches_intrinsics import ConvertVecIntrinsic
 from xdsl_exo.patches_llvm import ConvertArithAddiI64, ConvertCmpiPattern, ExtendedConvertMemRefToPtr, FCmpOp, FNegOp, LLVMIntrinsics, RewriteMemRefTypes, SelectOp
-from xdsl_exo.patches_llvmlite import jit_compile, to_llvmlite
+from xdsl_exo.patches_llvmlite import jit_compile
 
 
 def _is_mutated(name: str, body: list) -> bool:
@@ -316,7 +315,7 @@ class IRGenerator:
             return self._emit(SelectOp(cmp, args[2], args[3]))
 
         output_type = self._type(extern.f.typecheck(extern.args))
-        return self._emit(CallOp(extern.f.name(), args, [output_type]))
+        return self._emit(llvm.CallOp(extern.f.name(), *args, return_type=output_type))
 
     def _expr(self, expr: object) -> OpResult | SSAValue:
         # dispatch loopir expression node to its typed lowering method
@@ -452,9 +451,9 @@ class IRGenerator:
         elif call.f.name not in self.seen_extern_decls:
             self.seen_extern_decls.add(call.f.name)
             input_types = [SSAValue.get(arg).type for arg in args]
-            self._insert_at_module(FuncOp.external(call.f.name, input_types, []))
+            self._insert_at_module(llvm.FuncOp(call.f.name, llvm.LLVMFunctionType(input_types, llvm.LLVMVoidType()), llvm.LinkageAttr("external")))
 
-        self.builder.insert(CallOp(call.f.name, args, []))
+        self.builder.insert(llvm.CallOp(call.f.name, *args))
 
     def _stmt(self, stmt: object) -> None:
         # dispatch loopir statement node to its typed lowering method
@@ -499,7 +498,7 @@ class IRGenerator:
             if not isinstance(mlir_type, MemRefType) and _is_mutated(repr(arg.name), procedure.body):
                 mlir_type = MemRefType(mlir_type, [1], NoneAttr())
             input_types.append(mlir_type)
-        func_type = FunctionType.from_lists(input_types, [])
+        func_type = llvm.LLVMFunctionType(input_types, llvm.LLVMVoidType())
 
         with self._tmp_state(inherit=False):
             block = Block(arg_types=input_types)
@@ -511,9 +510,9 @@ class IRGenerator:
             for stmt in procedure.body:
                 self._stmt(stmt)
 
-            self.builder.insert(ReturnOp())
+            self.builder.insert(llvm.ReturnOp())
 
-        self._insert_at_module(FuncOp(procedure.name, func_type, Region(block)))
+        self._insert_at_module(llvm.FuncOp(procedure.name, func_type, linkage=llvm.LinkageAttr("external"), body=Region(block)))
 
     def generate(self, procs: list[LoopIR.proc]) -> ModuleOp:
         for proc in procs:
@@ -528,7 +527,7 @@ class IRGenerator:
 def _context() -> Context:
     ctx = Context()
     ctx.load_dialect(Builtin)
-    ctx.load_dialect(func.Func)
+    ctx.load_dialect(llvm.LLVM)
     ctx.load_dialect(memref.MemRef)
     ctx.load_dialect(scf.Scf)
     ctx.load_dialect(LLVMIntrinsics)
@@ -598,7 +597,7 @@ def main():
     module = compile_procs(library)
 
     if args.jit:
-        jit_compile(to_llvmlite(module))
+        jit_compile(module)
         return
 
     if not args.output or args.output == "-":

@@ -6,7 +6,7 @@ import numpy as np
 from exo import *
 
 from xdsl_exo.main import compile_procs
-from xdsl_exo.patches_llvmlite import jit_compile, to_llvmlite
+from xdsl_exo.patches_llvmlite import jit_compile
 
 
 @proc
@@ -18,7 +18,7 @@ def matmul(C: f32[4, 4] @ DRAM, A: f32[4, 4] @ DRAM, B: f32[4, 4] @ DRAM):
                 C[i, j] += A[i, k] * B[k, j]
 
 
-engine = jit_compile(to_llvmlite(compile_procs([matmul])))
+engine = jit_compile(compile_procs([matmul]))
 fn = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)(engine.get_function_address("matmul"))
 
 A = np.arange(16, dtype=np.float32).reshape(4, 4)

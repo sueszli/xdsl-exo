@@ -5,7 +5,7 @@ from __future__ import annotations
 from exo import *
 
 
-# CHECK:      func.func @f64_arithmetic({{.*}}) {
+# CHECK:      llvm.func @f64_arithmetic({{.*}}) {
 # CHECK:        "llvm.load"({{.*}}) <{ordering = 0 : i64}> : (!llvm.ptr) -> f64
 # CHECK:        "llvm.load"({{.*}}) <{ordering = 0 : i64}> : (!llvm.ptr) -> f64
 # CHECK:        llvm.fadd {{.*}} : f64

@@ -1,7 +1,7 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
 
 # CHECK: builtin.module {
-# CHECK-NEXT: func.func @int_comparisons({{.*}} : !llvm.ptr, {{.*}} : i64, {{.*}} : i64) {
+# CHECK-NEXT: llvm.func @int_comparisons({{.*}} : !llvm.ptr, {{.*}} : i64, {{.*}} : i64) {
 # CHECK-NEXT:   {{.*}} = llvm.icmp "eq" {{.*}}, {{.*}} : i64
 # CHECK-NEXT:   cf.cond_br {{.*}}, ^bb0, ^bb1
 # CHECK-NEXT: ^bb0:
@@ -47,7 +47,7 @@
 # CHECK-NEXT:   "llvm.store"({{.*}}, {{.*}}) <{ordering = 0 : i64}> : (i32, !llvm.ptr) -> ()
 # CHECK-NEXT:   cf.br ^bb5
 # CHECK-NEXT: ^bb5:
-# CHECK-NEXT:   func.return
+# CHECK-NEXT:   llvm.return
 # CHECK-NEXT: }
 # CHECK-NEXT: llvm.func @malloc(i64) -> !llvm.ptr
 # CHECK-NEXT: llvm.func @free(!llvm.ptr)

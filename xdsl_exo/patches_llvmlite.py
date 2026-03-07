@@ -2,7 +2,7 @@ import llvmlite.binding as llvm_binding
 import llvmlite.ir as ir
 from xdsl.backend.llvm.convert_op import convert_op as _xdsl_convert_op
 from xdsl.backend.llvm.convert_type import convert_type as _xdsl_convert_type
-from xdsl.dialects import cf, func, llvm
+from xdsl.dialects import cf, llvm
 from xdsl.dialects.builtin import IndexType, ModuleOp
 from xdsl.dialects.llvm import LLVMVoidType
 from xdsl.ir import Block, Operation, SSAValue
@@ -18,9 +18,6 @@ def _convert_type(mlir_type) -> ir.Type:
     match mlir_type:
         case llvm.FuncOp():
             return _convert_type(mlir_type.function_type.output)
-        case func.FuncOp():
-            outputs = list(mlir_type.function_type.outputs)
-            return _convert_type(outputs[0]) if outputs else ir.VoidType()
         case IndexType():
             return ir.IntType(64)
         case LLVMVoidType():
@@ -55,29 +52,17 @@ def _convert_op(op: Operation, builder: ir.IRBuilder, block_map: BlockMap, phi_m
                 if a in phi_map:
                     phi_map[a].add_incoming(val_map[v], cur)
             builder.cbranch(val_map[op.cond], block_map[op.successors[0]], block_map[op.successors[1]])
-        case func.ReturnOp():
-            builder.ret(val_map[op.operands[0]]) if op.operands else builder.ret_void()
-        case func.CallOp():
-            callee = builder.module.get_global(op.callee.string_value())
-            result = builder.call(callee, [val_map[arg] for arg in op.arguments])
-            if op.res:
-                val_map[op.res[0]] = result
         case _:
             _xdsl_convert_op(op, builder, val_map)
 
 
-def _emit_func(func_op: func.FuncOp | llvm.FuncOp, llvm_module: ir.Module) -> None:
+def _emit_func(func_op: llvm.FuncOp, llvm_module: ir.Module) -> None:
     ir_func = llvm_module.get_global(func_op.sym_name.data)
     mlir_blocks = list(func_op.body.blocks)
 
     block_map: BlockMap = {block: ir_func.append_basic_block() for block in mlir_blocks}
-    phi_map: PhiMap = {}
-    val_map: ValMap = dict(zip(mlir_blocks[0].args, ir_func.args))
-
-    for mlir_block in mlir_blocks[1:]:
-        for block_arg in mlir_block.args:
-            phi = ir.IRBuilder(block_map[mlir_block]).phi(_convert_type(block_arg.type))
-            phi_map[block_arg] = val_map[block_arg] = phi
+    phi_map: PhiMap = {arg: ir.IRBuilder(block_map[blk]).phi(_convert_type(arg.type)) for blk in mlir_blocks[1:] for arg in blk.args}
+    val_map: ValMap = dict(zip(mlir_blocks[0].args, ir_func.args)) | phi_map
 
     for mlir_block in mlir_blocks:
         builder = ir.IRBuilder(block_map[mlir_block])
@@ -85,31 +70,24 @@ def _emit_func(func_op: func.FuncOp | llvm.FuncOp, llvm_module: ir.Module) -> No
             _convert_op(op, builder, block_map, phi_map, val_map)
 
 
-def to_llvmlite(module: ModuleOp) -> ir.Module:
+def jit_compile(module: ModuleOp) -> llvm_binding.ExecutionEngine:
     llvm_module = ir.Module()
-    top_level_ops = list(module.ops)
+    func_ops = list(module.ops)
 
     # forward-declare all functions so call sites can resolve them regardless of order
-    for op in top_level_ops:
-        match op:
-            case func.FuncOp() | llvm.FuncOp():
-                ftype = ir.FunctionType(_convert_type(op), [_convert_type(t) for t in op.function_type.inputs])
-                ir.Function(llvm_module, ftype, name=op.sym_name.data)
-            case _:
-                assert False
+    for op in func_ops:
+        assert isinstance(op, llvm.FuncOp)
+        ftype = ir.FunctionType(_convert_type(op), [_convert_type(t) for t in op.function_type.inputs])
+        ir.Function(llvm_module, ftype, name=op.sym_name.data)
 
     # emit bodies
-    for op in top_level_ops:
-        if isinstance(op, (func.FuncOp, llvm.FuncOp)) and op.body.blocks:
+    for op in func_ops:
+        if op.body.blocks:
             _emit_func(op, llvm_module)
 
-    return llvm_module
-
-
-def jit_compile(ir_module: ir.Module) -> llvm_binding.ExecutionEngine:
     llvm_binding.initialize_native_target()
     llvm_binding.initialize_native_asmprinter()
-    llvm_mod = llvm_binding.parse_assembly(str(ir_module))
+    llvm_mod = llvm_binding.parse_assembly(str(llvm_module))
     llvm_mod.verify()
     target_machine = llvm_binding.Target.from_default_triple().create_target_machine()
     engine = llvm_binding.create_mcjit_compiler(llvm_mod, target_machine)
