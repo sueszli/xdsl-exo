@@ -1,8 +1,8 @@
 from collections.abc import Callable
 from typing import ClassVar, TypeAlias
 
-from xdsl.dialects import arith, func, llvm, memref, vector
-from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IndexType, IntegerAttr, VectorType, f32, f64, i64
+from xdsl.dialects import func, llvm, vector
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, VectorType, f32, f64, i64
 from xdsl.ir import Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 
@@ -52,12 +52,12 @@ Handler: TypeAlias = Callable[[list[SSAValue]], tuple[Operation, ...]]
 def _make_mask(lane_count: SSAValue, n_lanes: int, *, extend_lane_count: bool = False) -> MaskResult:
     # mask[i] = (i < lane_count), e.g. lane_count=3 -> [T, T, T, F, F, ...]
     ops = []
-    indices = arith.ConstantOp(DenseIntOrFPElementsAttr.from_list(VectorType(i64, [n_lanes]), list(range(n_lanes))))
+    indices = llvm.ConstantOp(DenseIntOrFPElementsAttr.from_list(VectorType(i64, [n_lanes]), list(range(n_lanes))), VectorType(i64, [n_lanes]))
     ops.append(indices)
     if extend_lane_count:
-        ext = arith.ExtSIOp(lane_count, i64)  # i32 -> i64 to match VectorType(i64, ...)
+        ext = llvm.SExtOp(lane_count, i64)  # i32 -> i64 to match VectorType(i64, ...)
         ops.append(ext)
-        lane_count = ext.result
+        lane_count = ext.res
     broadcast = vector.BroadcastOp(operands=[lane_count], result_types=[VectorType(i64, [n_lanes])])
     mask = llvm.ICmpOp(indices.result, broadcast.vector, IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64))
     return ops + [broadcast, mask], mask.res
@@ -154,7 +154,7 @@ def _build_broadcast(dst: SSAValue, scalar: SSAValue, *, vec_type: VectorType) -
 
 def _build_zero(dst: SSAValue, *, vec_type: VectorType) -> BuildResult:
     # dst[:] = [0.0] * n_lanes
-    zero = arith.ConstantOp(DenseIntOrFPElementsAttr.from_list(vec_type, [0.0] * vec_type.get_shape()[0]))
+    zero = llvm.ConstantOp(DenseIntOrFPElementsAttr.from_list(vec_type, [0.0] * vec_type.get_shape()[0]), vec_type)
     return [zero], zero.result
 
 
@@ -197,20 +197,18 @@ def _build_mm256_storeu_ps(dst: SSAValue, src: SSAValue) -> tuple[Operation, ...
 
 def _build_mm256_fmadd_ps(dst: SSAValue, src_a: SSAValue, src_b: SSAValue) -> tuple[Operation, ...]:
     # dst[:] = dst[:] + src_a[:] * src_b[:]
-    zero = arith.ConstantOp(IntegerAttr(0, IndexType()))  # index constant required by llvm.store
     load_acc = llvm.LoadOp(dst, VectorType(f32, [8]))
     load_a = llvm.LoadOp(src_a, VectorType(f32, [8]))
     load_b = llvm.LoadOp(src_b, VectorType(f32, [8]))
     fma = vector.FMAOp(operands=[load_a.dereferenced_value, load_b.dereferenced_value, load_acc.dereferenced_value], result_types=[VectorType(f32, [8])])
-    return (zero, load_acc, load_a, load_b, fma, llvm.StoreOp(fma.res, dst, [zero.result]))
+    return (load_acc, load_a, load_b, fma, llvm.StoreOp(fma.res, dst))
 
 
 def _build_mm256_broadcast_ss(dst: SSAValue, scalar_ptr: SSAValue) -> tuple[Operation, ...]:
-    # dst[:] = [*scalar_ptr] * 8  (scalar_ptr is a memref, unlike the llvm ptrs elsewhere)
-    zero = arith.ConstantOp(IntegerAttr(0, IndexType()))  # index constant required by memref.load/store
-    load = memref.LoadOp.get(scalar_ptr, [zero.result])
-    broadcast = vector.BroadcastOp(operands=[load.results[0]], result_types=[VectorType(f32, [8])])
-    return (zero, load, broadcast, llvm.StoreOp(broadcast.results[0], dst, [zero.result]))
+    # dst[:] = [*scalar_ptr] * 8  (scalar_ptr is already !llvm.ptr at this stage of the pipeline)
+    load = llvm.LoadOp(scalar_ptr, f32)
+    broadcast = vector.BroadcastOp(operands=[load.dereferenced_value], result_types=[VectorType(f32, [8])])
+    return (load, broadcast, llvm.StoreOp(broadcast.vector, dst))
 
 
 def _make_intrinsics() -> dict[str, Handler]:

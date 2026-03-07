@@ -2,7 +2,7 @@ import llvmlite.binding as llvm_binding
 import llvmlite.ir as ir
 from xdsl.backend.llvm.convert_op import convert_op as _xdsl_convert_op
 from xdsl.backend.llvm.convert_type import convert_type as _xdsl_convert_type
-from xdsl.dialects import arith, cf, func, llvm
+from xdsl.dialects import cf, func, llvm
 from xdsl.dialects.builtin import IndexType, ModuleOp
 from xdsl.dialects.llvm import LLVMVoidType
 from xdsl.ir import Block, Operation, SSAValue
@@ -31,14 +31,8 @@ def _convert_type(mlir_type) -> ir.Type:
 
 def _convert_op(op: Operation, builder: ir.IRBuilder, block_map: BlockMap, phi_map: PhiMap, val_map: ValMap) -> None:
     match op:
-        case llvm.ConstantOp() | arith.ConstantOp():
+        case llvm.ConstantOp():
             val_map[op.result] = ir.Constant(_convert_type(op.result.type), op.value.value.data)
-        case arith.MuliOp() | arith.AddiOp():
-            method = "mul" if isinstance(op, arith.MuliOp) else "add"
-            val_map[op.result] = getattr(builder, method)(val_map[op.lhs], val_map[op.rhs])
-        case arith.IndexCastOp():
-            src, dst_type = val_map[op.operands[0]], _convert_type(op.results[0].type)
-            val_map[op.results[0]] = src if src.type == dst_type else builder.bitcast(src, dst_type)
         case FNegOp():
             val_map[op.res] = builder.fneg(val_map[op.arg])
         case FCmpOp():

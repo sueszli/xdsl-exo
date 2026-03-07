@@ -17,7 +17,7 @@ from exo.core.LoopIR import LoopIR, T
 from exo.main import get_procs_from_module, load_user_code
 from xdsl.builder import Builder
 from xdsl.context import Context
-from xdsl.dialects import arith, func, llvm, memref, ptr, scf
+from xdsl.dialects import func, llvm, memref, scf
 from xdsl.dialects.builtin import BoolAttr, Builtin, FloatAttr, FunctionType, IndexType, IntAttr, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StringAttr, UnrealizedConversionCastOp, f16, f32, f64, i1, i8, i16, i32, i64
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.dialects.scf import ForOp, IfOp, YieldOp
@@ -27,14 +27,12 @@ from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriteWal
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.common_subexpression_elimination import CommonSubexpressionElimination
-from xdsl.transforms.convert_ptr_to_llvm import ConvertPtrToLLVMPass
-from xdsl.transforms.convert_ptr_type_offsets import ConvertPtrTypeOffsetsPass
 from xdsl.transforms.convert_scf_to_cf import ConvertScfToCf
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.utils.scoped_dict import ScopedDict
 
 from xdsl_exo.patches_intrinsics import ConvertVecIntrinsic
-from xdsl_exo.patches_llvm import ConvertCmpiPattern, ExtendedConvertMemRefToPtr, FCmpOp, FNegOp, LLVMIntrinsics, RewriteMemRefTypes, SelectOp
+from xdsl_exo.patches_llvm import ConvertArithAddiI64, ConvertCmpiPattern, ExtendedConvertMemRefToPtr, FCmpOp, FNegOp, LLVMIntrinsics, RewriteMemRefTypes, SelectOp
 from xdsl_exo.patches_llvmlite import jit_compile, to_llvmlite
 
 
@@ -89,7 +87,7 @@ def _coerce_arg(
 def _to_index_list(values: list[SSAValue | int], emit: Callable[[Operation], SSAValue]) -> list:
     # cast i64 ssavalues to index type, pass through static ints as-is for subviewop
     static, dynamic = split_dynamic_index_list(values, memref.DYNAMIC_INDEX)
-    casted = [emit(arith.IndexCastOp(value, IndexType())) for value in dynamic]
+    casted = [emit(UnrealizedConversionCastOp.get([value], [IndexType()])) for value in dynamic]
     return get_dynamic_index_list(static, casted, memref.DYNAMIC_INDEX)
 
 
@@ -198,7 +196,7 @@ class IRGenerator:
     def _memref_load(self, memref_val: SSAValue, idx: list[SSAValue]) -> SSAValue:
         if len(idx) == 0:
             idx = [self._emit(llvm.ConstantOp(IntegerAttr(0, i64), i64))]
-        indices = [self._emit(arith.IndexCastOp(index, IndexType())) for index in idx]
+        indices = [self._emit(UnrealizedConversionCastOp.get([index], [IndexType()])) for index in idx]
         self.builder.insert(load := memref.LoadOp.get(memref_val, indices))
         return load.res
 
@@ -208,13 +206,13 @@ class IRGenerator:
             assert isinstance(memref_val.type, MemRefType) and memref_val.type.get_shape() == (1,)
             idx = [self._emit(llvm.ConstantOp(IntegerAttr(0, i64), i64))]
 
-        index_indices = [self._emit(arith.IndexCastOp(index, IndexType())) for index in idx]
+        index_indices = [self._emit(UnrealizedConversionCastOp.get([index], [IndexType()])) for index in idx]
 
         # if value is a scalar memref, load it first
         if isinstance(value.type, MemRefType):
             assert value.type.get_shape() == (1,)
             zero_i64 = self._emit(llvm.ConstantOp(IntegerAttr(0, i64), i64))
-            zero_idx = self._emit(arith.IndexCastOp(zero_i64, IndexType()))
+            zero_idx = self._emit(UnrealizedConversionCastOp.get([zero_i64], [IndexType()]))
             self.builder.insert(load := memref.LoadOp.get(value, [zero_idx]))
             value = load.res
 
@@ -529,13 +527,11 @@ class IRGenerator:
 @cache
 def _context() -> Context:
     ctx = Context()
-    ctx.load_dialect(arith.Arith)
     ctx.load_dialect(Builtin)
     ctx.load_dialect(func.Func)
     ctx.load_dialect(memref.MemRef)
     ctx.load_dialect(scf.Scf)
     ctx.load_dialect(LLVMIntrinsics)
-    ctx.load_dialect(ptr.Ptr)
     return ctx
 
 
@@ -551,14 +547,12 @@ def _transform(analyzed_procs: list) -> ModuleOp:
 
     # full lowering to llvm dialect
     _rewrite = lambda patterns: PatternRewriteWalker(GreedyRewritePatternApplier(patterns)).rewrite_module(module)
-    ExtendedConvertMemRefToPtr().apply(ctx, module)  # memref.{load,store,subview,cast} -> ptr ops
-    ConvertPtrTypeOffsetsPass().apply(ctx, module)  # ptr.TypeOffsetOp -> arith.constant(sizeof)
-    ConvertPtrToLLVMPass().apply(ctx, module)  # ptr.* -> llvm.*
+    ExtendedConvertMemRefToPtr().apply(ctx, module)  # memref.{load,store,subview,cast} -> llvm ops
     _rewrite([RewriteMemRefTypes()])  # MemRefType -> LLVMPointerType
     _rewrite([ConvertVecIntrinsic()])  # mm256_*/vec_* intrinsic calls -> llvm/vector ops
     ConvertScfToCf().apply(ctx, module)  # scf -> cf
-    _rewrite([ConvertCmpiPattern()])  # arith.cmpi (from scf-to-cf) -> llvm.icmp
-    ReconcileUnrealizedCastsPass().apply(ctx, module)  # remove unrealized cast chains
+    _rewrite([ConvertCmpiPattern(), ConvertArithAddiI64()])  # arith ops from scf-to-cf -> llvm
+    ReconcileUnrealizedCastsPass().apply(ctx, module)  # fold paired UnrealizedCasts
     module.verify()
 
     # optimize
