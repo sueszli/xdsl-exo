@@ -116,6 +116,10 @@ def _loop_ub_as_i64(index: SSAValue) -> SSAValue | None:
     return None
 
 
+def _iconst(ins, n: int) -> SSAValue:
+    return ins(llvm.ConstantOp(IntegerAttr(n, i64), i64)).result
+
+
 def _offset_ptr(
     base: SSAValue,
     indices: Sequence[SSAValue],
@@ -125,10 +129,9 @@ def _offset_ptr(
     ins,
 ) -> SSAValue:
     # compute base_ptr + sum(index_i * stride_i) * elem_size using row-major strides
-    iconst = lambda n: ins(llvm.ConstantOp(IntegerAttr(n, i64), i64)).result
 
     # row-major strides: stride[rank-1]=1, stride[i]=stride[i+1]*dim[i+1]
-    strides: list[SSAValue] = [iconst(1)] * rank
+    strides: list[SSAValue] = [_iconst(ins, 1)] * rank
     for i in range(rank - 2, -1, -1):
         strides[i] = ins(llvm.MulOp(strides[i + 1], dim_size_fn(i + 1))).res
 
@@ -143,7 +146,7 @@ def _offset_ptr(
     if flat is None:
         return base_ptr
 
-    byte_offset = ins(llvm.MulOp(flat, iconst(elem_size))).res
+    byte_offset = ins(llvm.MulOp(flat, _iconst(ins, elem_size))).res
     ptr_int = ins(llvm.PtrToIntOp(base_ptr)).output
     target_int = ins(llvm.AddOp(ptr_int, byte_offset)).res
     return ins(llvm.IntToPtrOp(target_int)).output
@@ -153,11 +156,10 @@ def _get_target_ptr(memref_val: SSAValue, memref_type: builtin.MemRefType, indic
     # compute an llvm.ptr to memref_val[indices]; emits pure llvm ops, no ptr/arith dialect
     shape = memref_type.get_shape()
     ins = rewriter.insert_op
-    iconst = lambda n: ins(llvm.ConstantOp(IntegerAttr(n, i64), i64)).result
 
     def dim_size(i: int) -> SSAValue:
         if shape[i] != DYNAMIC_INDEX:
-            return iconst(shape[i])
+            return _iconst(ins, shape[i])
         ub = _loop_ub_as_i64(indices[i])
         assert ub is not None
         return ub
@@ -198,7 +200,6 @@ class ConvertSubviewPattern(RewritePattern):
         assert all(d != DYNAMIC_INDEX for d in src_shape), "dynamic source dims in subview not supported"
 
         ins = rewriter.insert_op
-        iconst = lambda n: ins(llvm.ConstantOp(IntegerAttr(n, i64), i64)).result
 
         # merge static_offsets (constants) and dynamic offsets (SSA values) into one list
         all_offsets: list[SSAValue] = []
@@ -207,9 +208,9 @@ class ConvertSubviewPattern(RewritePattern):
             if soff == DYNAMIC_INDEX:
                 all_offsets.append(next(dyn_iter))
             else:
-                all_offsets.append(iconst(soff))
+                all_offsets.append(_iconst(ins, soff))
 
-        result_ptr = _offset_ptr(op.source, all_offsets, len(src_shape), lambda i: iconst(src_shape[i]), src_type.element_type.size, ins)
+        result_ptr = _offset_ptr(op.source, all_offsets, len(src_shape), lambda i: _iconst(ins, src_shape[i]), src_type.element_type.size, ins)
 
         # wrap as result MemRefType so downstream loads/stores see the correct shape for stride computation
         rewriter.replace_op(op, UnrealizedConversionCastOp.get([result_ptr], [op.result.type]))
