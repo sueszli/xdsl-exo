@@ -79,18 +79,8 @@ class CondBrOp(IRDLOperation):
     traits = traits_def(IsTerminator())
     assembly_format = "$cond `,` $then_block (`(` $then_arguments^ `:` type($then_arguments) `)`)? `,`" " $else_block (`(` $else_arguments^ `:` type($else_arguments) `)`)? attr-dict"
 
-    def __init__(
-        self,
-        cond: Operation | SSAValue,
-        then_block: Block,
-        then_ops: Sequence[Operation | SSAValue],
-        else_block: Block,
-        else_ops: Sequence[Operation | SSAValue],
-    ):
-        super().__init__(
-            operands=[cond, then_ops, else_ops],
-            successors=[then_block, else_block],
-        )
+    def __init__(self, cond: Operation | SSAValue, then_block: Block, then_ops: Sequence[Operation | SSAValue], else_block: Block, else_ops: Sequence[Operation | SSAValue]):
+        super().__init__(operands=[cond, then_ops, else_ops], successors=[then_block, else_block])
 
 
 #
