@@ -547,12 +547,12 @@ def _transform(analyzed_procs: list) -> ModuleOp:
 
     # full lowering to llvm dialect
     _rewrite = lambda patterns: PatternRewriteWalker(GreedyRewritePatternApplier(patterns)).rewrite_module(module)
-    ExtendedConvertMemRefToPtr().apply(ctx, module)  # memref.{load,store,subview,cast} -> llvm ops
-    _rewrite([RewriteMemRefTypes()])  # MemRefType -> LLVMPointerType
-    _rewrite([ConvertVecIntrinsic()])  # mm256_*/vec_* intrinsic calls -> llvm/vector ops
+    ExtendedConvertMemRefToPtr().apply(ctx, module)  # memref.{load,store,subview,cast} -> llvm
+    _rewrite([RewriteMemRefTypes()])  # MemRefType -> llvm.ptr on all values
+    _rewrite([ConvertVecIntrinsic()])  # vec_*/mm256_* calls -> llvm/vector ops
     ConvertScfToCf().apply(ctx, module)  # scf -> cf
-    _rewrite([ConvertCmpiPattern(), ConvertArithAddiI64()])  # arith ops from scf-to-cf -> llvm
-    ReconcileUnrealizedCastsPass().apply(ctx, module)  # fold paired UnrealizedCasts
+    _rewrite([ConvertCmpiPattern(), ConvertArithAddiI64()])  # arith.{cmpi,addi} from scf-to-cf -> llvm
+    ReconcileUnrealizedCastsPass().apply(ctx, module)  # fold paired unrealized casts
     module.verify()
 
     # optimize
