@@ -16,6 +16,7 @@ from xdsl.utils.hints import isa
 
 @irdl_op_definition
 class FCmpOp(IRDLOperation):
+    # https://github.com/xdslproject/xdsl/pull/5706
     name = "llvm.fcmp"
 
     T: ClassVar = VarConstraint("T", AnyFloatConstr)
