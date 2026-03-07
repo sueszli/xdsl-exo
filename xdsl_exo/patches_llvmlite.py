@@ -4,10 +4,10 @@ from xdsl.backend.llvm.convert_op import convert_op as _xdsl_convert_op
 from xdsl.backend.llvm.convert_type import convert_type as _xdsl_convert_type
 from xdsl.dialects import cf, llvm
 from xdsl.dialects.builtin import IndexType, ModuleOp
-from xdsl.dialects.llvm import LLVMVoidType
+from xdsl.dialects.llvm import FNegOp, LLVMVoidType
 from xdsl.ir import Block, Operation, SSAValue
 
-from xdsl_exo.patches_llvm import FCmpOp, FNegOp, SelectOp
+from xdsl_exo.patches_llvm import FCmpOp, SelectOp
 
 ValMap = dict[SSAValue, ir.Value]
 BlockMap = dict[Block, ir.Block]

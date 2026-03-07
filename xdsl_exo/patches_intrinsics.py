@@ -3,10 +3,9 @@ from typing import ClassVar, TypeAlias
 
 from xdsl.dialects import func, llvm, vector
 from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, VectorType, f32, f64, i64
+from xdsl.dialects.llvm import FAbsOp, FNegOp, MaskedStoreOp
 from xdsl.ir import Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
-
-from xdsl_exo.patches_llvm import FAbsOp, FNegOp, MaskedStoreOp
 
 # `vec_*` intrinsic lowering: `func.CallOp` -> LLVM/vector dialect ops
 #
