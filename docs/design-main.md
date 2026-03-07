@@ -1,25 +1,3 @@
-# Design Review: `xdsl_exo/main.py`
-
-**Lines:** 642
-**Role:** Core of the compiler. Lowers Exo's LoopIR to xDSL's LLVM dialect, runs optimization/lowering passes, and provides the CLI entry point.
-
-## Summary
-
-The file has three logical sections:
-
-1. **Free helper functions** (L37-89): `_is_mutated`, `_window_access`, `_coerce_arg`, `_to_index_list` — pure utilities used by the IR generator.
-2. **`IRGenerator` class** (L92-555): A stateful tree-walk that pattern-matches LoopIR nodes and emits xDSL ops. Manages a builder, symbol table, and type table.
-3. **Pipeline + CLI** (L558-642): `_context`, `_transform`, `compile_procs`, `main` — wires the generator into a pass pipeline and exposes a CLI.
-
-## What's Good
-
-- **Pattern matching everywhere.** `_type`, `_expr`, `_stmt` use `match`/`case` for exhaustive dispatch — clear, flat, and easy to extend.
-- **`_tmp_state` context manager** (L126-140). Cleanly saves/restores builder + symbol/type tables for nested scopes (procedure bodies). Single point of control for scope management.
-- **Thin methods.** Most `_stmt_*` and `_expr_*` methods are 5-15 lines. Easy to read in isolation.
-- **Table-driven op selection** (L285-286). `float_ops` and `int_ops` dicts avoid long if/elif chains.
-- **`_to_index_list`** (L85-89). Neatly wraps the split/cast/rejoin dance for SubviewOp operands.
-- **`_coerce_arg`** (L62-82). The scalar-passed-by-ref and shape-mismatch logic is well-isolated from `_stmt_call`.
-
 ## Issues
 
 ### Severity: High

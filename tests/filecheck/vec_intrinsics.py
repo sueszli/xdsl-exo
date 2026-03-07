@@ -1,13 +1,10 @@
 # RUN: uv run xdsl-exo -o - %s | filecheck %s
-# ConvertVecIntrinsic: vec_*/mm256_* calls -> LLVM/vector ops through full pipeline
 
 from __future__ import annotations
 
 from exo import *
 from exo.libs.memories import AVX2
 from exo.platforms.x86 import mm256_broadcast_ss, mm256_fmadd_ps, mm256_loadu_ps, mm256_storeu_ps
-
-# custom vec_* intrinsics (not provided by exo.platforms.x86)
 
 
 @instr("vec_add_f32x8({dst_data}, {a_data}, {b_data});")
