@@ -43,7 +43,7 @@ from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewri
 
 MaskResult: TypeAlias = tuple[list[Operation], SSAValue]
 BuildResult: TypeAlias = tuple[list[Operation], SSAValue]
-Builder: TypeAlias = Callable[..., BuildResult]
+BuilderFn: TypeAlias = Callable[..., BuildResult]
 MaskFn: TypeAlias = Callable[[SSAValue], MaskResult]
 Handler: TypeAlias = Callable[[list[SSAValue]], tuple[Operation, ...]]
 
@@ -57,7 +57,7 @@ def _make_mask(lane_count: SSAValue, n_lanes: int, *, extend_lane_count: bool = 
         ext = llvm.SExtOp(lane_count, i64)  # i32 -> i64 to match VectorType(i64, ...)
         ops.append(ext)
         lane_count = ext.res
-    broadcast = vector.BroadcastOp(operands=[lane_count], result_types=[VectorType(i64, [n_lanes])])
+    broadcast = vector.BroadcastOp(lane_count, VectorType(i64, [n_lanes]))
     mask = llvm.ICmpOp(indices.result, broadcast.vector, IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64))
     return ops + [broadcast, mask], mask.res
 
@@ -72,12 +72,6 @@ def _mask_f64x4(lane_count: SSAValue) -> MaskResult:
 
 def _mask_f64x4_ext(lane_count: SSAValue) -> MaskResult:
     return _make_mask(lane_count, 4, extend_lane_count=True)  # lane_count is i32; upcast to i64
-
-
-def _build_copy(dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> BuildResult:
-    # dst[:] = src[:]
-    load = llvm.LoadOp(src, vec_type)
-    return [load], load.dereferenced_value
 
 
 def _build_abs(dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> BuildResult:
@@ -96,58 +90,53 @@ def _build_abs_pfx(dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> Bui
     return [load, fabs, llvm.StoreOp(load.dereferenced_value, dst)], fabs.result
 
 
+def _build_binop(op_fn: Callable[..., Operation] | None, *ptrs: SSAValue, vec_type: VectorType) -> BuildResult:
+    loads = [llvm.LoadOp(p, vec_type) for p in ptrs]
+    vals = [ld.dereferenced_value for ld in loads]
+    if op_fn is None:
+        return list(loads), vals[0]
+    result_op = op_fn(*vals)
+    return [*loads, result_op], result_op.res
+
+
+def _build_copy(dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> BuildResult:
+    # dst[:] = src[:]
+    return _build_binop(None, src, vec_type=vec_type)
+
+
 def _build_neg(dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> BuildResult:
     # dst[:] = -src[:]
-    load = llvm.LoadOp(src, vec_type)
-    neg = FNegOp(load.dereferenced_value)
-    return [load, neg], neg.res
+    return _build_binop(FNegOp, src, vec_type=vec_type)
 
 
 def _build_add(dst: SSAValue, src_a: SSAValue, src_b: SSAValue, *, vec_type: VectorType) -> BuildResult:
     # dst[:] = src_a[:] + src_b[:]
-    load_a = llvm.LoadOp(src_a, vec_type)
-    load_b = llvm.LoadOp(src_b, vec_type)
-    result = llvm.FAddOp(load_a.dereferenced_value, load_b.dereferenced_value)
-    return [load_a, load_b, result], result.res
+    return _build_binop(llvm.FAddOp, src_a, src_b, vec_type=vec_type)
 
 
 def _build_mul(dst: SSAValue, src_a: SSAValue, src_b: SSAValue, *, vec_type: VectorType) -> BuildResult:
     # dst[:] = src_a[:] * src_b[:]
-    load_a = llvm.LoadOp(src_a, vec_type)
-    load_b = llvm.LoadOp(src_b, vec_type)
-    result = llvm.FMulOp(load_a.dereferenced_value, load_b.dereferenced_value)
-    return [load_a, load_b, result], result.res
+    return _build_binop(llvm.FMulOp, src_a, src_b, vec_type=vec_type)
 
 
 def _build_add_red(dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> BuildResult:
     # dst[:] = dst[:] + src[:]
-    load_dst = llvm.LoadOp(dst, vec_type)
-    load_src = llvm.LoadOp(src, vec_type)
-    add = llvm.FAddOp(load_dst.dereferenced_value, load_src.dereferenced_value)
-    return [load_dst, load_src, add], add.res
+    return _build_binop(llvm.FAddOp, dst, src, vec_type=vec_type)
 
 
 def _build_fma(dst: SSAValue, src_a: SSAValue, src_b: SSAValue, src_c: SSAValue, *, vec_type: VectorType) -> BuildResult:
     # dst[:] = src_a[:] * src_b[:] + src_c[:]
-    load_a = llvm.LoadOp(src_a, vec_type)
-    load_b = llvm.LoadOp(src_b, vec_type)
-    load_c = llvm.LoadOp(src_c, vec_type)
-    fma = vector.FMAOp(operands=[load_a.dereferenced_value, load_b.dereferenced_value, load_c.dereferenced_value], result_types=[vec_type])
-    return [load_a, load_b, load_c, fma], fma.res
+    return _build_binop(vector.FMAOp, src_a, src_b, src_c, vec_type=vec_type)
 
 
 def _build_fma_red(dst: SSAValue, src_a: SSAValue, src_b: SSAValue, *, vec_type: VectorType) -> BuildResult:
     # dst[:] = dst[:] + src_a[:] * src_b[:]
-    load_acc = llvm.LoadOp(dst, vec_type)
-    load_a = llvm.LoadOp(src_a, vec_type)
-    load_b = llvm.LoadOp(src_b, vec_type)
-    fma = vector.FMAOp(operands=[load_a.dereferenced_value, load_b.dereferenced_value, load_acc.dereferenced_value], result_types=[vec_type])
-    return [load_acc, load_a, load_b, fma], fma.res
+    return _build_binop(vector.FMAOp, src_a, src_b, dst, vec_type=vec_type)
 
 
 def _build_broadcast(dst: SSAValue, scalar: SSAValue, *, vec_type: VectorType) -> BuildResult:
     # dst[:] = [scalar] * n_lanes
-    broadcast = vector.BroadcastOp(operands=[scalar], result_types=[vec_type])
+    broadcast = vector.BroadcastOp(scalar, vec_type)
     return [broadcast], broadcast.vector
 
 
@@ -157,7 +146,7 @@ def _build_zero(dst: SSAValue, *, vec_type: VectorType) -> BuildResult:
     return [zero], zero.result
 
 
-def _plain_handler(builder: Builder, vec_type: VectorType) -> Handler:
+def _plain_handler(builder: BuilderFn, vec_type: VectorType) -> Handler:
     def handle(args: list[SSAValue]) -> tuple[Operation, ...]:
         dst, *srcs = args
         ops, result = builder(dst, *srcs, vec_type=vec_type)
@@ -166,7 +155,7 @@ def _plain_handler(builder: Builder, vec_type: VectorType) -> Handler:
     return handle
 
 
-def _pfx_handler(builder: Builder, vec_type: VectorType, mask_fn: MaskFn) -> Handler:
+def _pfx_handler(builder: BuilderFn, vec_type: VectorType, mask_fn: MaskFn) -> Handler:
     def handle(args: list[SSAValue]) -> tuple[Operation, ...]:
         lane_count, dst, *srcs = args
         mask_ops, mask = mask_fn(lane_count)
@@ -199,14 +188,14 @@ def _build_mm256_fmadd_ps(dst: SSAValue, src_a: SSAValue, src_b: SSAValue) -> tu
     load_acc = llvm.LoadOp(dst, VectorType(f32, [8]))
     load_a = llvm.LoadOp(src_a, VectorType(f32, [8]))
     load_b = llvm.LoadOp(src_b, VectorType(f32, [8]))
-    fma = vector.FMAOp(operands=[load_a.dereferenced_value, load_b.dereferenced_value, load_acc.dereferenced_value], result_types=[VectorType(f32, [8])])
+    fma = vector.FMAOp(load_a.dereferenced_value, load_b.dereferenced_value, load_acc.dereferenced_value)
     return (load_acc, load_a, load_b, fma, llvm.StoreOp(fma.res, dst))
 
 
 def _build_mm256_broadcast_ss(dst: SSAValue, scalar_ptr: SSAValue) -> tuple[Operation, ...]:
     # dst[:] = [*scalar_ptr] * 8  (scalar_ptr is already !llvm.ptr at this stage of the pipeline)
     load = llvm.LoadOp(scalar_ptr, f32)
-    broadcast = vector.BroadcastOp(operands=[load.dereferenced_value], result_types=[VectorType(f32, [8])])
+    broadcast = vector.BroadcastOp(load.dereferenced_value, VectorType(f32, [8]))
     return (load, broadcast, llvm.StoreOp(broadcast.vector, dst))
 
 
