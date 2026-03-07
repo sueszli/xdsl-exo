@@ -69,6 +69,7 @@ class BrOp(IRDLOperation):
 
 @irdl_op_definition
 class CondBrOp(IRDLOperation):
+    # https://github.com/xdslproject/xdsl/pull/5710
     name = "llvm.cond_br"
     cond = operand_def(IntegerType(1))
     then_arguments = var_operand_def()

@@ -14,6 +14,12 @@ BlockMap = dict[Block, ir.Block]
 PhiMap = dict[SSAValue, ir.PhiInstr]
 
 
+def _add_phis(phi_map: PhiMap, val_map: ValMap, block_args, operands, cur_block):
+    for a, v in zip(block_args, operands):
+        if a in phi_map:
+            phi_map[a].add_incoming(val_map[v], cur_block)
+
+
 def _convert_op(op: Operation, builder: ir.IRBuilder, block_map: BlockMap, phi_map: PhiMap, val_map: ValMap) -> None:
     match op:
         case llvm.ConstantOp():
@@ -26,19 +32,11 @@ def _convert_op(op: Operation, builder: ir.IRBuilder, block_map: BlockMap, phi_m
         case SelectOp():
             val_map[op.res] = builder.select(val_map[op.cond], val_map[op.lhs], val_map[op.rhs])
         case BrOp():
-            cur = builder.block
-            for a, v in zip(op.successor.args, op.operands):
-                if a in phi_map:
-                    phi_map[a].add_incoming(val_map[v], cur)
+            _add_phis(phi_map, val_map, op.successor.args, op.operands, builder.block)
             builder.branch(block_map[op.successor])
         case CondBrOp():
-            cur = builder.block
-            for a, v in zip(op.successors[0].args, op.then_arguments):
-                if a in phi_map:
-                    phi_map[a].add_incoming(val_map[v], cur)
-            for a, v in zip(op.successors[1].args, op.else_arguments):
-                if a in phi_map:
-                    phi_map[a].add_incoming(val_map[v], cur)
+            _add_phis(phi_map, val_map, op.successors[0].args, op.then_arguments, builder.block)
+            _add_phis(phi_map, val_map, op.successors[1].args, op.else_arguments, builder.block)
             builder.cbranch(val_map[op.cond], block_map[op.successors[0]], block_map[op.successors[1]])
         case _:
             _xdsl_convert_op(op, builder, val_map)
