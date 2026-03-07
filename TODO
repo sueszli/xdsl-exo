@@ -1,9 +1,0 @@
-bump xdsl version, drop some patches
-
-make a bunch of xdsl commits
-
-try to emit exclusively emit stuff from the llvm dialect, not arith or anything else
-
-then:
-- modify the flags we pass to mlir-opt when commpiling
-- minimize patches_llvmlite.py
