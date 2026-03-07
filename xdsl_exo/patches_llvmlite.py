@@ -4,7 +4,7 @@ from xdsl.backend.llvm.convert_op import convert_op as _xdsl_convert_op
 from xdsl.backend.llvm.convert_type import convert_type as _xdsl_convert_type
 from xdsl.dialects import cf, llvm
 from xdsl.dialects.builtin import IndexType, ModuleOp
-from xdsl.dialects.llvm import FNegOp, LLVMVoidType
+from xdsl.dialects.llvm import FNegOp
 from xdsl.ir import Block, Operation, SSAValue
 
 from xdsl_exo.patches_llvm import FCmpOp, SelectOp
@@ -16,12 +16,8 @@ PhiMap = dict[SSAValue, ir.PhiInstr]
 
 def _convert_type(mlir_type) -> ir.Type:
     match mlir_type:
-        case llvm.FuncOp():
-            return _convert_type(mlir_type.function_type.output)
         case IndexType():
             return ir.IntType(64)
-        case LLVMVoidType():
-            return ir.VoidType()
         case _:
             return _xdsl_convert_type(mlir_type)
 
@@ -77,7 +73,7 @@ def jit_compile(module: ModuleOp) -> llvm_binding.ExecutionEngine:
     # forward-declare all functions so call sites can resolve them regardless of order
     for op in func_ops:
         assert isinstance(op, llvm.FuncOp)
-        ftype = ir.FunctionType(_convert_type(op), [_convert_type(t) for t in op.function_type.inputs])
+        ftype = ir.FunctionType(_convert_type(op.function_type.output), [_convert_type(t) for t in op.function_type.inputs])
         ir.Function(llvm_module, ftype, name=op.sym_name.data)
 
     # emit bodies
