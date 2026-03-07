@@ -5,7 +5,7 @@ from xdsl.context import Context
 from xdsl.dialects import builtin, llvm, memref
 from xdsl.dialects.builtin import DYNAMIC_INDEX, I1, AnyFloatConstr, IntegerAttr, MemRefType, StringAttr, UnrealizedConversionCastOp, i1, i64
 from xdsl.dialects.llvm import LLVMPointerType
-from xdsl.ir import BlockArgument, Dialect, Operation, OpResult, SSAValue
+from xdsl.ir import BlockArgument, Operation, OpResult, SSAValue
 from xdsl.irdl import AnyAttr, IRDLOperation, VarConstraint, irdl_op_definition, operand_def, prop_def, result_def, traits_def
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, TypeConversionPattern, attr_type_rewrite_pattern, op_type_rewrite_pattern
@@ -52,16 +52,6 @@ class SelectOp(IRDLOperation):
 
     def __init__(self, cond: Operation | SSAValue, lhs: Operation | SSAValue, rhs: Operation | SSAValue):
         super().__init__(operands=[cond, lhs, rhs], result_types=[SSAValue.get(lhs).type])
-
-
-LLVMIntrinsics = Dialect(
-    "llvm.intr",
-    [
-        FCmpOp,
-        SelectOp,
-    ],
-    [],
-)
 
 
 #

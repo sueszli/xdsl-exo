@@ -30,7 +30,7 @@ from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsP
 from xdsl.utils.scoped_dict import ScopedDict
 
 from xdsl_exo.patches_intrinsics import ConvertVecIntrinsic
-from xdsl_exo.patches_llvm import ExtendedConvertMemRefToPtr, FCmpOp, LLVMIntrinsics, RewriteMemRefTypes, SelectOp
+from xdsl_exo.patches_llvm import ExtendedConvertMemRefToPtr, FCmpOp, RewriteMemRefTypes, SelectOp
 from xdsl_exo.patches_llvmlite import jit_compile
 
 
@@ -560,9 +560,10 @@ def _context() -> Context:
     ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(llvm.LLVM)
+    ctx.load_op(FCmpOp)
+    ctx.load_op(SelectOp)
     ctx.load_dialect(memref.MemRef)
     ctx.load_dialect(cf.Cf)
-    ctx.load_dialect(LLVMIntrinsics)
     return ctx
 
 
