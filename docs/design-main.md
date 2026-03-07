@@ -11,24 +11,6 @@ This duplicates what `_tmp_state` already does, but without restoring `builder` 
 
 **Proposed change:** Use `_tmp_state` and just override the builder afterwards, or extend `_tmp_state` to accept an `inherit_syms` option.
 
-#### 3. `assert` used for user-facing validation in `main()` (L623-627)
-
-```python
-assert src.is_file() and src.suffix == ".py"
-...
-assert isinstance(library, list)
-assert all(isinstance(proc, Procedure) for proc in library)
-```
-
-These assertions are silenced by `python -O` and produce unhelpful tracebacks for users. The first one doesn't even tell you *which* check failed.
-
-**Proposed change:** Use `parser.error()` for the file check and raise `ValueError` with a message for the others:
-
-```python
-if not src.is_file() or src.suffix != ".py":
-    parser.error(f"expected a .py file, got: {src}")
-```
-
 ### Severity: Medium
 
 #### 4. `compile_procs` uses set-add-in-comprehension trick (L603)
