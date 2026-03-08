@@ -1,193 +1,148 @@
 from __future__ import annotations
 
-import linecache
 from collections.abc import Callable
 
-from xnumpy.main import compile_procs
-from xnumpy.patches_llvmlite import jit_compile
+from exo.stdlib.scheduling import divide_loop, replace, simplify
 
-_cache: dict[str, Callable[..., None]] = {}
-
-
-def _jit(code: str, name: str) -> Callable[..., None]:
-    if name not in _cache:
-        code = code.lstrip("\n")
-        ns: dict[str, object] = {}
-        exec("from exo import *", ns)
-        filename = f"<xnumpy:{name}>"
-        compiled = compile(code, filename, "exec")
-        linecache.cache[filename] = (len(code), None, code.splitlines(True), filename)
-        exec(compiled, ns)
-        _cache[name] = jit_compile(compile_procs(ns[name]))[name]
-    return _cache[name]
+from xnumpy.library.kernels.jit import _jit
+from xnumpy.library.kernels.neon import (
+    neon_vadd_f32x4,
+    neon_vmul_f32x4,
+    neon_vneg_f32x4,
+    neon_vsub_f32x4,
+)
 
 
-def add(n: int) -> Callable[..., None]:
-    name = f"_add_{n}"
-    return _jit(
-        f"""@proc
+# ---------------------------------------------------------------------------
+# scheduling transform — vectorize via DRAM-accepting intrinsics
+# ---------------------------------------------------------------------------
+
+
+def _schedule_vec(intrinsic: object) -> Callable[..., object]:
+    def transform(p: object) -> object:
+        p = divide_loop(p, "i", 4, ["io", "ii"], perfect=True)
+        p = replace(p, "for ii in _: _", intrinsic)
+        p = simplify(p)
+        return p
+
+    return transform
+
+
+# ---------------------------------------------------------------------------
+# code templates — scalar
+# ---------------------------------------------------------------------------
+
+
+def _scalar_binary(n: int, name: str, expr: str) -> str:
+    return f"""@proc
 def {name}(out: f32[{n}] @ DRAM, a: f32[{n}] @ DRAM, b: f32[{n}] @ DRAM):
     for i in seq(0, {n}):
-        out[i] = a[i] + b[i]
-""",
-        name,
-    )
+        out[i] = {expr}
+"""
 
 
-def sub(n: int) -> Callable[..., None]:
-    name = f"_sub_{n}"
-    return _jit(
-        f"""@proc
-def {name}(out: f32[{n}] @ DRAM, a: f32[{n}] @ DRAM, b: f32[{n}] @ DRAM):
-    for i in seq(0, {n}):
-        out[i] = a[i] - b[i]
-""",
-        name,
-    )
-
-
-def mul(n: int) -> Callable[..., None]:
-    name = f"_mul_{n}"
-    return _jit(
-        f"""@proc
-def {name}(out: f32[{n}] @ DRAM, a: f32[{n}] @ DRAM, b: f32[{n}] @ DRAM):
-    for i in seq(0, {n}):
-        out[i] = a[i] * b[i]
-""",
-        name,
-    )
-
-
-def neg(n: int) -> Callable[..., None]:
-    name = f"_neg_{n}"
-    return _jit(
-        f"""@proc
+def _scalar_unary(n: int, name: str, expr: str) -> str:
+    return f"""@proc
 def {name}(out: f32[{n}] @ DRAM, a: f32[{n}] @ DRAM):
     for i in seq(0, {n}):
-        out[i] = -a[i]
-""",
-        name,
-    )
+        out[i] = {expr}
+"""
 
 
-def scalar_add(n: int) -> Callable[..., None]:
-    name = f"_sadd_{n}"
-    return _jit(
-        f"""@proc
+def _scalar_with_scalar(n: int, name: str, expr: str) -> str:
+    return f"""@proc
 def {name}(out: f32[{n}] @ DRAM, a: f32[{n}] @ DRAM, s: f32[1] @ DRAM):
     for i in seq(0, {n}):
-        out[i] = a[i] + s[0]
-""",
-        name,
-    )
+        out[i] = {expr}
+"""
 
 
-def scalar_sub(n: int) -> Callable[..., None]:
-    name = f"_ssub_{n}"
-    return _jit(
-        f"""@proc
-def {name}(out: f32[{n}] @ DRAM, a: f32[{n}] @ DRAM, s: f32[1] @ DRAM):
-    for i in seq(0, {n}):
-        out[i] = a[i] - s[0]
-""",
-        name,
-    )
-
-
-def scalar_mul(n: int) -> Callable[..., None]:
-    name = f"_smul_{n}"
-    return _jit(
-        f"""@proc
-def {name}(out: f32[{n}] @ DRAM, a: f32[{n}] @ DRAM, s: f32[1] @ DRAM):
-    for i in seq(0, {n}):
-        out[i] = a[i] * s[0]
-""",
-        name,
-    )
-
-
-def scalar_rsub(n: int) -> Callable[..., None]:
-    name = f"_srsub_{n}"
-    return _jit(
-        f"""@proc
-def {name}(out: f32[{n}] @ DRAM, a: f32[{n}] @ DRAM, s: f32[1] @ DRAM):
-    for i in seq(0, {n}):
-        out[i] = s[0] - a[i]
-""",
-        name,
-    )
-
-
-def iadd(n: int) -> Callable[..., None]:
-    name = f"_iadd_{n}"
-    return _jit(
-        f"""@proc
+def _scalar_inplace_binary(n: int, name: str, expr: str) -> str:
+    return f"""@proc
 def {name}(a: f32[{n}] @ DRAM, b: f32[{n}] @ DRAM):
     for i in seq(0, {n}):
-        a[i] += b[i]
-""",
-        name,
-    )
+        a[i] = {expr}
+"""
 
 
-def isub(n: int) -> Callable[..., None]:
-    name = f"_isub_{n}"
-    return _jit(
-        f"""@proc
-def {name}(a: f32[{n}] @ DRAM, b: f32[{n}] @ DRAM):
-    for i in seq(0, {n}):
-        a[i] = a[i] - b[i]
-""",
-        name,
-    )
-
-
-def imul(n: int) -> Callable[..., None]:
-    name = f"_imul_{n}"
-    return _jit(
-        f"""@proc
-def {name}(a: f32[{n}] @ DRAM, b: f32[{n}] @ DRAM):
-    for i in seq(0, {n}):
-        a[i] = a[i] * b[i]
-""",
-        name,
-    )
-
-
-def iscalar_add(n: int) -> Callable[..., None]:
-    name = f"_isadd_{n}"
-    return _jit(
-        f"""@proc
+def _scalar_inplace_scalar(n: int, name: str, expr: str) -> str:
+    return f"""@proc
 def {name}(a: f32[{n}] @ DRAM, s: f32[1] @ DRAM):
     for i in seq(0, {n}):
-        a[i] += s[0]
-""",
-        name,
-    )
+        a[i] = {expr}
+"""
 
 
-def iscalar_sub(n: int) -> Callable[..., None]:
-    name = f"_issub_{n}"
-    return _jit(
-        f"""@proc
-def {name}(a: f32[{n}] @ DRAM, s: f32[1] @ DRAM):
-    for i in seq(0, {n}):
-        a[i] = a[i] - s[0]
-""",
-        name,
-    )
+# ---------------------------------------------------------------------------
+# kernel factories
+# ---------------------------------------------------------------------------
 
 
-def iscalar_mul(n: int) -> Callable[..., None]:
-    name = f"_ismul_{n}"
-    return _jit(
-        f"""@proc
-def {name}(a: f32[{n}] @ DRAM, s: f32[1] @ DRAM):
-    for i in seq(0, {n}):
-        a[i] = a[i] * s[0]
-""",
-        name,
-    )
+def _make_binary(prefix: str, expr: str, vec_intrinsic: object) -> Callable[[int], Callable[..., None]]:
+    def kernel(n: int) -> Callable[..., None]:
+        name = f"_{prefix}_{n}"
+        code = _scalar_binary(n, name, expr)
+        transform = _schedule_vec(vec_intrinsic) if n % 4 == 0 else None
+        return _jit(code, name, transform=transform)
+
+    return kernel
+
+
+def _make_unary(prefix: str, expr: str, vec_intrinsic: object) -> Callable[[int], Callable[..., None]]:
+    def kernel(n: int) -> Callable[..., None]:
+        name = f"_{prefix}_{n}"
+        code = _scalar_unary(n, name, expr)
+        transform = _schedule_vec(vec_intrinsic) if n % 4 == 0 else None
+        return _jit(code, name, transform=transform)
+
+    return kernel
+
+
+def _make_scalar_op(prefix: str, expr: str) -> Callable[[int], Callable[..., None]]:
+    def kernel(n: int) -> Callable[..., None]:
+        return _jit(_scalar_with_scalar(n, f"_{prefix}_{n}", expr), f"_{prefix}_{n}")
+
+    return kernel
+
+
+def _make_inplace_binary(prefix: str, expr: str, vec_intrinsic: object) -> Callable[[int], Callable[..., None]]:
+    def kernel(n: int) -> Callable[..., None]:
+        name = f"_{prefix}_{n}"
+        code = _scalar_inplace_binary(n, name, expr)
+        transform = _schedule_vec(vec_intrinsic) if n % 4 == 0 else None
+        return _jit(code, name, transform=transform)
+
+    return kernel
+
+
+def _make_inplace_scalar(prefix: str, expr: str) -> Callable[[int], Callable[..., None]]:
+    def kernel(n: int) -> Callable[..., None]:
+        return _jit(_scalar_inplace_scalar(n, f"_{prefix}_{n}", expr), f"_{prefix}_{n}")
+
+    return kernel
+
+
+# ---------------------------------------------------------------------------
+# public kernels
+# ---------------------------------------------------------------------------
+
+add = _make_binary("add", "a[i] + b[i]", neon_vadd_f32x4)
+sub = _make_binary("sub", "a[i] - b[i]", neon_vsub_f32x4)
+mul = _make_binary("mul", "a[i] * b[i]", neon_vmul_f32x4)
+neg = _make_unary("neg", "-a[i]", neon_vneg_f32x4)
+
+scalar_add = _make_scalar_op("sadd", "a[i] + s[0]")
+scalar_sub = _make_scalar_op("ssub", "a[i] - s[0]")
+scalar_mul = _make_scalar_op("smul", "a[i] * s[0]")
+scalar_rsub = _make_scalar_op("srsub", "s[0] - a[i]")
+
+iadd = _make_inplace_binary("iadd", "a[i] + b[i]", neon_vadd_f32x4)
+isub = _make_inplace_binary("isub", "a[i] - b[i]", neon_vsub_f32x4)
+imul = _make_inplace_binary("imul", "a[i] * b[i]", neon_vmul_f32x4)
+
+iscalar_add = _make_inplace_scalar("isadd", "a[i] + s[0]")
+iscalar_sub = _make_inplace_scalar("issub", "a[i] - s[0]")
+iscalar_mul = _make_inplace_scalar("ismul", "a[i] * s[0]")
 
 
 def sum_reduce(n: int) -> Callable[..., None]:

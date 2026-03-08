@@ -200,6 +200,21 @@ def _build_neon_broadcast(dst: SSAValue, scalar_ptr: SSAValue, *, vec_type: Vect
     return (load, broadcast, llvm.StoreOp(broadcast.vector, dst))
 
 
+def _build_neon_binop(op_cls: type, dst: SSAValue, src_a: SSAValue, src_b: SSAValue, *, vec_type: VectorType) -> tuple[Operation, ...]:
+    # dst[:] = op(src_a[:], src_b[:])
+    load_a = llvm.LoadOp(src_a, vec_type)
+    load_b = llvm.LoadOp(src_b, vec_type)
+    result = op_cls(load_a.dereferenced_value, load_b.dereferenced_value)
+    return (load_a, load_b, result, llvm.StoreOp(result.res, dst))
+
+
+def _build_neon_unop(op_cls: type, dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> tuple[Operation, ...]:
+    # dst[:] = op(src[:])
+    load = llvm.LoadOp(src, vec_type)
+    result = op_cls(load.dereferenced_value)
+    return (load, result, llvm.StoreOp(result.res, dst))
+
+
 def _make_intrinsics() -> dict[str, Handler]:
     entries: dict[str, Handler] = {}
 
@@ -238,6 +253,14 @@ def _make_intrinsics() -> dict[str, Handler]:
     entries["neon_loadu_f32x4"] = lambda args: _build_neon_storeu(*args, vec_type=_F32X4)
     entries["neon_fmadd_f32x4"] = lambda args: _build_neon_fmadd(*args, vec_type=_F32X4)
     entries["neon_broadcast_f32x4"] = lambda args: _build_neon_broadcast(*args, vec_type=_F32X4)
+    entries["neon_add_f32x4"] = lambda args: _build_neon_binop(llvm.FAddOp, *args, vec_type=_F32X4)
+    entries["neon_mul_f32x4"] = lambda args: _build_neon_binop(llvm.FMulOp, *args, vec_type=_F32X4)
+    entries["neon_sub_f32x4"] = lambda args: _build_neon_binop(llvm.FSubOp, *args, vec_type=_F32X4)
+    entries["neon_neg_f32x4"] = lambda args: _build_neon_unop(FNegOp, *args, vec_type=_F32X4)
+    entries["neon_vadd_f32x4"] = lambda args: _build_neon_binop(llvm.FAddOp, *args, vec_type=_F32X4)
+    entries["neon_vsub_f32x4"] = lambda args: _build_neon_binop(llvm.FSubOp, *args, vec_type=_F32X4)
+    entries["neon_vmul_f32x4"] = lambda args: _build_neon_binop(llvm.FMulOp, *args, vec_type=_F32X4)
+    entries["neon_vneg_f32x4"] = lambda args: _build_neon_unop(FNegOp, *args, vec_type=_F32X4)
     entries["neon_storeu_f64x2"] = lambda args: _build_neon_storeu(*args, vec_type=_F64X2)
     entries["neon_loadu_f64x2"] = lambda args: _build_neon_storeu(*args, vec_type=_F64X2)
     entries["neon_fmadd_f64x2"] = lambda args: _build_neon_fmadd(*args, vec_type=_F64X2)
