@@ -62,8 +62,6 @@ how it works:
 
 references:
 
-- https://xdsl.dev/
-- https://github.com/xdslproject/xdsl
-- https://exo-lang.dev/
+- https://github.com/xdslproject/xdsl/blob/main/README.md
 - https://github.com/exo-lang/exo/blob/main/docs/README.md
 - https://github.com/kaylendog/exo-mlir
