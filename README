@@ -4,6 +4,9 @@
  ▄▀ ▀▄  █   █  ▀▄▄▀█  █ █ █  ██▄█▀   ▀█   
                              █       ▄▀   
 
+User-scheduled SIMD kernels, JIT-compiled from pure Python.
+
+
               \
                \
                 \\
@@ -28,10 +31,15 @@
                      <.'_.''
                        <'
 
-A tiny JIT compiler that lowers Exo scheduling-language
-kernels through xDSL (Python-native MLIR) to native code
-via llvmlite's MCJIT, entirely in-process with no C
-compilation step.
+
+xnumpy is a proof-of-concept JIT compiler that lowers
+Exo scheduling-language kernels through xDSL (Python-native
+MLIR) to native vector code via llvmlite's MCJIT — entirely
+in-process, without a C compilation step.
+
+The programmer writes a kernel, applies scheduling transforms
+(e.g. tiling, vectorization, unrolling), and gets a callable
+function pointer usable with NumPy arrays through ctypes.
 
 usage:
 
