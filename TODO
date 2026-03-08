@@ -1,9 +1,19 @@
+minimize ffi latency
+
+A few approaches, from simple to ambitious. try them all out!
+
+  1. Kernel fusion — Instead of a + b then * c as two FFI calls, fuse them into a single kernel a + b * c. One crossing instead of two. Exo can do this at the scheduling level.        
+  2. Faster calling convention — ctypes has relatively high call overhead (~0.5μs). A CPython C extension or cffi would be cheaper. Pybind11/nanobind even cheaper.                   
+  3. Reduce marshaling — _call_jit re-extracts .ctypes.data pointers every call. If your array wrapper cached the raw pointer, you'd skip that work on repeated calls.                  
+  4. Graph-level compilation — Instead of executing eagerly op-by-op, trace a sequence of operations and compile the whole graph into one native function. One FFI call for an entire   
+  expression like (a + b) * c - d. This is what JAX's jit and PyTorch's compile do.
+
+  For this project, kernel fusion (1) is probably the most natural fit since Exo already has the scheduling machinery to compose operations.
+
 write report
 
 improve readme
 
-outlook:
-- lazy expression tracing: instead of executing each operation immediately, record a computation graph (like `Add(Mul(a, x), y)`). materialize the result only when needed (indexing, printing, passing to non-xnumpy code). this is what enables fusion. then we can JIT-compile fused expressions.
 
 
 # benchmarking game

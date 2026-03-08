@@ -6,7 +6,6 @@ import re
 import shutil
 import subprocess
 import tempfile
-import types
 from copy import deepcopy
 from enum import Enum, auto
 from functools import cache
@@ -103,7 +102,6 @@ def _call(lib: ctypes.CDLL, proc_ir: Any, kwargs: dict[str, Any], *, has_ctxt: b
 
 
 _JIT_CACHE: dict[str, Callable[..., None]] = {}
-JIT_CACHE: types.MappingProxyType[str, Callable[..., None]] = types.MappingProxyType(_JIT_CACHE)  # read-only view
 
 
 def compile_jit(proc: Procedure, name: str, schedule: Callable[[Procedure], Procedure] | None = None) -> Callable[..., None]:
@@ -115,7 +113,6 @@ def compile_jit(proc: Procedure, name: str, schedule: Callable[[Procedure], Proc
         p = schedule(p)
     fns = jit_compile(xdsl_compile_procs(p))
     _JIT_CACHE[name] = fns[name]
-    _JIT_CACHE[f"{name}_repeat"] = fns[f"{name}_repeat"]
     return _JIT_CACHE[name]
 
 

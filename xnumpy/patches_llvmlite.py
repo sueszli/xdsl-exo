@@ -123,36 +123,7 @@ def _optimize_module(llvm_mod: llvm_binding.ModuleRef, target_machine: llvm_bind
     pm.run(llvm_mod, pb)
 
 
-def _emit_repeat_wrapper(llvm_module: ir.Module, func_name: str) -> None:
-    # emit `{name}_repeat(args..., count)`. calls kernel in a counted loop
-    # avoids python-to-native call overhead per iteration by looping entirely in LLVM IR
-    i64 = ir.IntType(64)
-    kernel = llvm_module.get_global(func_name)
-    orig_args = list(kernel.function_type.args)
-    wrap_ftype = ir.FunctionType(ir.VoidType(), orig_args + [i64])
-    wrapper = ir.Function(llvm_module, wrap_ftype, name=f"{func_name}_repeat")
-
-    entry = wrapper.append_basic_block("entry")
-    loop_bb = wrapper.append_basic_block("loop")
-    exit_bb = wrapper.append_basic_block("exit")
-
-    b = ir.IRBuilder(entry)
-    count = wrapper.args[-1]
-    kernel_args = list(wrapper.args[:-1])
-    b.cbranch(b.icmp_unsigned(">", count, ir.Constant(i64, 0)), loop_bb, exit_bb)
-
-    b = ir.IRBuilder(loop_bb)
-    i = b.phi(i64)
-    i.add_incoming(ir.Constant(i64, 0), entry)
-    b.call(kernel, kernel_args)
-    i_next = b.add(i, ir.Constant(i64, 1))
-    i.add_incoming(i_next, loop_bb)
-    b.cbranch(b.icmp_unsigned("<", i_next, count), loop_bb, exit_bb)
-
-    ir.IRBuilder(exit_bb).ret_void()
-
-
-def _lower(module: ModuleOp, *, repeat_wrappers: bool) -> tuple[llvm_binding.ModuleRef, llvm_binding.TargetMachine]:
+def _lower(module: ModuleOp) -> tuple[llvm_binding.ModuleRef, llvm_binding.TargetMachine]:
     # xdsl module -> llvmlite ir -> parsed llvm module, optimized at -O2
     llvm_module = ir.Module()
     func_ops = list(module.ops)
@@ -166,11 +137,6 @@ def _lower(module: ModuleOp, *, repeat_wrappers: bool) -> tuple[llvm_binding.Mod
         if op.body.blocks:
             _emit_func(op, llvm_module)
 
-    if repeat_wrappers:
-        for op in func_ops:
-            if op.body.blocks:
-                _emit_repeat_wrapper(llvm_module, op.sym_name.data)
-
     llvm_mod = llvm_binding.parse_assembly(str(llvm_module))
     target_machine = _create_target_machine()
     _optimize_module(llvm_mod, target_machine)
@@ -178,8 +144,8 @@ def _lower(module: ModuleOp, *, repeat_wrappers: bool) -> tuple[llvm_binding.Mod
 
 
 def jit_compile(module: ModuleOp) -> dict[str, ctypes._CFuncPtr]:
-    # lower + jit. returns {name: cfunc, name_repeat: cfunc} for each func with a body
-    llvm_mod, target_machine = _lower(module, repeat_wrappers=True)
+    # lower + jit. returns {name: cfunc} for each func with a body
+    llvm_mod, target_machine = _lower(module)
     engine = llvm_binding.create_mcjit_compiler(llvm_mod, target_machine)
     engine.finalize_object()
     engine.run_static_constructors()
@@ -193,13 +159,10 @@ def jit_compile(module: ModuleOp) -> dict[str, ctypes._CFuncPtr]:
         fn = ctypes.CFUNCTYPE(None, *([ctypes.c_void_p] * n))(engine.get_function_address(name))
         fn._engine = engine
         fns[name] = fn
-        fn_r = ctypes.CFUNCTYPE(None, *([ctypes.c_void_p] * (n + 1)))(engine.get_function_address(f"{name}_repeat"))
-        fn_r._engine = engine
-        fns[f"{name}_repeat"] = fn_r
     return fns
 
 
 def emit_assembly(module: ModuleOp) -> str:
     # lower + emit native assembly text (no repeat wrappers)
-    llvm_mod, target_machine = _lower(module, repeat_wrappers=False)
+    llvm_mod, target_machine = _lower(module)
     return target_machine.emit_assembly(llvm_mod)
