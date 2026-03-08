@@ -125,6 +125,7 @@ def _optimize_module(llvm_mod: llvm_binding.ModuleRef, target_machine: llvm_bind
 
 def _emit_repeat_wrapper(llvm_module: ir.Module, func_name: str) -> None:
     # emit `{name}_repeat(args..., count)`. calls kernel in a counted loop
+    # avoids python-to-native call overhead per iteration by looping entirely in LLVM IR
     i64 = ir.IntType(64)
     kernel = llvm_module.get_global(func_name)
     orig_args = list(kernel.function_type.args)

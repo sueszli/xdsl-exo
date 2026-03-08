@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import types
 from copy import deepcopy
 from enum import Enum, auto
 from functools import cache
@@ -16,6 +17,7 @@ import numpy as np
 from exo import compile_procs as exo_compile_procs
 from exo.API import Procedure
 from exo.core.LoopIR import LoopIR
+from exo.stdlib.scheduling import rename
 
 from xnumpy.main import compile_procs as xdsl_compile_procs
 from xnumpy.patches_llvmlite import jit_compile
@@ -41,6 +43,7 @@ _TYPES: dict[str, tuple[type, type]] = {
 
 @cache
 def _find_llvm_bin() -> Path:
+    # $LLVM_BIN > which mlir-opt > brew --prefix llvm
     if env := os.environ.get("LLVM_BIN"):
         return Path(env)
     if mlir_opt := shutil.which("mlir-opt"):
@@ -50,6 +53,7 @@ def _find_llvm_bin() -> Path:
 
 
 def _compile_exo_c(procs: list[Procedure]) -> ctypes.CDLL:
+    # exo C codegen -> clang -shared -> .so
     d = Path(tempfile.mkdtemp())
     exo_compile_procs(procs, d, "o.c", "o.h")
     subprocess.run(["clang", "-shared", "-fPIC", "-O0", "-I", str(d), "-o", str(d / "lib.so"), str(d / "o.c")], check=True)
@@ -57,6 +61,7 @@ def _compile_exo_c(procs: list[Procedure]) -> ctypes.CDLL:
 
 
 def _compile_xdsl_mlir(procs: list[Procedure]) -> ctypes.CDLL:
+    # xdsl -> mlir-translate --mlir-to-llvmir -> clang -shared -> .so
     mlir_text = str(xdsl_compile_procs(procs))
     d = Path(tempfile.mkdtemp())
     mlir, so = d / "o.mlir", d / "lib.so"
@@ -66,6 +71,7 @@ def _compile_xdsl_mlir(procs: list[Procedure]) -> ctypes.CDLL:
 
 
 def _call(lib: ctypes.CDLL, proc_ir: Any, kwargs: dict[str, Any], *, has_ctxt: bool) -> dict[str, np.ndarray]:
+    # marshal args from numpy/python into ctypes, call fn, return output buffers
     fn = getattr(lib, proc_ir.name)
     argtypes: list = []
     args: list = []
@@ -90,13 +96,31 @@ def _call(lib: ctypes.CDLL, proc_ir: Any, kwargs: dict[str, Any], *, has_ctxt: b
                 argtypes += [ctypes.POINTER(c_type)]
                 args += [arr.ctypes.data_as(ctypes.POINTER(c_type))]
 
-    fn.argtypes, fn.restype = argtypes, None
+    fn.argtypes = argtypes
+    fn.restype = None
     fn(*args)
     return bufs
 
 
-def _call_jit(fns: dict, proc_ir: Any, kwargs: dict[str, Any]) -> dict[str, np.ndarray]:
-    fn = fns[proc_ir.name]
+_JIT_CACHE: dict[str, Callable[..., None]] = {}
+JIT_CACHE: types.MappingProxyType[str, Callable[..., None]] = types.MappingProxyType(_JIT_CACHE)  # read-only view
+
+
+def compile_jit(proc: Procedure, name: str, schedule: Callable[[Procedure], Procedure] | None = None) -> Callable[..., None]:
+    # compile proc (with optional schedule) via JIT, cache by name
+    if name in _JIT_CACHE:
+        return _JIT_CACHE[name]
+    p = rename(proc, name)
+    if schedule is not None:
+        p = schedule(p)
+    fns = jit_compile(xdsl_compile_procs(p))
+    _JIT_CACHE[name] = fns[name]
+    _JIT_CACHE[f"{name}_repeat"] = fns[f"{name}_repeat"]
+    return _JIT_CACHE[name]
+
+
+def _call_jit(fn: Callable[..., None], proc_ir: Any, kwargs: dict[str, Any]) -> dict[str, np.ndarray]:
+    # marshal numpy kwargs into raw pointers and call a JIT-compiled function
     args: list = []
     bufs: dict[str, np.ndarray] = {}
 
@@ -132,8 +156,8 @@ def compile_and_load(proc: Procedure, backend: Backend) -> Callable[..., dict[st
             return lambda **kwargs: _call(lib, ir, deepcopy(kwargs), has_ctxt=False)
 
         case Backend.JIT:
-            fns = jit_compile(xdsl_compile_procs(proc))
-            return lambda **kwargs: _call_jit(fns, ir, deepcopy(kwargs))
+            fn = compile_jit(proc, ir.name)  # also looks up cache
+            return lambda **kwargs: _call_jit(fn, ir, deepcopy(kwargs))
 
         case _:
             assert False

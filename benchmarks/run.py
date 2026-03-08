@@ -6,8 +6,8 @@ import numpy as np
 import polars as pl
 
 import xnumpy as xnp
+from xnumpy.backends import JIT_CACHE
 from xnumpy.library.kernels.elementwise import add, mul, neg
-from xnumpy.library.kernels.jit import _cache
 
 REPEATS = 50
 BATCH = 1000
@@ -31,10 +31,12 @@ for n in EW_SIZES:
     assert xnp.allclose(-a_xnp, -a_np)
 
     # trigger compilation and get repeat wrappers
-    add(n); mul(n); neg(n)
-    add_r = _cache[f"_add_{n}_repeat"]
-    mul_r = _cache[f"_mul_{n}_repeat"]
-    neg_r = _cache[f"_neg_{n}_repeat"]
+    add(n)
+    mul(n)
+    neg(n)
+    add_r = JIT_CACHE[f"_add_{n}_repeat"]
+    mul_r = JIT_CACHE[f"_mul_{n}_repeat"]
+    neg_r = JIT_CACHE[f"_neg_{n}_repeat"]
 
     # pre-allocate output for kernel-only benchmark
     out = np.empty(n, dtype=np.float32)

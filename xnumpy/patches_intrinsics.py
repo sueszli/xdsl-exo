@@ -147,6 +147,7 @@ def _build_zero(dst: SSAValue, *, vec_type: VectorType) -> BuildResult:
 
 
 def _plain_handler(builder: BuilderFn, vec_type: VectorType) -> Handler:
+    # build ops then store result to dst (all lanes written)
     def handle(args: list[SSAValue]) -> tuple[Operation, ...]:
         dst, *srcs = args
         ops, result = builder(dst, *srcs, vec_type=vec_type)
@@ -156,6 +157,7 @@ def _plain_handler(builder: BuilderFn, vec_type: VectorType) -> Handler:
 
 
 def _pfx_handler(builder: BuilderFn, vec_type: VectorType, mask_fn: MaskFn) -> Handler:
+    # build ops then masked-store result to dst (only lanes 0..n-1 written)
     def handle(args: list[SSAValue]) -> tuple[Operation, ...]:
         lane_count, dst, *srcs = args
         mask_ops, mask = mask_fn(lane_count)
