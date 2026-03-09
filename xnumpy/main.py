@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import math
+import re
 import tempfile
 from collections.abc import Callable, Sequence
 from contextlib import contextmanager
@@ -748,16 +750,6 @@ def _to_llvmlite_moduleref(llvmlite_module: llvmlite.ir.Module) -> tuple[llvmlit
 
 
 @cache
-def _to_jit_engine(module: ModuleOp) -> llvmlite.binding.ExecutionEngine:
-    # xDSL MLIR -> MCJIT execution engine (in-memory)
-    mod_ref, tm = _to_llvmlite_moduleref(LLVMLiteGenerator.generate(module))
-    engine = llvmlite.binding.create_mcjit_compiler(mod_ref, tm)
-    engine.finalize_object()
-    engine.run_static_constructors()
-    return engine
-
-
-@cache
 def to_asm(module: ModuleOp) -> str:
     # xDSL MLIR -> native assembly text
     mod_ref, tm = _to_llvmlite_moduleref(LLVMLiteGenerator.generate(module))
@@ -765,22 +757,50 @@ def to_asm(module: ModuleOp) -> str:
 
 
 @cache
-def _extract_jit_funcs(module: ModuleOp, engine: llvmlite.binding.ExecutionEngine) -> dict[str, object]:
-    # call our custom c bridge to minimize ffi overhead
-    # constraint: no native-code loop wrappers. each op pays the same per-call FFI cost as numpy for fair comparison
-    fns: dict[str, object] = {}
-    for op in module.ops:
-        if not isinstance(op, llvm.FuncOp) or not op.body.blocks:
-            continue
-        name = op.sym_name.data
-        fns[name] = JitFunc(engine.get_function_address(name), engine)
-    return fns
+def _ir_cache_dir() -> Path:
+    # hash all compiler sources -> .cache/xnumpy/{hash}/. auto-invalidates when compiler code changes.
+    src_dir = Path(__file__).resolve().parent
+    hasher = hashlib.sha256()
+    for py_file in sorted(src_dir.glob("*.py")):
+        hasher.update(py_file.read_bytes())
+    cache_dir = src_dir.parent / ".cache" / "xnumpy" / hasher.hexdigest()[:12]
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir
+
+
+def _disk_cache(name: object, generate: Callable[[], str]) -> str:
+    path = _ir_cache_dir() / f"{name}.ll"
+    if path.exists():
+        return path.read_text()
+    ir_text = generate()
+    path.write_text(ir_text)
+    return ir_text
 
 
 def compile_jit(proc: Procedure) -> dict[str, object]:
-    module = to_mlir(proc)
-    engine = _to_jit_engine(module)
-    return _extract_jit_funcs(module, engine)
+    # disk-cache llvmlite IR to skip exo analysis + xDSL lowering on repeated runs
+    ir_text = _disk_cache(proc._loopir_proc.name, lambda: str(LLVMLiteGenerator.generate(to_mlir(proc))))
+
+    # parse + O3 optimize
+    mod_ref = llvmlite.binding.parse_assembly(ir_text)
+    tm = _target_machine()
+    pto = llvmlite.binding.PipelineTuningOptions()
+    pto.speed_level = 3
+    pto.loop_vectorization = True
+    pto.slp_vectorization = True
+    pb = llvmlite.binding.create_pass_builder(tm, pto)
+    pb.getModulePassManager().run(mod_ref, pb)
+
+    # compile
+    engine = llvmlite.binding.create_mcjit_compiler(mod_ref, tm)
+    engine.finalize_object()
+    engine.run_static_constructors()
+
+    # extract func pointers from IR text (no xDSL module needed on cache hit)
+    fns: dict[str, object] = {}
+    for name in re.findall(r'define void @"?(\w+)"?\(', ir_text):
+        fns[name] = JitFunc(engine.get_function_address(name), engine)
+    return fns
 
 
 #
