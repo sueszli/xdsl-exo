@@ -10,12 +10,28 @@ from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from kernels.add import add
+from kernels.add_neon import add_neon
+from kernels.cross_entropy import cross_entropy
+from kernels.cross_entropy_neon import cross_entropy_neon
+from kernels.dot import dot
+from kernels.dot_neon import dot_neon
+from kernels.embedding import embedding
+from kernels.embedding_neon import embedding_neon
 from kernels.matmul import matmul
 from kernels.matmul_neon import matmul_neon
+from kernels.matvec import matvec
+from kernels.matvec_neon import matvec_neon
+from kernels.relu import relu
+from kernels.relu_neon import relu_neon
+from kernels.rmsnorm import rmsnorm
+from kernels.rmsnorm_neon import rmsnorm_neon
 from kernels.saxpy import saxpy
 from kernels.saxpy_neon import saxpy_neon
 from kernels.softmax import _jit_max_neon, softmax
 from kernels.softmax_neon import softmax_neon
+from kernels.weighted_sum import weighted_sum
+from kernels.weighted_sum_neon import weighted_sum_neon
 
 REPEATS = 200
 
@@ -60,6 +76,49 @@ for n in tqdm(matmul_sizes, desc="matmul"):
     rows.append(
         {
             "kernel": "matmul",
+            "n": n,
+            "numpy_gflops": round(flops / t_np / 1e9, 1),
+            "exo_gflops": round(flops / t_exo / 1e9, 1),
+            "neon_gflops": round(flops / t_neon / 1e9, 1),
+        }
+    )
+
+
+#
+# matvec (linear projection) y[j] = sum_i w[j][i] * x[i]
+#
+
+
+matvec_sizes = [1 << 6, 1 << 7, 1 << 8, 1 << 9, 1 << 10]
+
+
+for n in tqdm(matvec_sizes, desc="matvec"):
+    W = np.random.randn(n, n).astype(np.float32)
+    x = np.random.randn(n).astype(np.float32)
+    expected = W @ x
+    flops = 2 * n**2  # n muls + n adds per output, n outputs
+
+    # numpy
+    t_np = bench(lambda W=W, x=x: W @ x)
+
+    # exo auto-vectorized
+    fn_exo = matvec(n, n)
+    y_exo = np.zeros(n, dtype=np.float32)
+    fn_exo(y_exo, W, x)
+    assert np.allclose(y_exo, expected, atol=1e-3), f"matvec exo wrong: max_diff={np.max(np.abs(y_exo - expected))}"
+    t_exo = bench(lambda fn=fn_exo, y=y_exo, W=W, x=x: fn(y, W, x))
+
+    # exo neon intrinsics (uses transposed w for contiguous neon access)
+    WT = np.ascontiguousarray(W.T)
+    fn_neon = matvec_neon(n, n)
+    y_neon = np.zeros(n, dtype=np.float32)
+    fn_neon(y_neon, WT, x)
+    assert np.allclose(y_neon, expected, atol=1e-3), f"matvec neon wrong: max_diff={np.max(np.abs(y_neon - expected))}"
+    t_neon = bench(lambda fn=fn_neon, y=y_neon, WT=WT, x=x: fn(y, WT, x))
+
+    rows.append(
+        {
+            "kernel": "matvec",
             "n": n,
             "numpy_gflops": round(flops / t_np / 1e9, 1),
             "exo_gflops": round(flops / t_exo / 1e9, 1),
@@ -171,6 +230,349 @@ for n in tqdm(softmax_sizes, desc="softmax"):
         {
             "kernel": "softmax",
             "n": n,
+            "numpy_gflops": round(flops / t_np / 1e9, 2),
+            "exo_gflops": round(flops / t_exo / 1e9, 2),
+            "neon_gflops": round(flops / t_neon / 1e9, 2),
+        }
+    )
+
+
+#
+# relu (y = max(0, x))
+#
+
+
+relu_sizes = [1 << 8, 1 << 10, 1 << 12, 1 << 14, 1 << 16, 1 << 18]
+
+
+for n in tqdm(relu_sizes, desc="relu"):
+    inp = np.random.randn(n).astype(np.float32)
+    expected = np.maximum(0, inp)
+    flops = n  # 1 comparison per element
+
+    # numpy
+    t_np = bench(lambda x=inp: np.maximum(0, x))
+
+    # exo auto-vectorized
+    fn_exo = relu(n)
+    out_exo = np.empty(n, dtype=np.float32)
+    fn_exo(out_exo, inp)
+    assert np.allclose(out_exo, expected, atol=1e-6), f"relu exo wrong: max_diff={np.max(np.abs(out_exo - expected))}"
+    t_exo = bench(lambda fn=fn_exo, out=out_exo, x=inp: fn(out, x))
+
+    # exo neon intrinsics
+    fn_neon = relu_neon(n)
+    out_neon = np.empty(n, dtype=np.float32)
+    fn_neon(out_neon, inp)
+    assert np.allclose(out_neon, expected, atol=1e-6), f"relu neon wrong: max_diff={np.max(np.abs(out_neon - expected))}"
+    t_neon = bench(lambda fn=fn_neon, out=out_neon, x=inp: fn(out, x))
+
+    rows.append(
+        {
+            "kernel": "relu",
+            "n": n,
+            "numpy_gflops": round(flops / t_np / 1e9, 2),
+            "exo_gflops": round(flops / t_exo / 1e9, 2),
+            "neon_gflops": round(flops / t_neon / 1e9, 2),
+        }
+    )
+
+
+#
+# add (z = x + y)
+#
+
+
+add_sizes = [1 << 8, 1 << 10, 1 << 12, 1 << 14, 1 << 16, 1 << 18]
+
+
+for n in tqdm(add_sizes, desc="add"):
+    x = np.random.randn(n).astype(np.float32)
+    y = np.random.randn(n).astype(np.float32)
+    expected = x + y
+    flops = n  # 1 add per element
+
+    # numpy
+    t_np = bench(lambda x=x, y=y: np.add(x, y))
+
+    # exo auto-vectorized
+    fn_exo = add(n)
+    z_exo = np.empty(n, dtype=np.float32)
+    fn_exo(z_exo, x, y)
+    assert np.allclose(z_exo, expected, atol=1e-6), f"add exo wrong: max_diff={np.max(np.abs(z_exo - expected))}"
+    t_exo = bench(lambda fn=fn_exo, z=z_exo, x=x, y=y: fn(z, x, y))
+
+    # exo neon intrinsics
+    fn_neon = add_neon(n)
+    z_neon = np.empty(n, dtype=np.float32)
+    fn_neon(z_neon, x, y)
+    assert np.allclose(z_neon, expected, atol=1e-6), f"add neon wrong: max_diff={np.max(np.abs(z_neon - expected))}"
+    t_neon = bench(lambda fn=fn_neon, z=z_neon, x=x, y=y: fn(z, x, y))
+
+    rows.append(
+        {
+            "kernel": "add",
+            "n": n,
+            "numpy_gflops": round(flops / t_np / 1e9, 2),
+            "exo_gflops": round(flops / t_exo / 1e9, 2),
+            "neon_gflops": round(flops / t_neon / 1e9, 2),
+        }
+    )
+
+
+#
+# cross-entropy loss: loss = -log(softmax(logits)[target])
+# numerically stable: loss = -logits[target] + max + log(sum(exp(logits - max)))
+#
+
+
+ce_sizes = [1 << 8, 1 << 10, 1 << 12, 1 << 14, 1 << 16, 1 << 18]
+
+
+for n in tqdm(ce_sizes, desc="cross_entropy"):
+    logits = np.random.randn(n).astype(np.float32)
+    target = np.random.randint(0, n)
+
+    # numpy reference
+    def numpy_ce(x=logits, t=target):
+        m = x.max()
+        return -x[t] + m + np.log(np.sum(np.exp(x - m)))
+
+    expected = numpy_ce()
+    flops = 4 * n  # max + sub + exp + sum
+
+    t_np = bench(numpy_ce)
+
+    # exo auto-vectorized
+    fn_max, fn_sum_exp = cross_entropy(n)
+    mx = np.array([0.0], dtype=np.float32)
+    sum_exp = np.array([0.0], dtype=np.float32)
+    fn_max(mx, logits)
+    fn_sum_exp(sum_exp, logits, mx)
+    loss_exo = -logits[target] + mx[0] + np.log(sum_exp[0])
+    assert np.allclose(loss_exo, expected, atol=1e-3), f"cross_entropy exo wrong: {loss_exo} vs {expected}"
+
+    def bench_exo(fn_m=fn_max, fn_se=fn_sum_exp, x=logits, mx=mx, se=sum_exp, t=target):
+        fn_m(mx, x)
+        fn_se(se, x, mx)
+        return -x[t] + mx[0] + np.log(se[0])
+
+    t_exo = bench(bench_exo)
+
+    # exo neon intrinsics
+    fn_max_neon = _jit_max_neon(n)
+    fn_sum_exp_neon = cross_entropy_neon(n)
+    fn_max_neon(mx, logits)
+    fn_sum_exp_neon(sum_exp, logits, mx)
+    loss_neon = -logits[target] + mx[0] + np.log(sum_exp[0])
+    assert np.allclose(loss_neon, expected, atol=1e-3), f"cross_entropy neon wrong: {loss_neon} vs {expected}"
+
+    def bench_neon(fn_m=fn_max_neon, fn=fn_sum_exp_neon, x=logits, mx=mx, se=sum_exp, t=target):
+        fn_m(mx, x)
+        fn(se, x, mx)
+        return -x[t] + mx[0] + np.log(se[0])
+
+    t_neon = bench(bench_neon)
+
+    rows.append(
+        {
+            "kernel": "cross_entropy",
+            "n": n,
+            "numpy_gflops": round(flops / t_np / 1e9, 2),
+            "exo_gflops": round(flops / t_exo / 1e9, 2),
+            "neon_gflops": round(flops / t_neon / 1e9, 2),
+        }
+    )
+
+
+#
+# rmsnorm: y[i] = x[i] * rsqrt(mean(x^2) + eps)
+#
+
+
+rmsnorm_sizes = [1 << 8, 1 << 10, 1 << 12, 1 << 14, 1 << 16, 1 << 18]
+EPS = np.float32(1e-5)
+
+
+for n in tqdm(rmsnorm_sizes, desc="rmsnorm"):
+    inp = np.random.randn(n).astype(np.float32)
+    expected = inp / np.sqrt(np.mean(inp**2) + EPS)
+    flops = 3 * n  # n squares + n sum-adds + n scale-muls
+
+    # numpy (dot for sum-of-squares, pre-allocated output)
+    out_np = np.empty(n, dtype=np.float32)
+
+    def numpy_rmsnorm(x=inp, out=out_np, nn=n, eps=EPS):
+        s = np.dot(x, x)
+        np.multiply(x, np.float32(1.0 / np.sqrt(s / nn + eps)), out=out)
+
+    numpy_rmsnorm()
+    assert np.allclose(out_np, expected, atol=1e-3), "rmsnorm numpy wrong"
+    t_np = bench(numpy_rmsnorm)
+
+    # exo auto-vectorized (sumsq kernel + python sqrt + scale kernel)
+    fn_sumsq, fn_scale = rmsnorm(n)
+    sumsq = np.array([0.0], dtype=np.float32)
+    scale_arr = np.array([0.0], dtype=np.float32)
+    out_exo = np.empty(n, dtype=np.float32)
+
+    def run_exo(fn_sq=fn_sumsq, fn_sc=fn_scale, sq=sumsq, sc=scale_arr, out=out_exo, x=inp, nn=n, eps=EPS):
+        fn_sq(sq, x)
+        sc[0] = np.float32(1.0 / np.sqrt(sq[0] / nn + eps))
+        fn_sc(out, x, sc)
+
+    run_exo()
+    assert np.allclose(out_exo, expected, atol=1e-3), f"rmsnorm exo wrong: max_diff={np.max(np.abs(out_exo - expected))}"
+    t_exo = bench(run_exo)
+
+    # exo neon intrinsics
+    fn_sumsq_neon, fn_scale_neon = rmsnorm_neon(n)
+    out_neon = np.empty(n, dtype=np.float32)
+
+    def run_neon(fn_sq=fn_sumsq_neon, fn_sc=fn_scale_neon, sq=sumsq, sc=scale_arr, out=out_neon, x=inp, nn=n, eps=EPS):
+        fn_sq(sq, x)
+        sc[0] = np.float32(1.0 / np.sqrt(sq[0] / nn + eps))
+        fn_sc(out, x, sc)
+
+    run_neon()
+    assert np.allclose(out_neon, expected, atol=1e-3), f"rmsnorm neon wrong: max_diff={np.max(np.abs(out_neon - expected))}"
+    t_neon = bench(run_neon)
+
+    rows.append(
+        {
+            "kernel": "rmsnorm",
+            "n": n,
+            "numpy_gflops": round(flops / t_np / 1e9, 2),
+            "exo_gflops": round(flops / t_exo / 1e9, 2),
+            "neon_gflops": round(flops / t_neon / 1e9, 2),
+        }
+    )
+
+
+#
+# embedding lookup: y[i] = table[index][i]
+#
+
+
+embed_dims = [64, 128, 256, 512, 1024, 4096]
+VOCAB_SIZE = 32000
+
+
+for d in tqdm(embed_dims, desc="embedding"):
+    table = np.random.randn(VOCAB_SIZE, d).astype(np.float32)
+    index = np.random.randint(0, VOCAB_SIZE)
+    expected = table[index].copy()
+    ops = d  # 1 load+store per element
+
+    # numpy
+    out_np = np.empty(d, dtype=np.float32)
+    t_np = bench(lambda out=out_np, t=table, idx=index: np.copyto(out, t[idx]))
+
+    # exo auto-vectorized
+    fn_exo = embedding(d)
+    out_exo = np.empty(d, dtype=np.float32)
+    fn_exo(out_exo, table[index])
+    assert np.allclose(out_exo, expected, atol=1e-6), "embedding exo wrong"
+    t_exo = bench(lambda fn=fn_exo, out=out_exo, row=table[index]: fn(out, row))
+
+    # exo neon intrinsics
+    fn_neon = embedding_neon(d)
+    out_neon = np.empty(d, dtype=np.float32)
+    fn_neon(out_neon, table[index])
+    assert np.allclose(out_neon, expected, atol=1e-6), "embedding neon wrong"
+    t_neon = bench(lambda fn=fn_neon, out=out_neon, row=table[index]: fn(out, row))
+
+    rows.append(
+        {
+            "kernel": "embedding",
+            "n": d,
+            "numpy_gflops": round(ops / t_np / 1e9, 2),
+            "exo_gflops": round(ops / t_exo / 1e9, 2),
+            "neon_gflops": round(ops / t_neon / 1e9, 2),
+        }
+    )
+
+
+#
+# scaled dot product: score = sum(q[j] * k[j]) / sqrt(d)
+#
+
+
+dot_sizes = [1 << 8, 1 << 10, 1 << 12, 1 << 14, 1 << 16, 1 << 18]
+
+
+for n in tqdm(dot_sizes, desc="dot"):
+    q = np.random.randn(n).astype(np.float32)
+    k = np.random.randn(n).astype(np.float32)
+    inv_sqrt_d = np.float32(1.0 / np.sqrt(n))
+    expected = np.dot(q, k) * inv_sqrt_d
+    flops = 2 * n  # n multiplies + n adds
+
+    # numpy
+    t_np = bench(lambda q=q, k=k, s=inv_sqrt_d: np.dot(q, k) * s)
+
+    # exo auto-vectorized
+    fn_exo = dot(n)
+    result_exo = np.array([0.0], dtype=np.float32)
+    fn_exo(result_exo, q, k)
+    score_exo = result_exo[0] * inv_sqrt_d
+    assert np.allclose(score_exo, expected, atol=1e-2), f"dot exo wrong: {score_exo} vs {expected}"
+    t_exo = bench(lambda fn=fn_exo, r=result_exo, q=q, k=k, s=inv_sqrt_d: fn(r, q, k))
+
+    # exo neon intrinsics
+    fn_neon = dot_neon(n)
+    result_neon = np.array([0.0], dtype=np.float32)
+    fn_neon(result_neon, q, k)
+    score_neon = result_neon[0] * inv_sqrt_d
+    assert np.allclose(score_neon, expected, atol=1e-2), f"dot neon wrong: {score_neon} vs {expected}"
+    t_neon = bench(lambda fn=fn_neon, r=result_neon, q=q, k=k, s=inv_sqrt_d: fn(r, q, k))
+
+    rows.append(
+        {
+            "kernel": "dot",
+            "n": n,
+            "numpy_gflops": round(flops / t_np / 1e9, 2),
+            "exo_gflops": round(flops / t_exo / 1e9, 2),
+            "neon_gflops": round(flops / t_neon / 1e9, 2),
+        }
+    )
+
+
+#
+# weighted sum (attention output): out[j] = sum_t weights[t] * v[t][j]
+#
+
+
+ws_sizes = [(64, 64), (64, 128), (128, 128), (128, 256), (256, 256)]
+
+
+for t_size, d_size in tqdm(ws_sizes, desc="weighted_sum"):
+    weights = np.random.randn(t_size).astype(np.float32)
+    V = np.random.randn(t_size, d_size).astype(np.float32)
+    expected = weights @ V
+    flops = 2 * t_size * d_size  # t*d muls + t*d adds
+
+    # numpy
+    t_np = bench(lambda w=weights, v=V: w @ v)
+
+    # exo auto-vectorized
+    fn_exo = weighted_sum(t_size, d_size)
+    out_exo = np.zeros(d_size, dtype=np.float32)
+    fn_exo(out_exo, weights, V)
+    assert np.allclose(out_exo, expected, atol=1e-3), f"weighted_sum exo wrong: max_diff={np.max(np.abs(out_exo - expected))}"
+    t_exo = bench(lambda fn=fn_exo, out=out_exo, w=weights, v=V: fn(out, w, v))
+
+    # exo neon intrinsics
+    fn_neon = weighted_sum_neon(t_size, d_size)
+    out_neon = np.zeros(d_size, dtype=np.float32)
+    fn_neon(out_neon, weights, V)
+    assert np.allclose(out_neon, expected, atol=1e-3), f"weighted_sum neon wrong: max_diff={np.max(np.abs(out_neon - expected))}"
+    t_neon = bench(lambda fn=fn_neon, out=out_neon, w=weights, v=V: fn(out, w, v))
+
+    rows.append(
+        {
+            "kernel": "weighted_sum",
+            "n": f"{t_size}x{d_size}",
             "numpy_gflops": round(flops / t_np / 1e9, 2),
             "exo_gflops": round(flops / t_exo / 1e9, 2),
             "neon_gflops": round(flops / t_neon / 1e9, 2),

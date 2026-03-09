@@ -55,7 +55,6 @@ def matmul_neon(m: int, k: int, n: int) -> Callable[..., None]:
 
     @proc
     def _mm_neon(C: f32[m, n] @ DRAM, A: f32[m, k] @ DRAM, B: f32[k, n] @ DRAM):
-        # zero-init c
         for i in seq(0, m):
             for jo in seq(0, n4):
                 C[i, 4 * jo + 0] = 0.0
@@ -63,7 +62,7 @@ def matmul_neon(m: int, k: int, n: int) -> Callable[..., None]:
                 C[i, 4 * jo + 2] = 0.0
                 C[i, 4 * jo + 3] = 0.0
 
-        # 4-row register-blocked, k-tiled neon matmul
+        # 4-row register-blocked, k-tiled matmul
         for ko in seq(0, n_k_tiles):
             for io in seq(0, m4):
                 for jo in seq(0, n4):

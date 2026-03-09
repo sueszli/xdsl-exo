@@ -96,12 +96,21 @@ def softmax_neon(n: int) -> Callable[..., None]:
 
         inv32_v: f32[4] @ NEON
         c5_v: f32[4] @ NEON
+        c4_v: f32[4] @ NEON
+        c3_v: f32[4] @ NEON
+        c2_v: f32[4] @ NEON
+        c1_v: f32[4] @ NEON
+        c0_v: f32[4] @ NEON
         max_v: f32[4] @ NEON
         neon_broadcast_f32x4(inv32_v, C[0:1])
         neon_broadcast_f32x4(c5_v, C[1:2])
+        neon_broadcast_f32x4(c4_v, C[2:3])
+        neon_broadcast_f32x4(c3_v, C[3:4])
+        neon_broadcast_f32x4(c2_v, C[4:5])
+        neon_broadcast_f32x4(c1_v, C[5:6])
+        neon_broadcast_f32x4(c0_v, C[6:7])
         neon_broadcast_f32x4(max_v, mx[0:1])
 
-        # sum accumulator
         sum_buf: f32[4] @ DRAM
         sum_buf[0] = 0.0
         sum_buf[1] = 0.0
@@ -122,22 +131,23 @@ def softmax_neon(n: int) -> Callable[..., None]:
             neon_mul_f32x4(y, t, inv32_v)
 
             # horner: ((((c5*y + c4)*y + c3)*y + c2)*y + c1)*y + c0
+            # use mul+add_acc instead of broadcast+fmadd to avoid DRAM loads
             h: f32[4] @ NEON
-            neon_broadcast_f32x4(h, C[2:3])
-            neon_fmadd_f32x4(h, c5_v, y)
+            neon_mul_f32x4(h, c5_v, y)
+            neon_add_acc_f32x4(h, c4_v)
 
             g: f32[4] @ NEON
-            neon_broadcast_f32x4(g, C[3:4])
-            neon_fmadd_f32x4(g, h, y)
+            neon_mul_f32x4(g, h, y)
+            neon_add_acc_f32x4(g, c3_v)
 
-            neon_broadcast_f32x4(h, C[4:5])
-            neon_fmadd_f32x4(h, g, y)
+            neon_mul_f32x4(h, g, y)
+            neon_add_acc_f32x4(h, c2_v)
 
-            neon_broadcast_f32x4(g, C[5:6])
-            neon_fmadd_f32x4(g, h, y)
+            neon_mul_f32x4(g, h, y)
+            neon_add_acc_f32x4(g, c1_v)
 
-            neon_broadcast_f32x4(h, C[6:7])
-            neon_fmadd_f32x4(h, g, y)
+            neon_mul_f32x4(h, g, y)
+            neon_add_acc_f32x4(h, c0_v)
 
             # square 5 times: e^32
             sq1: f32[4] @ NEON
@@ -154,7 +164,6 @@ def softmax_neon(n: int) -> Callable[..., None]:
             neon_storeu_f32x4(out[4 * i : 4 * i + 4], sq5)
             neon_add_acc_f32x4(sum_v, sq5)
 
-        # horizontal sum
         neon_storeu_f32x4(sum_buf[0:4], sum_v)
         total: f32 @ DRAM
         total = sum_buf[0]
@@ -162,7 +171,6 @@ def softmax_neon(n: int) -> Callable[..., None]:
         total += sum_buf[2]
         total += sum_buf[3]
 
-        # broadcast 1/total
         inv_s: f32[1] @ DRAM
         inv_s[0] = 1.0 / total
         inv_v: f32[4] @ NEON

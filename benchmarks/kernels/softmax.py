@@ -27,7 +27,7 @@ def _jit_max_neon(n: int) -> Callable[..., None]:
 
     @proc
     def _find_max_neon(result: f32[1] @ DRAM, inp: f32[n] @ DRAM):
-        # 2 x 4-wide accumulators for ilp (8 floats/iter)
+        # 2x4-wide accumulators for ilp (8 floats/iter)
         acc0: f32[4] @ NEON
         acc1: f32[4] @ NEON
         neon_loadu_f32x4(acc0, inp[0:4])
@@ -41,10 +41,8 @@ def _jit_max_neon(n: int) -> Callable[..., None]:
             neon_fmax_acc_f32x4(acc0, c0)
             neon_fmax_acc_f32x4(acc1, c1)
 
-        # merge the two accumulators
         neon_fmax_acc_f32x4(acc0, acc1)
 
-        # horizontal max: store to dram, reduce 4 -> 1
         buf: f32[4] @ DRAM
         neon_storeu_f32x4(buf[0:4], acc0)
         m0: f32 @ Stack

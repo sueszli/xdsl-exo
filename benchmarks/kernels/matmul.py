@@ -11,7 +11,7 @@ from xnumpy.main import compile_jit
 
 @proc
 def _matmul(M: size, K: size, N: size, C: f32[M, N] @ DRAM, A: f32[M, K] @ DRAM, B: f32[K, N] @ DRAM):
-    # c[i,j] = sum_k a[i,k]*b[k,j]  (triple-nested, accumulate in innermost loop)
+    # c[i,j] = sum_k a[i,k]*b[k,j]
     for i in seq(0, M):
         for j in seq(0, N):
             C[i, j] = 0.0

@@ -34,76 +34,48 @@ Already done
                   Tiled, cache-optimized.
                   File: benchmarks/kernels/matmul.py
 
+[x] saxpy      -- y[i] += a * x[i]
+                  BLAS-style scaled add. Not in microgpt but useful primitive.
+                  File: benchmarks/kernels/saxpy.py
 
-Forward pass kernels (build in this order)
-------------------------------------------
+[x] relu       -- y[i] = max(0, x[i])
+                  Uses select(0, x[i], x[i], 0) from exo.libs.externs.
+                  File: benchmarks/kernels/relu.py
 
-1. relu
-   y[i] = max(0, x[i])
-   Used in: MLP nonlinearity (called once per layer).
-   Implementation: select(0, x[i], x[i], 0) from exo.libs.externs.
-   Fusion value: low (single op), but trivial warmup kernel.
-   Sizes: d=64 (4*n_embd after fc1 expansion).
+[x] elementwise add -- z[i] = x[i] + y[i]
+                  Straightforward vectorized loop.
+                  File: benchmarks/kernels/add.py
 
-2. elementwise add
-   z[i] = x[i] + y[i]
-   Used in: residual connections (3x per layer), embedding combination (tok+pos).
-   Implementation: straightforward vectorized loop.
-   Fusion value: low alone, but fuses well into other kernels later.
-   Sizes: d=16 (n_embd).
+[x] rmsnorm    -- y[i] = x[i] * rsqrt(mean(x^2) + eps)
+                  Two-kernel split: sum-of-squares reduction + scaling pass.
+                  File: benchmarks/kernels/rmsnorm.py
 
-3. rmsnorm
-   y[i] = x[i] * rsqrt(mean(x^2) + eps)
-   Expands to: square each element, sum, divide by N, add eps, rsqrt, scale.
-   Used in: pre-attention norm, pre-MLP norm, pre-logit norm (3x per forward pass).
-   Implementation: fuse square+sum+div+rsqrt+scale into one pass.
-   Fusion value: high -- 6 NumPy calls become 1.
-   Sizes: d=16 (n_embd).
+[x] matvec     -- y[j] = sum_i(W[j][i] * x[i])
+                  Tiled rows with fission scheduling.
+                  File: benchmarks/kernels/matvec.py
 
-4. matvec (linear projection)
-   y[j] = sum_i(W[j][i] * x[i])
-   Used in: Q/K/V/O projections (4x), MLP fc1/fc2 (2x), lm_head (1x) = 7 per layer.
-   This is ~95% of all FLOPs. Different from matmul: matrix-vector is memory-bound
-   (each weight row loaded once, dot-product with input vector, move on).
-   Optimize for bandwidth, not compute.
-   Implementation: tile rows, let LLVM vectorize the dot product along columns.
-   Sizes: [16,16]*[16] (attention), [64,16]*[16] (fc1), [16,64]*[64] (fc2),
-          [27,16]*[16] (lm_head).
+[x] embedding  -- y[i] = table[index][i]
+                  Row copy (pointer offset + memcpy).
+                  File: benchmarks/kernels/embedding.py
 
-5. embedding lookup
-   y[i] = table[index][i]
-   Used in: token embedding (wte[token_id]), position embedding (wpe[pos_id]).
-   Pure memory gather -- no arithmetic, just copy a row given an integer index.
-   Implementation: pointer offset + memcpy. Trivial but needed for completeness.
-   Sizes: table=[27,16] or [16,16], output=[16].
+[x] cross-entropy -- loss = -log(softmax(logits)[target])
+                  Fused sum-exp with polynomial exp approximation.
+                  File: benchmarks/kernels/cross_entropy.py
 
-6. cross-entropy loss
-   loss = -log(softmax(logits)[target])
-   Used in: training loss (once per token per step).
-   Key insight: don't materialize the full softmax output. Only need the target
-   class probability. Fuse: max + exp(target - max) + sum(exp) + log + negate.
-   Fusion value: very high -- avoids allocating and computing full softmax vector.
-   Sizes: logits=[27] (vocab_size).
+[x] dot product -- score = sum_j(q[j] * k[j]) / sqrt(d)
+                  Fused multiply + sum + scale in one reduction pass.
+                  File: benchmarks/kernels/dot.py
+
+[x] weighted sum -- out[j] = sum_t(weights[t] * v[t][j])
+                  Attention output aggregation (matvec with V cache).
+                  File: benchmarks/kernels/weighted_sum.py
+
+All of the above also have NEON intrinsic variants (*_neon.py) with explicit
+SIMD using 4-8x unrolled f32x4 vectors, multiple accumulators for ILP, etc.
 
 
-Attention kernels
------------------
-
-Attention in microgpt = Q*K^T/sqrt(d) -> softmax -> weighted sum of V.
-Can be built from matvec + softmax, but fusing gives memory savings.
-
-7. dot product (scaled)
-   score = sum_j(q[j] * k[j]) / sqrt(d)
-   Used in: attention logits. Called n_head * seq_len times per layer.
-   Implementation: fuse multiply + sum + scale into one reduction pass.
-   Sizes: d=4 (head_dim), seq_len up to 16.
-
-8. weighted sum (attention output)
-   out[j] = sum_t(weights[t] * v[t][j])
-   Used in: attention output aggregation. Called n_head times per layer.
-   This is a matvec where the "matrix" is the V cache and "vector" is attention
-   weights. Can reuse the matvec kernel with transposed access pattern.
-   Sizes: weights=[seq_len], V=[seq_len, 4], out=[4].
+Still TODO
+----------
 
 9. fused attention (stretch goal)
    Fuse the entire softmax(Q @ K^T / sqrt(d)) @ V into one kernel.
@@ -115,24 +87,24 @@ Can be built from matvec + softmax, but fusing gives memory savings.
 Training kernels
 ----------------
 
-10. adam optimizer step
-    m  = b1 * m + (1 - b1) * grad
-    v  = b2 * v + (1 - b2) * grad^2
-    m_hat = m / (1 - b1^t)
-    v_hat = v / (1 - b2^t)
-    param -= lr * m_hat / (sqrt(v_hat) + eps)
-    Used in: parameter update (once per parameter tensor per step).
-    Fuse all 5 lines into one pass over (param, grad, m, v).
-    Fusion value: very high -- 5+ separate NumPy calls become 1.
-    Sizes: flat parameter vectors, largest is [64*16] = [1024] for fc1.
+[ ] 10. adam optimizer step
+       m  = b1 * m + (1 - b1) * grad
+       v  = b2 * v + (1 - b2) * grad^2
+       m_hat = m / (1 - b1^t)
+       v_hat = v / (1 - b2^t)
+       param -= lr * m_hat / (sqrt(v_hat) + eps)
+       Used in: parameter update (once per parameter tensor per step).
+       Fuse all 5 lines into one pass over (param, grad, m, v).
+       Fusion value: very high -- 5+ separate NumPy calls become 1.
+       Sizes: flat parameter vectors, largest is [64*16] = [1024] for fc1.
 
 
 Bringing it all together
 -------------------------
 
-After all kernels are built and benchmarked individually:
+All individual kernels are done. Remaining work is integration + training.
 
-Phase 1: single-token forward pass
+[ ] Phase 1: single-token forward pass
    Wire the kernels into a function that takes (token_id, pos_id, kv_cache)
    and returns logits. This replaces microgpt's gpt() function.
    Call order per layer:
@@ -162,7 +134,7 @@ Phase 1: single-token forward pass
      -- output --
      matvec(lm_head, x)                        -> logits [27]
 
-Phase 2: training step
+[ ] Phase 2: training step
    For each token in sequence:
      forward pass -> logits
      cross_entropy(logits, target)             -> loss_t
@@ -170,14 +142,14 @@ Phase 2: training step
    Backward pass (autograd -- likely stays in Python, not JIT).
    adam_step(params, grads, m, v, lr, t)       -> updated params
 
-Phase 3: inference
+[ ] Phase 3: inference
    Autoregressive loop:
      forward pass -> logits
      softmax(logits / temperature)             -> probs
      sample from probs                         -> next token
    Repeat until BOS or max length.
 
-Phase 4: end-to-end benchmark
+[ ] Phase 4: end-to-end benchmark
    Compare wall-clock time for 1000 training steps:
      a) Original microgpt (pure Python scalar autograd)
      b) NumPy vectorized implementation (no autograd, manual gradients)
