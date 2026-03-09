@@ -39,7 +39,7 @@ llvmlite's MCJIT entirely in-process, without a C compilation step.
 
 The programmer writes a kernel, applies scheduling transforms
 (e.g. tiling, vectorization, unrolling), and obtains a callable
-native function pointer usable with NumPy arrays via ctypes.
+native function pointer.
 
 How it works:
 
