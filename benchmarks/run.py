@@ -31,7 +31,7 @@ rows: list[dict[str, object]] = []
 #
 
 
-matmul_sizes = [32, 64, 128, 256]
+matmul_sizes = [1 << 5, 1 << 6, 1 << 7, 1 << 8]
 
 
 for n in tqdm(matmul_sizes, desc="matmul"):
@@ -73,7 +73,7 @@ for n in tqdm(matmul_sizes, desc="matmul"):
 #
 
 
-saxpy_sizes = [4096, 16384, 65536, 262144]
+saxpy_sizes = [1 << 8, 1 << 10, 1 << 12, 1 << 14, 1 << 16, 1 << 18]
 
 
 for n in tqdm(saxpy_sizes, desc="saxpy"):
@@ -117,7 +117,7 @@ for n in tqdm(saxpy_sizes, desc="saxpy"):
 #
 
 
-softmax_sizes = [256, 1024, 4096, 16384]
+softmax_sizes = [1 << 8, 1 << 10, 1 << 12, 1 << 14, 1 << 16, 1 << 18]
 
 
 for n in tqdm(softmax_sizes, desc="softmax"):
