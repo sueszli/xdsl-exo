@@ -6,8 +6,8 @@ import numpy as np
 from exo import *
 from exo.stdlib.scheduling import divide_loop, fission, rename, reorder_loops, simplify, unroll_loop
 
+from xnumpy.backends import jit_compile
 from xnumpy.main import compile_procs
-from xnumpy.patches_llvmlite import jit_compile
 
 
 @proc
@@ -34,6 +34,7 @@ if __name__ == "__main__":
     expected = A @ B
 
     compiled = []
+    naive_ms = None
     for label, p in [("naive", matmul), ("optimized", opt)]:
         fns = jit_compile(compile_procs(p))
         compiled.append(fns)
@@ -44,4 +45,5 @@ if __name__ == "__main__":
         assert np.allclose(C, expected, atol=0.5), f"{label} wrong"
 
         ms = min(timeit.repeat(lambda: fn(C.ctypes.data, A.ctypes.data, B.ctypes.data), number=200, repeat=5)) / 200 * 1e3
-        print(f"{label:<12s} {ms:.2f} ms/call")
+        print(f"{label:<12s} {ms:.2f} ms/call" + (f" ({naive_ms / ms:.1f}x)" if naive_ms else ""))
+        naive_ms = naive_ms or ms

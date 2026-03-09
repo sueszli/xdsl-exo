@@ -14,9 +14,9 @@ import numpy as np
 from exo import *
 from exo.stdlib.scheduling import *
 
+from xnumpy.backends import emit_assembly, jit_compile
 from xnumpy.main import compile_procs
 from xnumpy.patches_exo import NEON
-from xnumpy.patches_llvmlite import emit_assembly, jit_compile
 
 WARMUP = 5
 REPEATS = 50

@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from functools import cache
 from pathlib import Path
 
+import llvmlite.ir as ir
 from exo import compile_procs as exo_compile_procs
 from exo.API import Procedure
 from exo.backend.LoopIR_compiler import find_all_subprocs
@@ -17,9 +18,11 @@ from exo.backend.prec_analysis import PrecisionAnalysis
 from exo.backend.win_analysis import WindowAnalysis
 from exo.core.LoopIR import LoopIR, T
 from exo.main import get_procs_from_module, load_user_code
+from xdsl.backend.llvm.convert_op import convert_op as _xdsl_convert_op
+from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.builder import Builder
 from xdsl.context import Context
-from xdsl.dialects import llvm, memref
+from xdsl.dialects import llvm, memref, vector
 from xdsl.dialects.builtin import BoolAttr, Builtin, FloatAttr, IndexType, IntAttr, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StringAttr, UnrealizedConversionCastOp, f16, f32, f64, i1, i8, i16, i32, i64
 from xdsl.dialects.llvm import FNegOp
 from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
@@ -31,64 +34,29 @@ from xdsl.transforms.common_subexpression_elimination import CommonSubexpression
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.utils.scoped_dict import ScopedDict
 
-from xnumpy.patches_intrinsics import ConvertVecIntrinsic
-from xnumpy.patches_llvm import BrOp, CondBrOp, ExtendedConvertMemRefToPtr, FCmpOp, RewriteMemRefTypes, SelectOp
-from xnumpy.patches_llvmlite import emit_assembly
+from xnumpy.patches_xdsl_intrinsics import ConvertVecIntrinsic
+from xnumpy.patches_xdsl_llvm import BrOp, CondBrOp, ExtendedConvertMemRefToPtr, FCmpOp, RewriteMemRefTypes, SelectOp
 
+_FCMP_PREDICATES: dict[str, tuple[str, bool]] = {  # mlir predicate -> (op, ordered?)
+    "oeq": ("==", True),
+    "ogt": (">", True),
+    "oge": (">=", True),
+    "olt": ("<", True),
+    "ole": ("<=", True),
+    "one": ("!=", True),
+    "ord": ("ord", True),
+    "ueq": ("==", False),
+    "ugt": (">", False),
+    "uge": (">=", False),
+    "ult": ("<", False),
+    "ule": ("<=", False),
+    "une": ("!=", False),
+    "uno": ("uno", False),
+}
 
-def _is_mutated(name: str, body: list) -> bool:
-    # check if a variable is assigned to or reduced into in the body
-    def check(stmt: object) -> bool:
-        match stmt:
-            case LoopIR.Assign() | LoopIR.Reduce():
-                return repr(stmt.name) == name
-            case LoopIR.For():
-                return _is_mutated(name, stmt.body)
-            case LoopIR.If():
-                return _is_mutated(name, stmt.body) or _is_mutated(name, stmt.orelse)
-        return False
-
-    return any(check(stmt) for stmt in body)
-
-
-def _window_access(access: object, expr_fn: Callable[[object], SSAValue]) -> SSAValue:
-    match access:
-        case LoopIR.Point():
-            return expr_fn(access.pt)
-        case LoopIR.Interval():
-            return expr_fn(access.lo)
-        case _:
-            assert False
-
-
-def _coerce_arg(
-    arg_val: SSAValue,
-    callee_arg: object,
-    callee_body: list,
-    type_fn: Callable[[object, StringAttr | None], Attribute],
-    emit_fn: Callable[[Operation], SSAValue],
-) -> SSAValue:
-    # reconcile mlir type and shape mismatches (e.g. caller has memref<8xf32>, callee expects memref<?xf32>) via memref.cast
-    mem_space = StringAttr(callee_arg.mem.name()) if hasattr(callee_arg, "mem") else None
-    callee_type = type_fn(callee_arg.type, mem_space)
-
-    # scalars passed by reference (callee writes to them) must arrive as memref<1xT>
-    scalar_passed_by_ref = not isinstance(callee_type, MemRefType) and _is_mutated(repr(callee_arg.name), callee_body)
-    if scalar_passed_by_ref:
-        callee_type = MemRefType(callee_type, [1], NoneAttr())
-
-    shape_mismatch = isinstance(arg_val.type, MemRefType) and isinstance(callee_type, MemRefType) and arg_val.type != callee_type
-    if shape_mismatch:
-        return emit_fn(memref.CastOp.get(arg_val, callee_type))
-
-    return arg_val
-
-
-def _to_index_list(values: list[SSAValue | int], emit: Callable[[Operation], SSAValue]) -> list:
-    # cast i64 ssavalues to index type, pass through static ints as-is for subviewop
-    static, dynamic = split_dynamic_index_list(values, memref.DYNAMIC_INDEX)
-    casted = [emit(UnrealizedConversionCastOp.get([value], [IndexType()])) for value in dynamic]
-    return get_dynamic_index_list(static, casted, memref.DYNAMIC_INDEX)
+# ===----------------------------------------------------------------------=== #
+# Exo LoopIR -> xDSL MLIR (LLVM dialect)
+# ===----------------------------------------------------------------------=== #
 
 
 class IRGenerator:
@@ -218,10 +186,6 @@ class IRGenerator:
 
         self.builder.insert(memref.StoreOp.get(value, memref_val, index_indices))
 
-    #
-    # expressions
-    #
-
     def _expr_const(self, const: LoopIR.Const) -> SSAValue:
         # lower loopir literal to llvm.mlir.constant op
         mlir_type = self._type(const.type)
@@ -263,7 +227,7 @@ class IRGenerator:
     @staticmethod
     def _cmp_binop(lhs: SSAValue, rhs: SSAValue, op: str, emit: Callable[[Operation], SSAValue]) -> SSAValue:
         integer_cmp_table = {"==": 0, "!=": 1, "<": 2, "<=": 3, ">": 4, ">=": 5}
-        float_cmp_table = {"==": "oeq", "!=": "one", "<": "olt", "<=": "ole", ">": "ogt", ">=": "oge"}
+        float_cmp_table = {op: pred for pred, (op, ordered) in _FCMP_PREDICATES.items() if ordered and op not in ("ord", "uno")}
         assert lhs.type == rhs.type
         if lhs.type == i1:
             bool_ops = {"and": llvm.AndOp, "or": llvm.OrOp}
@@ -289,16 +253,33 @@ class IRGenerator:
             return self._emit(int_ops[binop.op](lhs, rhs))
         assert False
 
+    @staticmethod
+    def _window_access(access: object, expr_fn: Callable[[object], SSAValue]) -> SSAValue:
+        match access:
+            case LoopIR.Point():
+                return expr_fn(access.pt)
+            case LoopIR.Interval():
+                return expr_fn(access.lo)
+            case _:
+                assert False
+
+    @staticmethod
+    def _to_index_list(values: list[SSAValue | int], emit: Callable[[Operation], SSAValue]) -> list:
+        # cast i64 ssavalues to index type, pass through static ints as-is for subviewop
+        static, dynamic = split_dynamic_index_list(values, memref.DYNAMIC_INDEX)
+        casted = [emit(UnrealizedConversionCastOp.get([value], [IndexType()])) for value in dynamic]
+        return get_dynamic_index_list(static, casted, memref.DYNAMIC_INDEX)
+
     def _expr_window(self, window: LoopIR.WindowExpr) -> SSAValue:
         # lower window expression to memref.subview
-        indices = [_window_access(access, self._expr) for access in window.idx]
+        indices = [self._window_access(access, self._expr) for access in window.idx]
         source = self._syms[repr(window.name)]
         dest_type = self._type(window.type.as_tensor, source.type.memory_space)
         output_sizes = self._shape(window.type.as_tensor, emit=True)
 
-        offsets_idx = _to_index_list(indices, self._emit)
-        sizes_idx = _to_index_list(output_sizes, self._emit)
-        strides_idx = _to_index_list([1] * len(indices), self._emit)
+        offsets_idx = self._to_index_list(indices, self._emit)
+        sizes_idx = self._to_index_list(output_sizes, self._emit)
+        strides_idx = self._to_index_list([1] * len(indices), self._emit)
 
         self.builder.insert(subview := memref.SubviewOp.get(source, offsets_idx, sizes_idx, strides_idx, dest_type))
         return subview.result
@@ -332,10 +313,6 @@ class IRGenerator:
                 return self._expr_extern(expr)
             case _:
                 assert False
-
-    #
-    # statements
-    #
 
     def _stmt_assign(self, stmt: LoopIR.Assign) -> None:
         # lower assignment to memref.store
@@ -469,6 +446,38 @@ class IRGenerator:
         self._syms[repr(stmt.name)] = result
         self._types[repr(stmt.name)] = stmt.rhs.type.as_tensor
 
+    @staticmethod
+    def _is_mutated(name: str, body: list) -> bool:
+        # check if a variable is assigned to or reduced into in the body
+        def check(stmt: object) -> bool:
+            match stmt:
+                case LoopIR.Assign() | LoopIR.Reduce():
+                    return repr(stmt.name) == name
+                case LoopIR.For():
+                    return IRGenerator._is_mutated(name, stmt.body)
+                case LoopIR.If():
+                    return IRGenerator._is_mutated(name, stmt.body) or IRGenerator._is_mutated(name, stmt.orelse)
+            return False
+
+        return any(check(stmt) for stmt in body)
+
+    @staticmethod
+    def _coerce_arg(arg_val: SSAValue, callee_arg: object, callee_body: list, type_fn: Callable[[object, StringAttr | None], Attribute], emit_fn: Callable[[Operation], SSAValue]) -> SSAValue:
+        # reconcile mlir type and shape mismatches (e.g. caller has memref<8xf32>, callee expects memref<?xf32>) via memref.cast
+        mem_space = StringAttr(callee_arg.mem.name()) if hasattr(callee_arg, "mem") else None
+        callee_type = type_fn(callee_arg.type, mem_space)
+
+        # scalars passed by reference (callee writes to them) must arrive as memref<1xT>
+        scalar_passed_by_ref = not isinstance(callee_type, MemRefType) and IRGenerator._is_mutated(repr(callee_arg.name), callee_body)
+        if scalar_passed_by_ref:
+            callee_type = MemRefType(callee_type, [1], NoneAttr())
+
+        shape_mismatch = isinstance(arg_val.type, MemRefType) and isinstance(callee_type, MemRefType) and arg_val.type != callee_type
+        if shape_mismatch:
+            return emit_fn(memref.CastOp.get(arg_val, callee_type))
+
+        return arg_val
+
     def _stmt_call(self, call: LoopIR.Call) -> None:
         # lower call to func.call. emit extern decl for intrinsics, recurse for procs
         args = [self._expr(arg) for arg in call.args]
@@ -476,7 +485,7 @@ class IRGenerator:
         if call.f.instr is None:
             self._procedure(call.f)
             assert len(call.args) == len(call.f.args)
-            args = [_coerce_arg(arg_val, callee_arg, call.f.body, self._type, self._emit) for arg_val, callee_arg in zip(args, call.f.args)]
+            args = [self._coerce_arg(arg_val, callee_arg, call.f.body, self._type, self._emit) for arg_val, callee_arg in zip(args, call.f.args)]
         elif call.f.name not in self.seen_extern_decls:
             self.seen_extern_decls.add(call.f.name)
             input_types = [SSAValue.get(arg).type for arg in args]
@@ -521,7 +530,7 @@ class IRGenerator:
         for arg in procedure.args:
             mem = StringAttr(arg.mem.name()) if hasattr(arg, "mem") else None
             mlir_type = self._type(arg.type, mem)
-            if not isinstance(mlir_type, MemRefType) and _is_mutated(repr(arg.name), procedure.body):
+            if not isinstance(mlir_type, MemRefType) and self._is_mutated(repr(arg.name), procedure.body):
                 mlir_type = MemRefType(mlir_type, [1], NoneAttr())
             input_types.append(mlir_type)
         func_type = llvm.LLVMFunctionType(input_types, llvm.LLVMVoidType())
@@ -563,10 +572,10 @@ def _context() -> Context:
     return ctx
 
 
-def _transform(analyzed_procs: list) -> ModuleOp:
+def _lower(procs: list[LoopIR.proc]) -> ModuleOp:
     ctx = _context()
 
-    module = IRGenerator().generate(analyzed_procs)
+    module = IRGenerator().generate(procs)
 
     # optimize
     CanonicalizePass().apply(ctx, module)
@@ -589,7 +598,105 @@ def _transform(analyzed_procs: list) -> ModuleOp:
     return module
 
 
-def compile_procs(library: Procedure | Sequence[Procedure]) -> ModuleOp:
+# ===----------------------------------------------------------------------=== #
+# xDSL MLIR (LLVM dialect) -> llvmlite IR
+# ===----------------------------------------------------------------------=== #
+
+
+class JITEmitter:
+
+    @staticmethod
+    def _add_phis(phi_map: dict[SSAValue, ir.PhiInstr], val_map: dict[SSAValue, ir.Value], block_args, operands, cur_block):
+        # wire block operands into phi nodes for the target block
+        for a, v in zip(block_args, operands):
+            if a in phi_map:
+                phi_map[a].add_incoming(val_map[v], cur_block)
+
+    @staticmethod
+    def _convert_op(op: Operation, builder: ir.IRBuilder, block_map: dict[Block, ir.Block], phi_map: dict[SSAValue, ir.PhiInstr], val_map: dict[SSAValue, ir.Value]) -> None:
+        # translate one xdsl op to llvmlite ir. unmatched ops fall back to xdsl's convert_op
+        match op:
+            case llvm.ConstantOp():
+                val_map[op.result] = ir.Constant(convert_type(op.result.type), op.value.value.data)
+            case FNegOp():
+                val_map[op.res] = builder.fneg(val_map[op.arg])
+            case FCmpOp():
+                pred, is_ordered = _FCMP_PREDICATES[op.predicate.data]
+                val_map[op.res] = (builder.fcmp_ordered if is_ordered else builder.fcmp_unordered)(pred, val_map[op.lhs], val_map[op.rhs])
+            case SelectOp():
+                val_map[op.res] = builder.select(val_map[op.cond], val_map[op.lhs], val_map[op.rhs])
+            case BrOp():
+                JITEmitter._add_phis(phi_map, val_map, op.successor.args, op.operands, builder.block)
+                builder.branch(block_map[op.successor])
+            case CondBrOp():
+                JITEmitter._add_phis(phi_map, val_map, op.successors[0].args, op.then_arguments, builder.block)
+                JITEmitter._add_phis(phi_map, val_map, op.successors[1].args, op.else_arguments, builder.block)
+                builder.cbranch(val_map[op.cond], block_map[op.successors[0]], block_map[op.successors[1]])
+            case vector.BroadcastOp():
+                source_val = val_map[op.source]
+                vec_type = convert_type(op.vector.type)
+                n_lanes = op.vector.type.get_shape()[0]
+                undef = ir.Constant(vec_type, ir.Undefined)
+                inserted = builder.insert_element(undef, source_val, ir.Constant(ir.IntType(32), 0))
+                mask = ir.Constant(ir.VectorType(ir.IntType(32), n_lanes), [0] * n_lanes)
+                val_map[op.vector] = builder.shuffle_vector(inserted, undef, mask)
+            case vector.FMAOp():
+                lhs = val_map[op.lhs]
+                rhs = val_map[op.rhs]
+                acc = val_map[op.acc]
+                vec_type = convert_type(op.res.type)
+                n = vec_type.count
+                elem = "f32" if vec_type.element == ir.FloatType() else "f64"
+                intrinsic_name = f"llvm.fma.v{n}{elem}"
+                try:
+                    fma_fn = builder.module.get_global(intrinsic_name)
+                except KeyError:
+                    fma_type = ir.FunctionType(vec_type, [vec_type, vec_type, vec_type])
+                    fma_fn = ir.Function(builder.module, fma_type, name=intrinsic_name)
+                val_map[op.res] = builder.call(fma_fn, [lhs, rhs, acc])
+            case _:
+                _xdsl_convert_op(op, builder, val_map)
+
+    @staticmethod
+    def emit_func(func_op: llvm.FuncOp, llvm_module: ir.Module) -> None:
+        # emit one xdsl func: create blocks, insert phis, translate ops
+        ir_func = llvm_module.get_global(func_op.sym_name.data)
+        mlir_blocks = list(func_op.body.blocks)
+
+        block_map: dict[Block, ir.Block] = {block: ir_func.append_basic_block() for block in mlir_blocks}
+        phi_map: dict[SSAValue, ir.PhiInstr] = {arg: ir.IRBuilder(block_map[blk]).phi(convert_type(arg.type)) for blk in mlir_blocks[1:] for arg in blk.args}
+        val_map: dict[SSAValue, ir.Value] = dict(zip(mlir_blocks[0].args, ir_func.args)) | phi_map
+
+        for mlir_block in mlir_blocks:
+            builder = ir.IRBuilder(block_map[mlir_block])
+            for op in mlir_block.ops:
+                JITEmitter._convert_op(op, builder, block_map, phi_map, val_map)
+
+    @staticmethod
+    def emit(module: ModuleOp) -> ir.Module:
+        # convert xdsl module to llvmlite ir module
+        llvm_module = ir.Module()
+        func_ops = list(module.ops)
+
+        for op in func_ops:
+            assert isinstance(op, llvm.FuncOp)
+            ftype = ir.FunctionType(convert_type(op.function_type.output), [convert_type(t) for t in op.function_type.inputs])
+            ir.Function(llvm_module, ftype, name=op.sym_name.data)
+
+        for op in func_ops:
+            if op.body.blocks:
+                JITEmitter.emit_func(op, llvm_module)
+
+        return llvm_module
+
+
+# ===----------------------------------------------------------------------=== #
+# API
+# ===----------------------------------------------------------------------=== #
+
+
+def compile_procs(library: Procedure | Sequence[Procedure], jit: bool = False) -> ModuleOp | ir.Module:
+    # compile Exo procedures to xDSL MLIR or llvmlite IR
     if isinstance(library, Procedure):
         library = [library]
     compilable = [proc._loopir_proc for proc in library if not proc.is_instr()]
@@ -603,10 +710,14 @@ def compile_procs(library: Procedure | Sequence[Procedure]) -> ModuleOp:
         return MemoryAnalysis().run(proc)
 
     analyzed_procs = [exo_analyze(proc) for proc in unique_procs]
-    return _transform(analyzed_procs)
+    module = _lower(analyzed_procs)
+
+    if jit:
+        return JITEmitter.emit(module)
+    return module
 
 
-def main():
+def cli():
     parser = ArgumentParser(description="Compile an Exo library to MLIR.")
     parser.add_argument("source", type=str, help="Exo source file (.py)")
     parser.add_argument("-o", "--output", help="Output file (default: stdout)")
@@ -628,10 +739,15 @@ def main():
             d = Path(tempfile.mkdtemp())
             exo_compile_procs(library, d, "o.c", "o.h")
             output = (d / "o.c").read_text()
+
         case "mlir":
             output = str(compile_procs(library))
+
         case "asm":
+            from xnumpy.backends import emit_assembly
+
             output = str(emit_assembly(compile_procs(library)))
+
         case _:
             assert False
 

@@ -28,4 +28,4 @@ include = ["xnumpy*"]
 addopts = "-n auto --forked -v"
 
 [project.scripts]
-xnumpy = "xnumpy.main:main"
+xnumpy = "xnumpy.main:cli"

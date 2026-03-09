@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from functools import cache
 
 from exo import *
 from exo.stdlib.scheduling import divide_loop, fission, reorder_loops, simplify, unroll_loop
@@ -18,25 +19,16 @@ def _matmul(M: size, K: size, N: size, C: f32[M, N] @ DRAM, A: f32[M, K] @ DRAM,
                 C[i, j] += A[i, k] * B[k, j]
 
 
-def _schedule_matmul(n: int):
-    def transform(p):
-        # fission: hoist the zero-init out of the j,k loops so k can be reordered
-        p = fission(p, p.find("for k in _: _").before(), n_lifts=2)
-        # reorder j,k -> k,j for sequential access along B's columns
-        p = reorder_loops(p, "j k")
-        if n % 4 == 0:
-            # tile j by 4 and unroll the inner strip for ILP
-            p = divide_loop(p, "j #1", 4, ["jo", "ji"], perfect=True)
-            p = unroll_loop(p, "ji")
-        p = simplify(p)
-        return p
-
-    return transform
-
-
+@cache
 def matmul(m: int, k: int, n: int) -> Callable[..., None]:
-    return compile_jit(
-        _matmul.partial_eval(M=m, K=k, N=n),
-        f"_matmul_{m}_{k}_{n}",
-        schedule=_schedule_matmul(n),
-    )
+    p = _matmul.partial_eval(M=m, K=k, N=n)
+    # fission: hoist the zero-init out of the j,k loops so k can be reordered
+    p = fission(p, p.find("for k in _: _").before(), n_lifts=2)
+    # reorder j,k -> k,j for sequential access along B's columns
+    p = reorder_loops(p, "j k")
+    if n % 4 == 0:
+        # tile j by 4 and unroll the inner strip for ILP
+        p = divide_loop(p, "j #1", 4, ["jo", "ji"], perfect=True)
+        p = unroll_loop(p, "ji")
+    p = simplify(p)
+    return compile_jit(p, f"_matmul_{m}_{k}_{n}")
