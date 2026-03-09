@@ -15,6 +15,7 @@ class ndarray:
 
     def __init__(self, data: npt.ArrayLike) -> None:
         self._data = np.ascontiguousarray(data, dtype=np.float32)
+        self._ptr = self._data.ctypes.data
 
     shape = property(lambda self: self._data.shape)
     dtype = property(lambda self: self._data.dtype)
@@ -82,7 +83,7 @@ class ndarray:
         k2, n = other.shape
         assert k == k2
         out = zeros((m, n))
-        matmul(m, k, n)(out._data.ctypes.data, self._data.ctypes.data, other._data.ctypes.data)
+        matmul(m, k, n)(out._ptr, self._ptr, other._ptr)
         return out
 
     def sum(self) -> float:

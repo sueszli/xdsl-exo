@@ -16,8 +16,8 @@ Current State — Two Call Paths
 
 Path A: Direct ctypes call (fast path)
   Used by matmul() in library/kernels/matmul.py and bench.py:
-    fn(out._data.ctypes.data, self._data.ctypes.data, other._data.ctypes.data)
-  Overhead per call: ~0.5-1us (ctypes ABI crossing + .ctypes.data extraction)
+    fn(out._ptr, self._ptr, other._ptr)
+  Overhead per call: ~0.5-1us (ctypes ABI crossing)
 
 Path B: _call_jit wrapper (slow path)
   Used by compile(proc, Backend.JIT) at main.py:828:
@@ -80,37 +80,3 @@ Ideas (ranked by impact)
    Reduces per-call overhead to ~50-100ns (just CPython function dispatch +
    argument unpacking). Same approach Numba uses internally. Downside: requires
    compiling a C file, but it would be tiny and stable.
-
-
-4. Cache .ctypes.data in ndarray
-   Savings: ~30-100ns per call | Effort: Low
-
-   In library/core.py, .ctypes.data is called on every operator invocation.
-   This property does work each time (~10-50ns). Cache it:
-
-     class ndarray:
-         def __init__(self, data):
-             self._data = np.ascontiguousarray(data, dtype=np.float32)
-             self._ptr = self._data.ctypes.data  # cache once
-
-   Then __matmul__ becomes:
-     matmul(m, k, n)(out._ptr, self._ptr, other._ptr)
-
-   Caveat: pointer must be invalidated if _data is ever reassigned (e.g. in
-   __iadd__). Update _ptr in those methods too.
-
-
-5. Pre-specialize the CFUNCTYPE signature
-   Savings: ~20-50ns per call | Effort: Low
-
-   Currently in _extract_jit_funcs (main.py:795) all args are c_void_p.
-   When passing a Python int for Size/Index args, ctypes has to figure out
-   the conversion. Use actual types instead:
-
-     # Instead of:
-     fn = ctypes.CFUNCTYPE(None, *([ctypes.c_void_p] * n))(addr)
-
-     # Use:
-     fn = ctypes.CFUNCTYPE(None, c_void_p, c_void_p, c_void_p, c_int64)(addr)
-
-   Avoids ctypes' runtime type coercion. Arg types are known from proc_ir.args.
