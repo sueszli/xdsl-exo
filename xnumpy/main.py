@@ -28,6 +28,8 @@ from xdsl.context import Context
 from xdsl.dialects import llvm, memref, vector
 from xdsl.dialects.builtin import BoolAttr, Builtin, DenseIntOrFPElementsAttr, FloatAttr, IndexType, IntAttr, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StringAttr, UnrealizedConversionCastOp, f16, f32, f64, i1, i8, i16, i32, i64
 from xdsl.dialects.llvm import FNegOp
+
+from xnumpy.patches_xdsl_llvm import VectorFMaxOp
 from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
 from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriteWalker
@@ -573,6 +575,7 @@ def _context() -> Context:
     ctx.load_op(SelectOp)
     ctx.load_op(BrOp)
     ctx.load_op(CondBrOp)
+    ctx.load_op(VectorFMaxOp)
     ctx.load_dialect(memref.MemRef)
     return ctx
 
@@ -646,7 +649,7 @@ class LLVMLiteGenerator:
                 val_map[op.res] = builder.fneg(val_map[op.arg])
             case FCmpOp():
                 pred, is_ordered = _FCMP_PREDICATES[op.predicate.data]
-                val_map[op.res] = (builder.fcmp_ordered if is_ordered else builder.fcmp_unordered)(pred, val_map[op.lhs], val_map[op.rhs])
+                val_map[op.res] = (builder.fcmp_ordered if is_ordered else builder.fcmp_unordered)(pred, val_map[op.lhs], val_map[op.rhs], flags=("fast",))
             case SelectOp():
                 val_map[op.res] = builder.select(val_map[op.cond], val_map[op.lhs], val_map[op.rhs])
             case BrOp():
@@ -678,6 +681,19 @@ class LLVMLiteGenerator:
                     fma_type = llvmlite.ir.FunctionType(vec_type, [vec_type, vec_type, vec_type])
                     fma_fn = llvmlite.ir.Function(builder.module, fma_type, name=intrinsic_name)
                 val_map[op.res] = builder.call(fma_fn, [lhs, rhs, acc])
+            case VectorFMaxOp():
+                lhs = val_map[op.lhs]
+                rhs = val_map[op.rhs]
+                vec_type = convert_type(op.res.type)
+                n = vec_type.count
+                elem = "f32" if vec_type.element == llvmlite.ir.FloatType() else "f64"
+                intrinsic_name = f"llvm.maxnum.v{n}{elem}"
+                try:
+                    maxnum_fn = builder.module.get_global(intrinsic_name)
+                except KeyError:
+                    maxnum_type = llvmlite.ir.FunctionType(vec_type, [vec_type, vec_type])
+                    maxnum_fn = llvmlite.ir.Function(builder.module, maxnum_type, name=intrinsic_name)
+                val_map[op.res] = builder.call(maxnum_fn, [lhs, rhs])
             case _:
                 _xdsl_convert_op(op, builder, val_map)
 

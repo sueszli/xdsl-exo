@@ -61,7 +61,3 @@ Write your own kernels:
     $ uv run xnumpy examples/demo.py --asm
     $ uv run xnumpy examples/demo.py --c
     $ uv run python examples/demo.py # jit
-
-Use as library:
-
-    ... work in progress

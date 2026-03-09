@@ -16,6 +16,23 @@ from xdsl.utils.hints import isa
 
 
 @irdl_op_definition
+class VectorFMaxOp(IRDLOperation):
+    # element-wise max of two vectors, lowered to @llvm.maxnum.v{n}{elem} in LLVMLiteGenerator
+    name = "xnumpy.vfmax"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    traits = traits_def(Pure())
+
+    def __init__(self, lhs: Operation | SSAValue, rhs: Operation | SSAValue):
+        super().__init__(operands=[lhs, rhs], result_types=[SSAValue.get(lhs).type])
+
+
+@irdl_op_definition
 class FCmpOp(IRDLOperation):
     # https://github.com/xdslproject/xdsl/pull/5706
     name = "llvm.fcmp"

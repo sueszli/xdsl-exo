@@ -3,6 +3,27 @@ from __future__ import annotations
 from exo.core.memory import MemGenError, Memory
 
 
+class Stack(Memory):
+    # stack-allocated memory (uses alloca instead of malloc)
+    # use for small temporaries that don't need heap allocation
+
+    @classmethod
+    def alloc(cls, new_name: str, prim_type: str, shape: tuple[str, ...], srcinfo: object) -> str:
+        c_types = {"float": "float", "double": "double", "int8_t": "int8_t", "int32_t": "int32_t"}
+        c_type = c_types.get(prim_type, prim_type)
+        if not shape:
+            return f"{c_type} {new_name};"
+        return f'{c_type} {new_name}[{"][".join(shape)}];'
+
+    @classmethod
+    def can_read(cls) -> bool:
+        return True
+
+    @classmethod
+    def free(cls, new_name: str, prim_type: str, shape: tuple[str, ...], srcinfo: object) -> str:
+        return ""
+
+
 class NEON(Memory):
     # ARM NEON 128-bit vector memory (4×f32, 2×f64)
 

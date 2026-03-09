@@ -210,6 +210,31 @@ def _build_neon_binop(op_cls: type, dst: SSAValue, src_a: SSAValue, src_b: SSAVa
     return (load_a, load_b, result, llvm.StoreOp(result.res, dst))
 
 
+def _build_neon_square(dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> tuple[Operation, ...]:
+    # dst[:] = src[:] * src[:]
+    load = llvm.LoadOp(src, vec_type)
+    result = llvm.FMulOp(load.dereferenced_value, load.dereferenced_value)
+    return (load, result, llvm.StoreOp(result.res, dst))
+
+
+def _build_neon_fmax_acc(acc: SSAValue, src: SSAValue, *, vec_type: VectorType) -> tuple[Operation, ...]:
+    # acc[:] = max(acc[:], src[:])
+    from xnumpy.patches_xdsl_llvm import VectorFMaxOp
+
+    load_acc = llvm.LoadOp(acc, vec_type)
+    load_src = llvm.LoadOp(src, vec_type)
+    result = VectorFMaxOp(load_acc.dereferenced_value, load_src.dereferenced_value)
+    return (load_acc, load_src, result, llvm.StoreOp(result.res, acc))
+
+
+def _build_neon_add_acc(acc: SSAValue, src: SSAValue, *, vec_type: VectorType) -> tuple[Operation, ...]:
+    # acc[:] += src[:]
+    load_acc = llvm.LoadOp(acc, vec_type)
+    load_src = llvm.LoadOp(src, vec_type)
+    result = llvm.FAddOp(load_acc.dereferenced_value, load_src.dereferenced_value)
+    return (load_acc, load_src, result, llvm.StoreOp(result.res, acc))
+
+
 def _build_neon_unop(op_cls: type, dst: SSAValue, src: SSAValue, *, vec_type: VectorType) -> tuple[Operation, ...]:
     # dst[:] = op(src[:])
     load = llvm.LoadOp(src, vec_type)
@@ -278,6 +303,9 @@ def _make_intrinsics() -> dict[str, Handler]:
     entries["neon_loadu_f64x2"] = lambda args: _build_neon_storeu(*args, vec_type=_F64X2)
     entries["neon_fmadd_f64x2"] = lambda args: _build_neon_fmadd(*args, vec_type=_F64X2)
     entries["neon_broadcast_f64x2"] = lambda args: _build_neon_broadcast(*args, vec_type=_F64X2)
+    entries["neon_square_f32x4"] = lambda args: _build_neon_square(*args, vec_type=_F32X4)
+    entries["neon_add_acc_f32x4"] = lambda args: _build_neon_add_acc(*args, vec_type=_F32X4)
+    entries["neon_fmax_acc_f32x4"] = lambda args: _build_neon_fmax_acc(*args, vec_type=_F32X4)
 
     return entries
 
