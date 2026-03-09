@@ -43,7 +43,7 @@ from xdsl.utils.scoped_dict import ScopedDict
 
 from xnumpy.patches_xdsl_intrinsics import ConvertVecIntrinsic
 from xnumpy.patches_xdsl_llvm import BrOp, CondBrOp, ExtendedConvertMemRefToPtr, FCmpOp, RewriteMemRefTypes, SelectOp
-from xnumpy.utils import exo_bin_path, mlir_bin_path
+from xnumpy.utils import compile_exo, compile_mlir
 
 _FCMP_PREDICATES: dict[str, tuple[str, bool]] = {  # mlir predicate -> (op, ordered?)
     "oeq": ("==", True),
@@ -740,7 +740,7 @@ def _to_llvmlite_moduleref(llvmlite_module: llvmlite.ir.Module) -> tuple[llvmlit
 
 
 @cache
-def to_jit_engine(module: ModuleOp) -> llvmlite.binding.ExecutionEngine:
+def _to_jit_engine(module: ModuleOp) -> llvmlite.binding.ExecutionEngine:
     # xDSL MLIR -> MCJIT execution engine (in-memory)
     mod_ref, tm = _to_llvmlite_moduleref(LLVMLiteGenerator.generate(module))
     engine = llvmlite.binding.create_mcjit_compiler(mod_ref, tm)
@@ -754,11 +754,6 @@ def to_asm(module: ModuleOp) -> str:
     # xDSL MLIR -> native assembly text
     mod_ref, tm = _to_llvmlite_moduleref(LLVMLiteGenerator.generate(module))
     return tm.emit_assembly(mod_ref)
-
-
-# ===----------------------------------------------------------------------=== #
-# work in progress .......
-# ===----------------------------------------------------------------------=== #
 
 
 def _call_jit(fn: Callable, proc_ir: Any, kwargs: dict[str, Any]) -> dict[str, np.ndarray]:
@@ -790,43 +785,6 @@ def _call_jit(fn: Callable, proc_ir: Any, kwargs: dict[str, Any]) -> dict[str, n
     return bufs
 
 
-def _call_cdll(fn: Callable, proc_ir: Any, kwargs: dict[str, Any], *, ctx: bool = False) -> dict[str, np.ndarray]:
-    dypes: dict[str, tuple[type, type]] = {
-        "f16": (np.float16, ctypes.c_uint16),
-        "f32": (np.float32, ctypes.c_float),
-        "f64": (np.float64, ctypes.c_double),
-        "i8": (np.int8, ctypes.c_int8),
-        "ui8": (np.uint8, ctypes.c_uint8),
-        "i16": (np.int16, ctypes.c_int16),
-        "ui16": (np.uint16, ctypes.c_uint16),
-        "i32": (np.int32, ctypes.c_int32),
-    }
-
-    args: list = []
-    argtypes: list = []
-    bufs: dict[str, np.ndarray] = {}
-
-    if ctx:
-        argtypes.append(ctypes.c_void_p)
-        args.append(None)
-    for arg in proc_ir.args:
-        name = re.sub(r"_\d+$", "", str(arg.name))
-        val = kwargs[name]
-        match arg.type:
-            case LoopIR.Size() | LoopIR.Index():
-                args.append(int(val))
-                argtypes.append(ctypes.c_long)
-            case LoopIR.Tensor():
-                np_dtype, c_type = dypes[str(arg.type.basetype())]
-                arr = np.array(val, dtype=np_dtype)
-                bufs[name] = arr
-                argtypes.append(ctypes.POINTER(c_type))
-                args.append(arr.ctypes.data_as(ctypes.POINTER(c_type)))
-    fn.argtypes, fn.restype = argtypes, None
-    fn(*args)
-    return bufs
-
-
 def _extract_jit_funcs(module: ModuleOp, engine: llvmlite.binding.ExecutionEngine) -> dict[str, ctypes._CFuncPtr]:
     fns: dict[str, ctypes._CFuncPtr] = {}
     for op in module.ops:
@@ -842,8 +800,13 @@ def _extract_jit_funcs(module: ModuleOp, engine: llvmlite.binding.ExecutionEngin
 
 def compile_jit(proc: Procedure) -> dict[str, ctypes._CFuncPtr]:
     module = to_mlir(proc)
-    engine = to_jit_engine(module)
+    engine = _to_jit_engine(module)
     return _extract_jit_funcs(module, engine)
+
+
+# ===----------------------------------------------------------------------=== #
+# API
+# ===----------------------------------------------------------------------=== #
 
 
 class Backend(Enum):
@@ -852,33 +815,17 @@ class Backend(Enum):
     JIT = auto()  # xdsl -> llvmlite JIT (in-memory)
 
 
-def compile(proc: Procedure, backend: Backend) -> tuple[Callable[..., dict[str, np.ndarray]], str]:
-    # compile a procedure -> (callable, intermediate_text)
-    # callable(**kwargs) -> {buffer_name: np.ndarray} with mutated output buffers
-    #
-    # EXO_C: text = C source      | procs -> clang .so -> callable
-    # MLIR:  text = MLIR string   | procs -> mlir-translate + clang .so -> callable
-    # JIT:   text = assembly      | procs -> llvmlite JIT -> callable
-    proc_ir = proc._loopir_proc
-
+def compile(proc: Procedure, backend: Backend) -> Callable[..., dict[str, np.ndarray]]:
+    # compile a procedure -> callable(**kwargs) -> {buffer_name: np.ndarray}
     match backend:
         case Backend.EXO_C:
-            so_path = exo_bin_path(proc)
-            text = (so_path.parent / "o.c").read_text()
-            lib_fn = getattr(ctypes.CDLL(str(so_path)), proc_ir.name)
-            return lambda **kw: _call_cdll(lib_fn, proc_ir, deepcopy(kw), ctx=True), text
-
+            return compile_exo(proc)
         case Backend.MLIR:
-            module = to_mlir(proc)
-            so_path = mlir_bin_path(module)
-            lib_fn = getattr(ctypes.CDLL(str(so_path)), proc_ir.name)
-            return lambda **kw: _call_cdll(lib_fn, proc_ir, deepcopy(kw)), str(module)
-
+            return compile_mlir(proc, to_mlir(proc))
         case Backend.JIT:
+            proc_ir = proc._loopir_proc
             fn = compile_jit(proc)[proc_ir.name]
-            text = to_asm(to_mlir(proc))
-            return lambda **kw: _call_jit(fn, proc_ir, deepcopy(kw)), text
-
+            return lambda **kw: _call_jit(fn, proc_ir, deepcopy(kw))
         case _:
             assert False
 

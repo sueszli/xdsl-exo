@@ -1,15 +1,33 @@
 from __future__ import annotations
 
+import ctypes
 import os
+import re
 import shutil
 import subprocess
 import tempfile
+from collections.abc import Callable
+from copy import deepcopy
 from functools import cache
 from pathlib import Path
+from typing import Any
 
+import numpy as np
 from exo import compile_procs as exo_compile_procs
 from exo.API import Procedure
+from exo.core.LoopIR import LoopIR
 from xdsl.dialects.builtin import ModuleOp
+
+_DTYPES: dict[str, tuple[type, type]] = {
+    "f16": (np.float16, ctypes.c_uint16),
+    "f32": (np.float32, ctypes.c_float),
+    "f64": (np.float64, ctypes.c_double),
+    "i8": (np.int8, ctypes.c_int8),
+    "ui8": (np.uint8, ctypes.c_uint8),
+    "i16": (np.int16, ctypes.c_int16),
+    "ui16": (np.uint16, ctypes.c_uint16),
+    "i32": (np.int32, ctypes.c_int32),
+}
 
 
 @cache
@@ -21,7 +39,7 @@ def llvm_bin_path() -> Path:
     return Path(subprocess.run(["brew", "--prefix", "llvm"], capture_output=True, text=True, check=True).stdout.strip()) / "bin"
 
 
-def exo_bin_path(proc: Procedure) -> Path:
+def _exo_bin_path(proc: Procedure) -> Path:
     d = Path(tempfile.mkdtemp())
     exo_compile_procs([proc], d, "o.c", "o.h")
     subprocess.run(
@@ -31,7 +49,7 @@ def exo_bin_path(proc: Procedure) -> Path:
     return d / "lib.so"
 
 
-def mlir_bin_path(module: ModuleOp) -> Path:
+def _mlir_bin_path(module: ModuleOp) -> Path:
     d = Path(tempfile.mkdtemp())
     (d / "o.mlir").write_text(str(module))
     subprocess.run(
@@ -40,3 +58,42 @@ def mlir_bin_path(module: ModuleOp) -> Path:
         check=True,
     )
     return d / "lib.so"
+
+
+def _call_cdll(fn: Callable, proc_ir: Any, kwargs: dict[str, Any], *, ctx: bool = False) -> dict[str, np.ndarray]:
+    args: list = []
+    argtypes: list = []
+    bufs: dict[str, np.ndarray] = {}
+    if ctx:
+        argtypes.append(ctypes.c_void_p)
+        args.append(None)
+    for arg in proc_ir.args:
+        name = re.sub(r"_\d+$", "", str(arg.name))
+        val = kwargs[name]
+        match arg.type:
+            case LoopIR.Size() | LoopIR.Index():
+                args.append(int(val))
+                argtypes.append(ctypes.c_long)
+            case LoopIR.Tensor():
+                np_dtype, c_type = _DTYPES[str(arg.type.basetype())]
+                arr = np.array(val, dtype=np_dtype)
+                bufs[name] = arr
+                argtypes.append(ctypes.POINTER(c_type))
+                args.append(arr.ctypes.data_as(ctypes.POINTER(c_type)))
+    fn.argtypes, fn.restype = argtypes, None
+    fn(*args)
+    return bufs
+
+
+def compile_exo(proc: Procedure) -> Callable[..., dict[str, np.ndarray]]:
+    proc_ir = proc._loopir_proc
+    so_path = _exo_bin_path(proc)
+    lib_fn = getattr(ctypes.CDLL(str(so_path)), proc_ir.name)
+    return lambda **kw: _call_cdll(lib_fn, proc_ir, deepcopy(kw), ctx=True)
+
+
+def compile_mlir(proc: Procedure, module: ModuleOp) -> Callable[..., dict[str, np.ndarray]]:
+    proc_ir = proc._loopir_proc
+    so_path = _mlir_bin_path(module)
+    lib_fn = getattr(ctypes.CDLL(str(so_path)), proc_ir.name)
+    return lambda **kw: _call_cdll(lib_fn, proc_ir, deepcopy(kw))

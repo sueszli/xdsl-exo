@@ -1,13 +1,3 @@
----
-
-drop unnecessary kernels like add/sub etc. -> focus on matmul and more complex ones
-
----
-
-consider moving compile_jit, _call_jit to patches_llvmlite and providing a simpler abstraction for backend.py that is similar to the other ones
-
----
-
 IMPORTANT: do NOT use repeat wrappers (looping inside native code to amortize FFI cost).
 this is an unfair trick — numpy can't do it, so it's not an apples-to-apples comparison.
 every xnumpy op must pay the same per-call FFI overhead that numpy pays.

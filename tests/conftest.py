@@ -62,7 +62,7 @@ def assert_match(proc: Procedure, **kwargs: Any) -> None:
     times: dict[Backend, float] = {}
 
     for backend in Backend:
-        fn, _ = compile(proc, backend)
+        fn = compile(proc, backend)
         t0 = time.perf_counter()
         results[backend] = fn(**kwargs)
         times[backend] = time.perf_counter() - t0
