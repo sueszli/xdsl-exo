@@ -45,13 +45,17 @@ def neon_broadcast_f32x4(dst: [f32][4] @ NEON, src: [f32][1] @ DRAM):
 @cache
 def matmul_neon(m: int, k: int, n: int) -> Callable[..., None]:
     assert n % 4 == 0
-    assert m % 4 == 0, "required for register blocking"
+    assert m % 4 == 0
 
     n4 = n // 4
     m4 = m // 4
     bk = min(k, 64)
-    assert k % bk == 0, f"K={k} must be divisible by BK={bk}"
+    bj = min(n, 64)
+    assert k % bk == 0
+    assert n % bj == 0
     n_k_tiles = k // bk
+    n_j_tiles = n // bj
+    bj4 = bj // 4
 
     @proc
     def _mm_neon(C: f32[m, n] @ DRAM, A: f32[m, k] @ DRAM, B: f32[k, n] @ DRAM):
@@ -62,39 +66,40 @@ def matmul_neon(m: int, k: int, n: int) -> Callable[..., None]:
                 C[i, 4 * jo + 2] = 0.0
                 C[i, 4 * jo + 3] = 0.0
 
-        # 4-row register-blocked, k-tiled matmul
+        # 4-row register-blocked, k-tiled, j-tiled matmul
         for ko in seq(0, n_k_tiles):
-            for io in seq(0, m4):
-                for jo in seq(0, n4):
-                    # 4 row accumulators in neon registers
-                    c0: f32[4] @ NEON
-                    c1: f32[4] @ NEON
-                    c2: f32[4] @ NEON
-                    c3: f32[4] @ NEON
-                    neon_loadu_f32x4(c0, C[4 * io + 0, 4 * jo : 4 * jo + 4])
-                    neon_loadu_f32x4(c1, C[4 * io + 1, 4 * jo : 4 * jo + 4])
-                    neon_loadu_f32x4(c2, C[4 * io + 2, 4 * jo : 4 * jo + 4])
-                    neon_loadu_f32x4(c3, C[4 * io + 3, 4 * jo : 4 * jo + 4])
-                    for ki in seq(0, bk):
-                        # load b row once, reuse across 4 i-rows
-                        b_vec: f32[4] @ NEON
-                        neon_loadu_f32x4(b_vec, B[bk * ko + ki, 4 * jo : 4 * jo + 4])
-                        a0: f32[4] @ NEON
-                        a1: f32[4] @ NEON
-                        a2: f32[4] @ NEON
-                        a3: f32[4] @ NEON
-                        neon_broadcast_f32x4(a0, A[4 * io + 0, bk * ko + ki : bk * ko + ki + 1])
-                        neon_broadcast_f32x4(a1, A[4 * io + 1, bk * ko + ki : bk * ko + ki + 1])
-                        neon_broadcast_f32x4(a2, A[4 * io + 2, bk * ko + ki : bk * ko + ki + 1])
-                        neon_broadcast_f32x4(a3, A[4 * io + 3, bk * ko + ki : bk * ko + ki + 1])
-                        neon_fmadd_f32x4(c0, a0, b_vec)
-                        neon_fmadd_f32x4(c1, a1, b_vec)
-                        neon_fmadd_f32x4(c2, a2, b_vec)
-                        neon_fmadd_f32x4(c3, a3, b_vec)
-                    neon_storeu_f32x4(C[4 * io + 0, 4 * jo : 4 * jo + 4], c0)
-                    neon_storeu_f32x4(C[4 * io + 1, 4 * jo : 4 * jo + 4], c1)
-                    neon_storeu_f32x4(C[4 * io + 2, 4 * jo : 4 * jo + 4], c2)
-                    neon_storeu_f32x4(C[4 * io + 3, 4 * jo : 4 * jo + 4], c3)
+            for jo in seq(0, n_j_tiles):
+                for io in seq(0, m4):
+                    for ji in seq(0, bj4):
+                        # 4 row accumulators in neon registers
+                        c0: f32[4] @ NEON
+                        c1: f32[4] @ NEON
+                        c2: f32[4] @ NEON
+                        c3: f32[4] @ NEON
+                        neon_loadu_f32x4(c0, C[4 * io + 0, bj * jo + 4 * ji : bj * jo + 4 * ji + 4])
+                        neon_loadu_f32x4(c1, C[4 * io + 1, bj * jo + 4 * ji : bj * jo + 4 * ji + 4])
+                        neon_loadu_f32x4(c2, C[4 * io + 2, bj * jo + 4 * ji : bj * jo + 4 * ji + 4])
+                        neon_loadu_f32x4(c3, C[4 * io + 3, bj * jo + 4 * ji : bj * jo + 4 * ji + 4])
+                        for ki in seq(0, bk):
+                            # load b row once, reuse across 4 i-rows
+                            b_vec: f32[4] @ NEON
+                            neon_loadu_f32x4(b_vec, B[bk * ko + ki, bj * jo + 4 * ji : bj * jo + 4 * ji + 4])
+                            a0: f32[4] @ NEON
+                            a1: f32[4] @ NEON
+                            a2: f32[4] @ NEON
+                            a3: f32[4] @ NEON
+                            neon_broadcast_f32x4(a0, A[4 * io + 0, bk * ko + ki : bk * ko + ki + 1])
+                            neon_broadcast_f32x4(a1, A[4 * io + 1, bk * ko + ki : bk * ko + ki + 1])
+                            neon_broadcast_f32x4(a2, A[4 * io + 2, bk * ko + ki : bk * ko + ki + 1])
+                            neon_broadcast_f32x4(a3, A[4 * io + 3, bk * ko + ki : bk * ko + ki + 1])
+                            neon_fmadd_f32x4(c0, a0, b_vec)
+                            neon_fmadd_f32x4(c1, a1, b_vec)
+                            neon_fmadd_f32x4(c2, a2, b_vec)
+                            neon_fmadd_f32x4(c3, a3, b_vec)
+                        neon_storeu_f32x4(C[4 * io + 0, bj * jo + 4 * ji : bj * jo + 4 * ji + 4], c0)
+                        neon_storeu_f32x4(C[4 * io + 1, bj * jo + 4 * ji : bj * jo + 4 * ji + 4], c1)
+                        neon_storeu_f32x4(C[4 * io + 2, bj * jo + 4 * ji : bj * jo + 4 * ji + 4], c2)
+                        neon_storeu_f32x4(C[4 * io + 3, bj * jo + 4 * ji : bj * jo + 4 * ji + 4], c3)
 
     name = f"_mm_neon_{m}_{k}_{n}"
     p = rename(_mm_neon, name)

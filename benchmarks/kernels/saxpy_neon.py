@@ -44,7 +44,7 @@ def neon_broadcast_f32x4(dst: [f32][4] @ NEON, src: [f32][1] @ DRAM):
 
 @cache
 def saxpy_neon(n: int) -> Callable[..., None]:
-    assert n % 16 == 0, "N must be divisible by 16 for 4x unrolled f32x4"
+    assert n % 16 == 0
     n16 = n // 16
 
     @proc

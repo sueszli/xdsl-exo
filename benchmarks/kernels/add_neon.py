@@ -37,7 +37,7 @@ def neon_add_f32x4(dst: [f32][4] @ NEON, a: [f32][4] @ NEON, b: [f32][4] @ NEON)
 
 @cache
 def add_neon(n: int) -> Callable[..., None]:
-    assert n % 16 == 0, "N must be divisible by 16 for 4x unrolled f32x4"
+    assert n % 16 == 0
     n16 = n // 16
 
     @proc

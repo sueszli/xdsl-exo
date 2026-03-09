@@ -52,8 +52,8 @@ def neon_add_acc_f32x4(acc: [f32][4] @ NEON, src: [f32][4] @ NEON):
 
 @cache
 def weighted_sum_neon(t: int, d: int) -> Callable[..., None]:
-    assert d % 4 == 0, "D must be divisible by 4"
-    assert t % 4 == 0, "T must be divisible by 4"
+    assert d % 4 == 0
+    assert t % 4 == 0
 
     d4 = d // 4
     t4 = t // 4

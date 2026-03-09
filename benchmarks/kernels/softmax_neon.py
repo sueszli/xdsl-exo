@@ -78,7 +78,7 @@ def neon_add_acc_f32x4(acc: [f32][4] @ NEON, src: [f32][4] @ NEON):
 
 @cache
 def softmax_neon(n: int) -> Callable[..., None]:
-    assert n % 4 == 0, "N must be divisible by 4"
+    assert n % 4 == 0
     n4 = n // 4
 
     @proc
@@ -131,7 +131,7 @@ def softmax_neon(n: int) -> Callable[..., None]:
             neon_mul_f32x4(y, t, inv32_v)
 
             # horner: ((((c5*y + c4)*y + c3)*y + c2)*y + c1)*y + c0
-            # use mul+add_acc instead of broadcast+fmadd to avoid DRAM loads
+            # use mul+add_acc instead of broadcast+fmadd to avoid dram loads
             h: f32[4] @ NEON
             neon_mul_f32x4(h, c5_v, y)
             neon_add_acc_f32x4(h, c4_v)

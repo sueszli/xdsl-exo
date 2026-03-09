@@ -13,7 +13,7 @@ from xnumpy.patches_exo import NEON
 
 @cache
 def embedding_neon(d: int) -> Callable[..., None]:
-    assert d % 16 == 0, "D must be divisible by 16 for 4x unrolled f32x4"
+    assert d % 16 == 0
     d16 = d // 16
 
     @proc

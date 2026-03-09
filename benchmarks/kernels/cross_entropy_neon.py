@@ -13,7 +13,7 @@ from xnumpy.patches_exo import NEON
 
 @cache
 def cross_entropy_neon(n: int) -> Callable[..., None]:
-    assert n % 4 == 0, "N must be divisible by 4"
+    assert n % 4 == 0
     n4 = n // 4
 
     @proc

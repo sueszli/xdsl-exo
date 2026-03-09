@@ -52,8 +52,8 @@ def neon_add_acc_f32x4(acc: [f32][4] @ NEON, src: [f32][4] @ NEON):
 
 @cache
 def matvec_neon(m: int, k: int) -> Callable[..., None]:
-    assert m % 4 == 0, "M must be divisible by 4"
-    assert k % 4 == 0, "K must be divisible by 4"
+    assert m % 4 == 0
+    assert k % 4 == 0
 
     m4 = m // 4
     k4 = k // 4
