@@ -1,8 +1,8 @@
 ---
 title: |
-  | From DSL to Native in One Process:
-  | JIT-Compiling Exo Kernels via xDSL and llvmlite
-author: ""
+  | xnumpy: Fused Kernel JIT for Exo
+  | via xDSL and llvmlite
+author: "Sasha Lopoukhine, Yahya Jabary"
 date: ""
 output:
   pdf_document:
@@ -88,6 +88,8 @@ We focus our evaluation on three fused multi-pass kernels, namely softmax, cross
 
 # Background
 
+Our pipeline chains three independent projects; we summarize each below.
+
 \textbf{Exo} [ikarashi2022exo] is a language for exocompilation. Instead of hiding hardware-specific optimizations inside the compiler, it exposes them as user-level scheduling operations. The programmer writes a loop nest (the algorithm) and transforms it through rewrites (the schedule). Transforms include \texttt{fission}, \texttt{reorder\_loops}, \texttt{divide\_loop}, and \texttt{unroll\_loop}. Each transform preserves semantics. Exo's \texttt{@instr} decorator allows declaring custom hardware intrinsics with scheduling-visible semantics. Exo currently emits C only.
 
 \textbf{xDSL} [fehr2025xdsl] reimplements MLIR's core infrastructure in pure Python, including SSA-based IRs, dialects, regions, and pattern rewriting. It provides the same \texttt{memref}, \texttt{llvm}, and \texttt{builtin} dialect operations as upstream MLIR without requiring a C++ LLVM build.
@@ -114,24 +116,30 @@ The compilation pipeline consists of four stages, each a Python function call, w
 The IR generator walks Exo's LoopIR and emits xDSL operations. Expressions become \texttt{llvm.constant}, \texttt{llvm.fadd}, and \texttt{memref.load}. For loops become three basic blocks with an induction variable as a block argument. Allocations become \texttt{llvm.call @malloc} (heap) or \texttt{llvm.alloca} (stack). All floating-point operations carry fast-math flags to enable vectorization.
 
 \textbf{Memory Lowering.}
-Standard MLIR lowers \texttt{memref} through descriptors, that is, structs with a base pointer, offset, sizes, and strides. Exo tensors have static shapes and row-major layout, so we bypass descriptors entirely, lowering to direct pointer arithmetic via \texttt{llvm.getelementptr}. Function arguments are passed as bare pointers with \texttt{noalias} attributes, enabling LLVM's auto-vectorizer.
+Standard MLIR lowers \texttt{memref} through descriptors, that is, structs with a base pointer, offset, sizes, and strides. Exo tensors have static shapes and row-major layout, so we bypass descriptors entirely, lowering to direct pointer arithmetic via \texttt{llvm.getelementptr} (GEP). Using GEP rather than \texttt{ptrtoint}/\texttt{inttoptr} is essential: the latter breaks LLVM's alias analysis and prevents auto-vectorization. Function arguments are passed as bare pointers with \texttt{noalias} attributes, enabling LLVM's loop vectorizer.
 
 \textbf{Intrinsic Lowering.}
 Exo's \texttt{@instr} decorator binds scheduling-visible semantics to hardware operations. We declare NEON intrinsics over a custom \texttt{NEON} memory class representing 128-bit registers (4$\times$f32). The \texttt{ConvertVecIntrinsic} pass lowers these to LLVM vector operations. Available intrinsics include load/store, broadcast, FMA, add, sub, mul, and \texttt{fmax} (via \texttt{llvm.maxnum.v4f32}).
 
 \textbf{JIT Compilation and Caching.}
-The final stage translates the xDSL LLVM-dialect module to llvmlite IR and invokes MCJIT with LLVM O2 optimization. The compiled IR is cached on disk, keyed by a hash of all compiler source files. A C extension (\texttt{jitcall.c}) wraps function pointers with Python's \texttt{vectorcall} protocol, extracting buffer pointers from NumPy arrays with approximately 1\,$\mu$s FFI overhead.
+The final stage translates the xDSL LLVM-dialect module to llvmlite IR and invokes MCJIT with LLVM O2 optimization. The compiled IR is cached on disk, keyed by a SHA-256 hash of all compiler source files; changing any \texttt{xnumpy/*.py} file automatically invalidates the cache without explicit versioning.
+
+\textbf{FFI Bridge.}
+A C extension (\texttt{jitcall.c}, 132 lines) wraps JIT function pointers using CPython's \texttt{vectorcall} protocol. Arguments are marshaled via Python's buffer protocol: NumPy arrays yield their data pointer directly, integers are passed by value. The bridge always passes 16 \texttt{intptr\_t} arguments regardless of arity, exploiting the ARM64 and x86-64 calling conventions where the callee simply ignores excess register arguments. This fixed-arity approach avoids function-pointer casts or variadic dispatch, achieving approximately 1\,$\mu$s per call.
 
 # Evaluation
 
-We evaluate on Apple Silicon (AArch64) with ARM NEON 128-bit SIMD. Each benchmark reports throughput in GFLOP/s and speedup over NumPy (which uses Apple's Accelerate framework with AMX for BLAS operations). Timing uses the minimum of 200 \texttt{timeit} repeats.
+We measure where fusion helps and where it does not.
+
+\textbf{Setup.}
+All experiments run on Apple Silicon (AArch64) with ARM NEON 128-bit SIMD. NumPy 1.26 is backed by Apple's Accelerate framework, which dispatches BLAS operations to the AMX coprocessor for matrix workloads and uses vDSP for element-wise operations. Our JIT kernels run on a single core using only NEON. Each benchmark reports throughput in GFLOP/s and speedup over NumPy. Timing uses the minimum of 200 \texttt{timeit} repeats to reduce variance from system noise. Problem sizes range from $N{=}64$ to $N{=}4{,}194{,}304$ (4M), spanning the transition from L1-resident to DRAM-bound regimes.
 
 \textbf{Kernels.}
 We organize the 11 benchmarked kernels into three categories. The \emph{fused multi-pass} kernels are our primary focus, as they are where kernel fusion provides a sustained advantage that NumPy cannot match.
 
 The first category is \emph{fused multi-pass} kernels: softmax (max + exp + sum + normalize), cross-entropy (max + exp + sum + log), and RMSNorm (sum-of-squares + scale). NumPy must execute each pass as a separate array operation, materializing intermediates; our JIT kernels fuse all passes into a single loop. The second category is \emph{element-wise} kernels (SAXPY, add, ReLU, dot, embedding), which serve as baselines. Both implementations are memory-bandwidth-bound at large $N$, so speedups converge toward $1\times$. The third category is \emph{matrix} kernels (matmul, matvec, weighted sum), where NumPy's Accelerate/AMX dominates at large sizes.
 
-Each kernel has two JIT variants: \emph{auto-vectorized} (scalar Exo code, LLVM vectorizes) and \emph{NEON intrinsics} (explicit \texttt{neon\_*} instructions via Exo's \texttt{@instr}).
+Each kernel has two JIT variants: \emph{auto-vectorized} (scalar Exo code, LLVM vectorizes) and \emph{NEON intrinsics} (explicit \texttt{neon\_*} instructions via Exo's \texttt{@instr}). The auto-vectorized variant writes the kernel as scalar Exo loops and relies on LLVM's O2 pass pipeline (loop vectorizer, SLP vectorizer, instruction scheduling) to generate SIMD code. The NEON variant uses Exo's \texttt{@instr} mechanism to emit explicit 4-wide vector operations, giving the programmer direct control over register allocation and instruction-level parallelism at the cost of more code.
 
 \textbf{Fused Kernels: Sustained Speedup via Fusion.}
 
@@ -171,13 +179,21 @@ ggplot(fused, aes(n_fct, speedup_clamped, color=variant, linetype=variant, group
 \normalsize
 \vspace{0.3em}
 
-Figure 1 shows the speedup for the three fused kernels. Unlike simple element-wise operations, these kernels maintain substantial speedups across all problem sizes.
+Figure 1 shows the speedup for the three fused kernels. Unlike simple element-wise operations, these kernels maintain substantial speedups across all problem sizes. The characteristic shape of each curve reflects a two-regime model: at small $N$, dispatch overhead dominates and speedups are highest; as $N$ grows, compute and memory bandwidth become the bottleneck and speedups converge to a steady-state value determined by how much memory traffic the fused kernel eliminates.
 
-\emph{Softmax} ($4.6\times$ at $N{=}4$M). NumPy computes softmax as four separate array passes: \texttt{max}, \texttt{subtract}, \texttt{exp}, and \texttt{divide(exp, sum)}. Each pass reads and writes the full array. Our JIT kernel fuses all passes into a single loop with stack-allocated accumulators (via \texttt{alloca} promoted to registers by LLVM), reducing memory traffic by ${\sim}4\times$.
+\emph{Softmax} ($4.6\times$ at $N{=}4$M). NumPy computes softmax as four separate array passes: \texttt{max}, \texttt{subtract}, \texttt{exp}, and \texttt{divide(exp, sum)}. Each pass reads and writes the full $N$-element array, producing roughly $8N$ bytes of memory traffic per pass and $32N$ total. Our JIT kernel fuses all four passes into a single loop with stack-allocated accumulators (via \texttt{alloca} promoted to registers by LLVM), reducing total traffic to ${\sim}8N$ bytes, a $4\times$ reduction. The \texttt{exp} function avoids \texttt{libm} entirely, using range reduction via repeated squaring ($\exp(x) = \exp(x/32)^{32}$) followed by a degree-5 Horner polynomial that achieves ${\sim}10^{-6}$ relative error.
 
-\emph{Cross-entropy} ($5.6\times$ at $N{=}4$M). Similar to softmax but with an additional log-sum-exp computation. The fused kernel avoids materializing the softmax output entirely, computing the log-probability in a single pass.
+\emph{Cross-entropy} ($5.6\times$ at $N{=}4$M). Cross-entropy loss computes $-\log(\mathrm{softmax}(x)_k)$, which requires the same max, exp, and sum passes as softmax plus a final log. In NumPy, this is typically expressed as a chain of five array operations: \texttt{max}, \texttt{subtract}, \texttt{exp}, \texttt{sum}, and \texttt{log}. Each allocates a temporary $N$-element array and reads/writes it in full, producing at least $40N$ bytes of memory traffic. Our fused kernel computes the log-probability in a single pass, reading the input once and writing only the scalar output, for ${\sim}4N$ bytes total.
 
-\emph{RMSNorm} (${\sim}0.7\times$ at $N{=}4$M). RMSNorm computes $x / \sqrt{\mathrm{mean}(x^2) + \epsilon}$ in two passes: sum-of-squares then scale. NumPy's BLAS-accelerated vector operations (using Apple's Accelerate framework) outperform our single-threaded JIT at large $N$. The JIT kernel still achieves $1.9\times$ speedup up to $N{=}4$K where dispatch overhead dominates.
+What is notable about cross-entropy is how flat the speedup curve remains: $5.6\times$ at $N{=}64$, peaking at $6.7\times$ at $N{=}1$K, and still $5.6\times$ at $N{=}4$M. The speedup barely decays because the ratio of eliminated memory traffic is roughly constant regardless of problem size. NumPy's per-operation overhead (temporary allocation, Python dispatch, type checking) adds a fixed cost per pass that compounds across five operations; the fused kernel pays none of this. Even at $N{=}4$M where the working set (${\sim}16$\,MB) far exceeds L2 cache, the ${\sim}10\times$ reduction in memory traffic keeps the fused kernel well ahead.
+
+The additional log and subtraction operations add compute intensity without increasing memory pressure, which actually improves the compute-to-memory ratio and makes the kernel less bandwidth-bound than softmax. This explains why cross-entropy sustains a higher steady-state speedup ($5.6\times$ vs $4.6\times$) despite performing strictly more arithmetic per element.
+
+\emph{RMSNorm} (${\sim}0.7\times$ at $N{=}4$M). RMSNorm computes $x / \sqrt{\mathrm{mean}(x^2) + \epsilon}$ in two passes: a reduction pass that accumulates the sum of squares, and a scaling pass that divides each element by the computed norm. With only two passes to fuse (compared to four or five for softmax and cross-entropy), the potential memory traffic reduction is smaller: from ${\sim}16N$ bytes (two separate read-write passes) to ${\sim}12N$ bytes (one read-reduce pass plus one read-write scaling pass), roughly a $1.3\times$ improvement.
+
+The JIT kernel achieves $1.9\times$ speedup up to $N{=}4$K, where dispatch overhead still contributes meaningfully. The crossover point where NumPy overtakes the JIT kernel occurs at $N{=}16$K ($1.2\times$), and by $N{=}65$K the JIT falls below $1\times$. At large $N$, NumPy's Accelerate framework uses vDSP-accelerated vector operations for the squared-norm and scaling, which are heavily tuned for exactly this reduce-then-broadcast pattern. The NEON intrinsics variant fares slightly better than auto-vectorized at large $N$ ($0.77\times$ vs $0.69\times$ at $N{=}4$M) because explicit register management avoids some spill overhead in the two-pass structure.
+
+RMSNorm illustrates the limits of fusion as an optimization strategy: when the number of passes is small and NumPy's backend is well-optimized for the specific access pattern, single-threaded JIT compilation cannot compensate for the lack of hardware-accelerated vector primitives.
 
 ```{r fused-table, results='asis'}
 ftbl <- df_1d %>%
@@ -240,15 +256,17 @@ ggplot(baselines, aes(n_fct, speedup_clamped, color=variant, linetype=variant, g
 \normalsize
 \vspace{0.3em}
 
-Figure 2 shows results for the simple element-wise kernels. These confirm the expected pattern: at small $N$, reduced dispatch overhead yields $3{-}9\times$ speedups, but at large $N$ both implementations are memory-bandwidth-bound and speedups converge toward $1\times$. These kernels involve a single pass over the data with no opportunity for fusion.
+Figure 2 shows results for the five element-wise baseline kernels. These confirm the expected pattern: at small $N$ (64 to 256), reduced dispatch overhead yields $3{-}9\times$ speedups, but at large $N$ both implementations become memory-bandwidth-bound and speedups converge toward $1\times$. These kernels involve a single pass over the data with no opportunity for fusion, so the only advantage the JIT has over NumPy is lower per-call overhead. ReLU achieves the highest peak speedup ($8.5\times$ at $N{=}16$K) because NumPy's element-wise maximum operation has relatively high Python-level overhead. Element-wise add converges closest to $1\times$ ($1.01\times$ at $N{=}4$M) because both implementations reduce to a single memory-bound vector addition.
 
-For matrix kernels (matmul, matvec, weighted sum), NumPy's Accelerate-backed GEMM uses Apple's AMX coprocessor, reaching 2353~GFLOP/s at $n{=}512$ while our single-threaded JIT plateaus at ${\sim}40$~GFLOP/s. At small sizes ($n \leq 64$), the JIT achieves $3{-}5\times$ speedup due to BLAS dispatch overhead, but AMX hardware acceleration makes large-$N$ competition infeasible for single-core NEON.
+For matrix kernels (matmul, matvec, weighted sum), NumPy's Accelerate-backed GEMM uses Apple's AMX coprocessor, reaching 2353~GFLOP/s at $n{=}512$ while our single-threaded JIT plateaus at ${\sim}40$~GFLOP/s. This $58\times$ gap reflects the fundamental difference between a dedicated matrix-multiply accelerator (AMX) and general-purpose SIMD (NEON). At small sizes ($n \leq 64$), the JIT achieves $3{-}5\times$ speedup because Accelerate's BLAS dispatch overhead exceeds the JIT's 1\,$\mu$s call cost, but AMX hardware acceleration makes large-$N$ competition infeasible for single-core NEON.
 
 \textbf{Auto-Vectorized vs.\ NEON Intrinsics.}
 
-For the fused kernels, the auto-vectorized variant consistently outperforms hand-written NEON. LLVM's loop vectorizer, combined with fast-math flags and \texttt{noalias} pointer attributes, generates high-quality SIMD code from scalar loops and can apply global optimizations (SLP vectorization, instruction scheduling) across the entire fused loop body, something difficult to replicate with individual intrinsic operations.
+For the fused kernels, the auto-vectorized variant consistently outperforms hand-written NEON. LLVM's loop vectorizer, combined with fast-math flags and \texttt{noalias} pointer attributes, generates high-quality SIMD code from scalar loops and can apply global optimizations (SLP vectorization, instruction scheduling) across the entire fused loop body, something difficult to replicate with individual intrinsic operations. For softmax, the auto-vectorized variant achieves $4.6\times$ at $N{=}4$M compared to NEON's $3.3\times$, a $1.4\times$ gap that persists across all problem sizes.
 
-The NEON variant is necessary only for patterns that LLVM cannot auto-vectorize, such as horizontal max reductions in softmax's max-finding pass. Here, explicit \texttt{neon\_fmax\_acc\_f32x4} with multiple accumulators for instruction-level parallelism is required. However, the overall fused kernel still performs better in auto-vectorized form because the non-reducible portion of the loop body benefits from LLVM's optimizer.
+The NEON variant is necessary only for patterns that LLVM cannot auto-vectorize, such as horizontal max reductions in softmax's max-finding pass. Here, explicit \texttt{neon\_fmax\_acc\_f32x4} with two independent 4-wide accumulators is required to exploit instruction-level parallelism (processing 8 floats per iteration to hide the 4-cycle FMA latency on ARM64). For simple element-wise kernels (SAXPY, add, ReLU), both variants produce nearly identical throughput because LLVM's vectorizer handles these trivially.
+
+This result suggests that for a JIT compiler targeting LLVM, investing effort in correct fast-math annotation and alias metadata yields better returns than hand-written intrinsics. Explicit NEON should be reserved for the specific patterns where LLVM's analysis falls short.
 
 # Discussion
 
