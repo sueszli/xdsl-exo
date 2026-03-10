@@ -13,6 +13,7 @@ dependencies = [
     "pytest-forked",
     "llvmlite",
     "plotnine",
+    "plotext",
     "polars",
     "pyarrow",
     "tqdm",

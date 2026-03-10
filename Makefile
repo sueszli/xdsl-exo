@@ -19,6 +19,7 @@ fmt:
 .PHONY: benchmark
 benchmark:
 	uv run python benchmarks/run.py
+	uv run python benchmarks/plot.py
 
 .PHONY: precommit
 precommit: fmt tests benchmark
