@@ -10,7 +10,7 @@ optimizer sees more context and schedules instructions better than we can by han
 
 References:
   Blog post:   https://karpathy.github.io/2026/02/12/microgpt/
-  Source code:  https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95
+  Source code:  https://gist.githubusercontent.com/karpathy/8627fe009c40f57531cb18360106ce95/raw/14fb038816c7aae0bb9342c2dbf1a51dd134a5ff/microgpt.py
 
 microgpt architecture:
   - 1 transformer layer, 16-dim embeddings, 4 attention heads, 4-dim per head
