@@ -9,6 +9,8 @@ from exo.stdlib.scheduling import rename
 from xnumpy.main import compile_jit
 from xnumpy.patches_exo import NEON
 
+_PAR_MIN_ELEMENTS = 1024
+
 
 @instr("neon_loadu_f32x4({dst_data}, {src_data});")
 def neon_loadu_f32x4(dst: [f32][4] @ NEON, src: [f32][4] @ DRAM):
@@ -50,54 +52,93 @@ def neon_add_acc_f32x4(acc: [f32][4] @ NEON, src: [f32][4] @ NEON):
         acc[i] += src[i]
 
 
+# fmt: off
+@proc
+def _mv_neon(M: size, K: size, y: f32[M] @ DRAM, WT: f32[K, M] @ DRAM, x: f32[K] @ DRAM):
+    for j in seq(0, M):
+        y[j] = 0.0
+
+    for jo in seq(0, M / 4):
+        acc0: f32[4] @ NEON
+        acc1: f32[4] @ NEON
+        acc2: f32[4] @ NEON
+        acc3: f32[4] @ NEON
+        neon_loadu_f32x4(acc0, y[4 * jo : 4 * jo + 4])
+        neon_loadu_f32x4(acc1, y[4 * jo : 4 * jo + 4])
+        neon_loadu_f32x4(acc2, y[4 * jo : 4 * jo + 4])
+        neon_loadu_f32x4(acc3, y[4 * jo : 4 * jo + 4])
+        for io in seq(0, K / 4):
+            w0: f32[4] @ NEON
+            w1: f32[4] @ NEON
+            w2: f32[4] @ NEON
+            w3: f32[4] @ NEON
+            x0: f32[4] @ NEON
+            x1: f32[4] @ NEON
+            x2: f32[4] @ NEON
+            x3: f32[4] @ NEON
+            neon_loadu_f32x4(w0, WT[4 * io + 0, 4 * jo : 4 * jo + 4])
+            neon_loadu_f32x4(w1, WT[4 * io + 1, 4 * jo : 4 * jo + 4])
+            neon_loadu_f32x4(w2, WT[4 * io + 2, 4 * jo : 4 * jo + 4])
+            neon_loadu_f32x4(w3, WT[4 * io + 3, 4 * jo : 4 * jo + 4])
+            neon_broadcast_f32x4(x0, x[4 * io + 0 : 4 * io + 1])
+            neon_broadcast_f32x4(x1, x[4 * io + 1 : 4 * io + 2])
+            neon_broadcast_f32x4(x2, x[4 * io + 2 : 4 * io + 3])
+            neon_broadcast_f32x4(x3, x[4 * io + 3 : 4 * io + 4])
+            neon_fmadd_f32x4(acc0, w0, x0)
+            neon_fmadd_f32x4(acc1, w1, x1)
+            neon_fmadd_f32x4(acc2, w2, x2)
+            neon_fmadd_f32x4(acc3, w3, x3)
+        neon_add_acc_f32x4(acc0, acc1)
+        neon_add_acc_f32x4(acc0, acc2)
+        neon_add_acc_f32x4(acc0, acc3)
+        neon_storeu_f32x4(y[4 * jo : 4 * jo + 4], acc0)
+
+
+@proc
+def _mv_neon_par(M: size, K: size, y: f32[M] @ DRAM, WT: f32[K, M] @ DRAM, x: f32[K] @ DRAM):
+    for j in seq(0, M):
+        y[j] = 0.0
+
+    for jo in par(0, M / 4):
+        acc0: f32[4] @ NEON
+        acc1: f32[4] @ NEON
+        acc2: f32[4] @ NEON
+        acc3: f32[4] @ NEON
+        neon_loadu_f32x4(acc0, y[4 * jo : 4 * jo + 4])
+        neon_loadu_f32x4(acc1, y[4 * jo : 4 * jo + 4])
+        neon_loadu_f32x4(acc2, y[4 * jo : 4 * jo + 4])
+        neon_loadu_f32x4(acc3, y[4 * jo : 4 * jo + 4])
+        for io in seq(0, K / 4):
+            w0: f32[4] @ NEON
+            w1: f32[4] @ NEON
+            w2: f32[4] @ NEON
+            w3: f32[4] @ NEON
+            x0: f32[4] @ NEON
+            x1: f32[4] @ NEON
+            x2: f32[4] @ NEON
+            x3: f32[4] @ NEON
+            neon_loadu_f32x4(w0, WT[4 * io + 0, 4 * jo : 4 * jo + 4])
+            neon_loadu_f32x4(w1, WT[4 * io + 1, 4 * jo : 4 * jo + 4])
+            neon_loadu_f32x4(w2, WT[4 * io + 2, 4 * jo : 4 * jo + 4])
+            neon_loadu_f32x4(w3, WT[4 * io + 3, 4 * jo : 4 * jo + 4])
+            neon_broadcast_f32x4(x0, x[4 * io + 0 : 4 * io + 1])
+            neon_broadcast_f32x4(x1, x[4 * io + 1 : 4 * io + 2])
+            neon_broadcast_f32x4(x2, x[4 * io + 2 : 4 * io + 3])
+            neon_broadcast_f32x4(x3, x[4 * io + 3 : 4 * io + 4])
+            neon_fmadd_f32x4(acc0, w0, x0)
+            neon_fmadd_f32x4(acc1, w1, x1)
+            neon_fmadd_f32x4(acc2, w2, x2)
+            neon_fmadd_f32x4(acc3, w3, x3)
+        neon_add_acc_f32x4(acc0, acc1)
+        neon_add_acc_f32x4(acc0, acc2)
+        neon_add_acc_f32x4(acc0, acc3)
+        neon_storeu_f32x4(y[4 * jo : 4 * jo + 4], acc0)
+
+
 @cache
 def matvec_neon(m: int, k: int) -> Callable[..., None]:
     assert m % 4 == 0
     assert k % 4 == 0
-
-    m4 = m // 4
-    k4 = k // 4
-
-    @proc
-    def _mv_neon(y: f32[m] @ DRAM, WT: f32[k, m] @ DRAM, x: f32[k] @ DRAM):
-        for j in seq(0, m):
-            y[j] = 0.0
-
-        for jo in seq(0, m4):
-            acc0: f32[4] @ NEON
-            acc1: f32[4] @ NEON
-            acc2: f32[4] @ NEON
-            acc3: f32[4] @ NEON
-            neon_loadu_f32x4(acc0, y[4 * jo : 4 * jo + 4])
-            neon_loadu_f32x4(acc1, y[4 * jo : 4 * jo + 4])
-            neon_loadu_f32x4(acc2, y[4 * jo : 4 * jo + 4])
-            neon_loadu_f32x4(acc3, y[4 * jo : 4 * jo + 4])
-            for io in seq(0, k4):
-                w0: f32[4] @ NEON
-                w1: f32[4] @ NEON
-                w2: f32[4] @ NEON
-                w3: f32[4] @ NEON
-                x0: f32[4] @ NEON
-                x1: f32[4] @ NEON
-                x2: f32[4] @ NEON
-                x3: f32[4] @ NEON
-                neon_loadu_f32x4(w0, WT[4 * io + 0, 4 * jo : 4 * jo + 4])
-                neon_loadu_f32x4(w1, WT[4 * io + 1, 4 * jo : 4 * jo + 4])
-                neon_loadu_f32x4(w2, WT[4 * io + 2, 4 * jo : 4 * jo + 4])
-                neon_loadu_f32x4(w3, WT[4 * io + 3, 4 * jo : 4 * jo + 4])
-                neon_broadcast_f32x4(x0, x[4 * io + 0 : 4 * io + 1])
-                neon_broadcast_f32x4(x1, x[4 * io + 1 : 4 * io + 2])
-                neon_broadcast_f32x4(x2, x[4 * io + 2 : 4 * io + 3])
-                neon_broadcast_f32x4(x3, x[4 * io + 3 : 4 * io + 4])
-                neon_fmadd_f32x4(acc0, w0, x0)
-                neon_fmadd_f32x4(acc1, w1, x1)
-                neon_fmadd_f32x4(acc2, w2, x2)
-                neon_fmadd_f32x4(acc3, w3, x3)
-            neon_add_acc_f32x4(acc0, acc1)
-            neon_add_acc_f32x4(acc0, acc2)
-            neon_add_acc_f32x4(acc0, acc3)
-            neon_storeu_f32x4(y[4 * jo : 4 * jo + 4], acc0)
-
+    p = (_mv_neon_par if m >= _PAR_MIN_ELEMENTS else _mv_neon).partial_eval(M=m, K=k)
     name = f"_mv_neon_{m}_{k}"
-    p = rename(_mv_neon, name)
-    return compile_jit(p)[name]
+    return compile_jit(rename(p, name))[name]

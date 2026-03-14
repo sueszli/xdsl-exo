@@ -8,6 +8,8 @@ from exo.stdlib.scheduling import divide_loop, fission, rename, reorder_loops, s
 
 from xnumpy.main import compile_jit
 
+_PAR_MIN_ELEMENTS = 256
+
 
 @proc
 def _matmul(M: size, K: size, N: size, C: f32[M, N] @ DRAM, A: f32[M, K] @ DRAM, B: f32[K, N] @ DRAM):
@@ -29,7 +31,7 @@ def _matmul_par(M: size, K: size, N: size, C: f32[M, N] @ DRAM, A: f32[M, K] @ D
 
 @cache
 def matmul_exo(m: int, k: int, n: int) -> Callable[..., None]:
-    p = (_matmul_par if m >= 256 else _matmul).partial_eval(M=m, K=k, N=n)
+    p = (_matmul_par if m >= _PAR_MIN_ELEMENTS else _matmul).partial_eval(M=m, K=k, N=n)
     p = fission(p, p.find("for k in _: _").before(), n_lifts=2)
     p = reorder_loops(p, "j k")
     do_k = k > 64

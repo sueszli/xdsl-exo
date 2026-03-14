@@ -301,11 +301,11 @@ class IRGenerator:
             cmp = self._emit(FCmpOp(args[0], args[1], "olt"))
             return self._emit(llvm.SelectOp(cmp, args[2], args[3]))
 
+        if extern.f.name() == "sqrt":
+            return self._emit(FSqrtOp(args[0]))
+
         output_type = self._to_mlir_type(extern.f.typecheck(extern.args))
         name = extern.f.name()
-        # weird libc convention
-        if name == "sqrt" and output_type == f32:
-            name = "sqrtf"
         return self._emit(llvm.CallOp(name, *args, return_type=output_type))
 
     def _expr(self, expr: object) -> OpResult | SSAValue:

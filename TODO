@@ -1,4 +1,4 @@
-bump python version for speedup
+bump python version for speedup (just do it and see what happens)
 
 use more parallel loops in exo/neon kernels
 

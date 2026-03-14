@@ -8,6 +8,8 @@ from exo.stdlib.scheduling import rename, simplify
 
 from xnumpy.main import compile_jit
 
+_PAR_MIN_ELEMENTS = 524288
+
 
 @proc
 def _saxpy(N: size, y: f32[N] @ DRAM, x: f32[N] @ DRAM, a: f32[1] @ DRAM):
@@ -23,7 +25,7 @@ def _saxpy_par(N: size, y: f32[N] @ DRAM, x: f32[N] @ DRAM, a: f32[1] @ DRAM):
 
 @cache
 def saxpy_exo(n: int) -> Callable[..., None]:
-    p = (_saxpy_par if n >= 524288 else _saxpy).partial_eval(N=n)
+    p = (_saxpy_par if n >= _PAR_MIN_ELEMENTS else _saxpy).partial_eval(N=n)
     p = simplify(p)
     name = f"_saxpy_{n}"
     return compile_jit(rename(p, name))[name]

@@ -8,6 +8,8 @@ from exo.stdlib.scheduling import rename, simplify
 
 from xnumpy.main import compile_jit
 
+_PAR_MIN_ELEMENTS = 524288
+
 
 @proc
 def _add(N: size, z: f32[N], x: f32[N], y: f32[N]):
@@ -23,7 +25,7 @@ def _add_par(N: size, z: f32[N], x: f32[N], y: f32[N]):
 
 @cache
 def add_exo(n: int) -> Callable[..., None]:
-    p = (_add_par if n >= 524288 else _add).partial_eval(N=n)
+    p = (_add_par if n >= _PAR_MIN_ELEMENTS else _add).partial_eval(N=n)
     p = simplify(p)
     name = f"_add_{n}"
     return compile_jit(rename(p, name))[name]

@@ -1,6 +1,24 @@
 from __future__ import annotations
 
+import inspect
+from collections import ChainMap
+
+import exo.API as _exo_api
+import exo.frontend.pyparser as _pyparser
 from exo.core.memory import MemGenError, Memory
+
+
+# Exo does `assert isinstance(frame.f_locals, dict)` but PEP 667 (Python 3.14+)
+# returns FrameLocalsProxy instead. Patch both import sites to wrap in dict().
+# see: https://peps.python.org/pep-0667/
+def _patched_get_src_locals(*, depth):
+    frames = inspect.stack()
+    assert len(frames) >= depth
+    return ChainMap(dict(frames[depth].frame.f_locals))
+
+
+_pyparser.get_src_locals = _patched_get_src_locals
+_exo_api.get_src_locals = _patched_get_src_locals
 
 
 class Stack(Memory):
