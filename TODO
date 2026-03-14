@@ -4,12 +4,11 @@ completeness: look up clang intrinsics and do a 1:1 from source. doesn't need to
 
 ---
 
-come up with narrative / abstract
-- what are you trying to achieve? whats the angle? whats the story?
-- we need this first before we bring in collaborators
-- we can individually try formulating this and then come back and chat again
+come up with a narrative and abstract:
+- what are you trying to achieve? whats the angle? whats the story? answer the 6 questions
 - http://www.easterbrook.ca/steve/2010/01/how-to-write-a-scientific-abstract-in-six-easy-steps/
-- come up with a good new name after the mission is clear
+
+then we can bring on more collaborators + find a better name
 
 choose kernels from:
 - https://karpathy.github.io/2026/02/12/microgpt/
