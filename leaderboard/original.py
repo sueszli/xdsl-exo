@@ -18,7 +18,7 @@ print(f"num docs: {len(docs)}")
 
 # tokenize
 uchars = sorted(set("".join(docs)))  # unique characters
-BOS = len(uchars)  # special beginning of sequence (BOS) token
+BOS = len(uchars)  # special "beginning of sequence" (BOS) token
 vocab_size = len(uchars) + 1  # +1 is for BOS
 print(f"vocab size: {vocab_size}")
 
