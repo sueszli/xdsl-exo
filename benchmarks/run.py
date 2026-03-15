@@ -837,8 +837,7 @@ def _plot(df: pl.DataFrame) -> None:
     variant_order = ["Auto-vectorized", "NEON intrinsics", "Numba JIT", "JAX JIT", "torch.compile"]
     pdf["variant"] = pd.Categorical(pdf["variant"], categories=variant_order, ordered=True)
 
-    out = Path(__file__).parent / "plots"
-    out.mkdir(exist_ok=True)
+    out = Path(__file__).parent
     n_kernels = len(kernel_order)
     # fmt: off
     p = (
@@ -875,7 +874,7 @@ def _plot(df: pl.DataFrame) -> None:
             color="", linetype="", shape="",
         )
     )
-    p.save(str(out / "convergence.pdf"), limitsize=False)
+    p.save(str(out / "results.pdf"), limitsize=False)
     # fmt: on
 
 
