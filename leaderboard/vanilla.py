@@ -5,22 +5,23 @@
 
 import math
 import random
+from pathlib import Path
 
 random.seed(42)
 
 # load data
-docs = [line.strip() for line in open("input.txt") if line.strip()]
+docs = (Path(__file__).parent / "input.txt").read_text().splitlines()
 random.shuffle(docs)
 print(f"num docs: {len(docs)}")
 
-# Let there be a Tokenizer to translate strings to sequences of integers ("tokens") and back
-uchars = sorted(set("".join(docs)))  # unique characters in the dataset become token ids 0..n-1
-BOS = len(uchars)  # token id for a special Beginning of Sequence (BOS) token
-vocab_size = len(uchars) + 1  # total number of unique tokens, +1 is for BOS
+# tokenizer
+uchars = sorted(set("".join(docs)))  # unique characters
+BOS = len(uchars)  # special beginning of sequence (BOS) token
+vocab_size = len(uchars) + 1  # +1 is for BOS
 print(f"vocab size: {vocab_size}")
 
 
-# Let there be Autograd to recursively apply the chain rule through a computation graph
+# autograd
 class Value:
     __slots__ = ("data", "grad", "_children", "_local_grads")  # Python optimization for memory usage
 
