@@ -7,8 +7,8 @@ from exo import *
 from exo.stdlib.scheduling import rename
 from kernels.softmax_neon import neon_add_acc_f32x4, neon_fmadd_f32x4, neon_loadu_f32x4, neon_storeu_f32x4
 
-from xnumpy.main import compile_jit
-from xnumpy.patches_exo import NEON
+from exojit.main import compile_jit
+from exojit.patches_exo import NEON
 
 
 @cache

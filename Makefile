@@ -2,6 +2,7 @@
 venv:
 	uv sync
 	uv pip install -e .
+	@echo "\nActivate with: source .venv/bin/activate"
 
 .PHONY: tests
 tests:

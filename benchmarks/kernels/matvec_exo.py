@@ -6,7 +6,7 @@ from functools import cache
 from exo import *
 from exo.stdlib.scheduling import fission, rename, simplify
 
-from xnumpy.main import compile_jit
+from exojit.main import compile_jit
 
 _PAR_MIN_ELEMENTS = 1024
 

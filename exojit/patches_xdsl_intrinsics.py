@@ -7,7 +7,7 @@ from xdsl.dialects.llvm import FAbsOp, FNegOp, MaskedStoreOp
 from xdsl.ir import Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, op_type_rewrite_pattern
 
-from xnumpy.patches_xdsl_llvm import FSqrtOp, VectorFMaxOp
+from exojit.patches_xdsl_llvm import FSqrtOp, VectorFMaxOp
 
 # `vec_*` intrinsic lowering: `llvm.CallOp` -> LLVM/vector dialect ops
 #

@@ -6,8 +6,8 @@ from functools import cache
 from exo import *
 from exo.stdlib.scheduling import rename
 
-from xnumpy.main import compile_jit
-from xnumpy.patches_exo import NEON
+from exojit.main import compile_jit
+from exojit.patches_exo import NEON
 
 
 @instr("neon_loadu_f32x4({dst_data}, {src_data});")

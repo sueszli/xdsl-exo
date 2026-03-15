@@ -139,6 +139,47 @@ wheels = [
 ]
 
 [[package]]
+name = "exojit"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "click" },
+    { name = "exo-lang" },
+    { name = "filelock" },
+    { name = "lit" },
+    { name = "llvmlite" },
+    { name = "numpy" },
+    { name = "plotext" },
+    { name = "plotnine" },
+    { name = "polars" },
+    { name = "pyarrow" },
+    { name = "pytest" },
+    { name = "pytest-forked" },
+    { name = "pytest-xdist" },
+    { name = "tqdm" },
+    { name = "xdsl" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click" },
+    { name = "exo-lang", specifier = "==1.0.0" },
+    { name = "filelock" },
+    { name = "lit" },
+    { name = "llvmlite" },
+    { name = "numpy" },
+    { name = "plotext" },
+    { name = "plotnine" },
+    { name = "polars" },
+    { name = "pyarrow" },
+    { name = "pytest" },
+    { name = "pytest-forked" },
+    { name = "pytest-xdist" },
+    { name = "tqdm" },
+    { name = "xdsl", specifier = "==0.57.3" },
+]
+
+[[package]]
 name = "filelock"
 version = "3.25.0"
 source = { registry = "https://pypi.org/simple" }
@@ -710,47 +751,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/56/59/c72451ce818e0d6a95d98a2f92056416c851f58420af0e53e94ab0501e8e/xdsl-0.57.3.tar.gz", hash = "sha256:cec53ac19d8e5b4f1e31c0ec2858169e7dfd1523ea40359310fecf1941a0cecf", size = 4019441, upload-time = "2026-03-12T22:42:25.113Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/43/e1/6efbab18a80fc873c9505c48cb44de264eb2dc9bb33730d1cad70a938513/xdsl-0.57.3-py3-none-any.whl", hash = "sha256:ada23fb51cb2c68f38fd964f999a3b01cdf5f14280fa339d5c25590d631c8036", size = 4273215, upload-time = "2026-03-12T22:42:23.494Z" },
-]
-
-[[package]]
-name = "xnumpy"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "click" },
-    { name = "exo-lang" },
-    { name = "filelock" },
-    { name = "lit" },
-    { name = "llvmlite" },
-    { name = "numpy" },
-    { name = "plotext" },
-    { name = "plotnine" },
-    { name = "polars" },
-    { name = "pyarrow" },
-    { name = "pytest" },
-    { name = "pytest-forked" },
-    { name = "pytest-xdist" },
-    { name = "tqdm" },
-    { name = "xdsl" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "click" },
-    { name = "exo-lang", specifier = "==1.0.0" },
-    { name = "filelock" },
-    { name = "lit" },
-    { name = "llvmlite" },
-    { name = "numpy" },
-    { name = "plotext" },
-    { name = "plotnine" },
-    { name = "polars" },
-    { name = "pyarrow" },
-    { name = "pytest" },
-    { name = "pytest-forked" },
-    { name = "pytest-xdist" },
-    { name = "tqdm" },
-    { name = "xdsl", specifier = "==0.57.3" },
 ]
 
 [[package]]

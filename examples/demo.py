@@ -6,7 +6,7 @@ import numpy as np
 from exo import *
 from exo.stdlib.scheduling import divide_loop, fission, rename, reorder_loops, simplify, unroll_loop
 
-from xnumpy.main import compile_jit
+from exojit.main import compile_jit
 
 
 @proc

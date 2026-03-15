@@ -39,9 +39,9 @@ from xdsl.transforms.common_subexpression_elimination import CommonSubexpression
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.utils.scoped_dict import ScopedDict
 
-from xnumpy.jitcall import JitFunc
-from xnumpy.patches_xdsl_intrinsics import ConvertVecIntrinsic
-from xnumpy.patches_xdsl_llvm import BrOp, CondBrOp, ExtendedConvertMemRefToPtr, FCmpOp, FSqrtOp, RewriteMemRefTypes, VectorFMaxOp
+from exojit.jitcall import JitFunc
+from exojit.patches_xdsl_intrinsics import ConvertVecIntrinsic
+from exojit.patches_xdsl_llvm import BrOp, CondBrOp, ExtendedConvertMemRefToPtr, FCmpOp, FSqrtOp, RewriteMemRefTypes, VectorFMaxOp
 
 _FCMP_PREDICATES: dict[str, tuple[str, bool]] = {  # mlir predicate -> (op, ordered?)
     "oeq": ("==", True),
@@ -899,12 +899,12 @@ def to_asm(module: ModuleOp) -> str:
 
 @cache
 def _ir_cache_dir() -> Path:
-    # hash all compiler sources -> .cache/xnumpy/{hash}/. auto-invalidates when compiler code changes.
+    # hash all compiler sources -> .cache/exojit/{hash}/. auto-invalidates when compiler code changes.
     src_dir = Path(__file__).resolve().parent
     hasher = hashlib.sha256()
     for py_file in sorted(src_dir.glob("*.py")):
         hasher.update(py_file.read_bytes())
-    cache_dir = src_dir.parent / ".cache" / "xnumpy" / hasher.hexdigest()[:12]
+    cache_dir = src_dir.parent / ".cache" / "exojit" / hasher.hexdigest()[:12]
     cache_dir.mkdir(parents=True, exist_ok=True)
     return cache_dir
 

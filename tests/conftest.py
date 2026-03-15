@@ -8,7 +8,7 @@ import numpy as np
 from _utils import _call, compile_exo, compile_mlir
 from exo.API import Procedure
 
-from xnumpy.main import compile_jit, to_mlir
+from exojit.main import compile_jit, to_mlir
 
 # xdsl irdl holds raw ctypes pointers. gc finalizer ordering -> dangling ptr -> segfault
 _gc.disable()

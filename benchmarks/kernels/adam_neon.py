@@ -7,8 +7,8 @@ from exo import *
 from exo.libs.externs import sqrt
 from exo.stdlib.scheduling import rename
 
-from xnumpy.main import compile_jit
-from xnumpy.patches_exo import NEON
+from exojit.main import compile_jit
+from exojit.patches_exo import NEON
 
 _PAR_MIN_ELEMENTS = 65536
 

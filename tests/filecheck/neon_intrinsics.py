@@ -1,11 +1,11 @@
 # REQUIRES: aarch64
-# RUN: uv run xnumpy --asm %s | filecheck %s
+# RUN: uv run exojit --asm %s | filecheck %s
 
 from __future__ import annotations
 
 from exo import *
 
-from xnumpy.patches_exo import NEON
+from exojit.patches_exo import NEON
 
 #
 # f32x4 intrinsic declarations

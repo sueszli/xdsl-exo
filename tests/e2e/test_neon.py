@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 from exo import *
 
-from xnumpy.main import compile_jit
-from xnumpy.patches_exo import NEON
+from exojit.main import compile_jit
+from exojit.patches_exo import NEON
 
 pytestmark = pytest.mark.skipif(platform.machine() not in ("arm64", "aarch64"), reason="NEON requires aarch64")
 

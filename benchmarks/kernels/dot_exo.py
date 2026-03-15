@@ -6,8 +6,8 @@ from functools import cache
 from exo import *
 from exo.stdlib.scheduling import rename, simplify
 
-from xnumpy.main import compile_jit
-from xnumpy.patches_exo import Stack
+from exojit.main import compile_jit
+from exojit.patches_exo import Stack
 
 
 @proc

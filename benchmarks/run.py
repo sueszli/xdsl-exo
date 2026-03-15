@@ -864,7 +864,7 @@ def _plot(df: pl.DataFrame) -> None:
             panel_border=element_rect(color="#cccccc", size=0.5),
         )
         + labs(
-            title="xnumpy vs NumPy",
+            title="exojit vs NumPy",
             x="Problem size",
             y="Speedup (x)",
             color="", linetype="", shape="",

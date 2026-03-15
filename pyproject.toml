@@ -1,5 +1,5 @@
 [project]
-name = "xnumpy"
+name = "exojit"
 version = "0.1.0"
 requires-python = "==3.14.*"
 dependencies = [
@@ -25,11 +25,11 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["xnumpy*"]
+include = ["exojit*"]
 namespaces = true
 
 [tool.pytest.ini_options]
 addopts = "-n auto --forked -v"
 
 [project.scripts]
-xnumpy = "xnumpy.main:cli"
+exojit = "exojit.main:cli"

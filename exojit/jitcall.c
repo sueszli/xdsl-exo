@@ -95,7 +95,7 @@ static PyType_Slot JitFunc_slots[] = {
 };
 
 static PyType_Spec JitFunc_spec = {
-    .name = "xnumpy.jitcall.JitFunc",
+    .name = "exojit.jitcall.JitFunc",
     .basicsize = sizeof(JitFuncObject),
     .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_VECTORCALL,
     .slots = JitFunc_slots,
@@ -103,7 +103,7 @@ static PyType_Spec JitFunc_spec = {
 
 static PyModuleDef module_def = {
     PyModuleDef_HEAD_INIT,
-    .m_name = "xnumpy.jitcall",
+    .m_name = "exojit.jitcall",
     .m_size = -1,
 };
 

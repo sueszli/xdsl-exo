@@ -32,7 +32,7 @@ Vectorized scientific compute for everyone.
                        <'
 
 
-xnumpy allows writing user-scheduled SIMD kernels in pure Python.
+exojit allows writing user-scheduled SIMD kernels in pure Python.
 It lowers Exo scheduling-language kernels through xDSL (Python-
 native MLIR) and JIT-compiles them to native vector code via
 llvmlite's MCJIT entirely in-process, without a C compilation step.
@@ -57,9 +57,9 @@ How it works:
 
 Write your own kernels:
 
-    $ uv run xnumpy examples/demo.py --mlir
-    $ uv run xnumpy examples/demo.py --asm
-    $ uv run xnumpy examples/demo.py --c
+    $ uv run exojit examples/demo.py --mlir
+    $ uv run exojit examples/demo.py --asm
+    $ uv run exojit examples/demo.py --c
     $ uv run python examples/demo.py # jit
 
 References:

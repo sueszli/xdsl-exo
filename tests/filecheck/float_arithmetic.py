@@ -1,4 +1,4 @@
-# RUN: uv run xnumpy --mlir %s | filecheck %s
+# RUN: uv run exojit --mlir %s | filecheck %s
 
 # CHECK: builtin.module {
 # CHECK-NEXT:   llvm.func @float_arithmetic({{.*}} : !llvm.ptr, {{.*}} : !llvm.ptr, {{.*}} : !llvm.ptr) {

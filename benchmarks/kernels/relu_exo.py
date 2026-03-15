@@ -7,7 +7,7 @@ from exo import *
 from exo.libs.externs import select
 from exo.stdlib.scheduling import rename, simplify
 
-from xnumpy.main import compile_jit
+from exojit.main import compile_jit
 
 
 @proc

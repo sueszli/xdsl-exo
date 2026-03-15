@@ -1,4 +1,4 @@
-# RUN: uv run xnumpy --mlir %s | filecheck %s
+# RUN: uv run exojit --mlir %s | filecheck %s
 
 from __future__ import annotations
 
