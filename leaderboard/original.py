@@ -52,6 +52,7 @@ class Value:
         return Value(math.exp(self.data), (self,), (math.exp(self.data),))
 
     def relu(self):
+        # original gpt2 uses gelu
         return Value(max(0, self.data), (self,), (float(self.data > 0),))
 
     def __neg__(self):
@@ -111,23 +112,23 @@ state_dict = {
     "lm_head": matrix(vocab_size, n_embd),  # language model head
 }
 for i in range(n_layer):
-    state_dict[f"layer{i}.attn_wq"] = matrix(n_embd, n_embd) # weight query
-    state_dict[f"layer{i}.attn_wk"] = matrix(n_embd, n_embd) # weight key
-    state_dict[f"layer{i}.attn_wv"] = matrix(n_embd, n_embd) # weight value
-    state_dict[f"layer{i}.attn_wo"] = matrix(n_embd, n_embd) # weight output
-    state_dict[f"layer{i}.mlp_fc1"] = matrix(4 * n_embd, n_embd) # fully connected 1
-    state_dict[f"layer{i}.mlp_fc2"] = matrix(n_embd, 4 * n_embd) # fully connected 2
+    state_dict[f"layer{i}.attn_wq"] = matrix(n_embd, n_embd)  # weight query
+    state_dict[f"layer{i}.attn_wk"] = matrix(n_embd, n_embd)  # weight key
+    state_dict[f"layer{i}.attn_wv"] = matrix(n_embd, n_embd)  # weight value
+    state_dict[f"layer{i}.attn_wo"] = matrix(n_embd, n_embd)  # weight output
+    state_dict[f"layer{i}.mlp_fc1"] = matrix(4 * n_embd, n_embd)  # fully connected 1
+    state_dict[f"layer{i}.mlp_fc2"] = matrix(n_embd, 4 * n_embd)  # fully connected 2
 params = [p for mat in state_dict.values() for row in mat for p in row]  # flatten
 print(f"num params: {len(params)}")
 
 
-# Define the model architecture: a function mapping tokens and parameters to logits over what comes next
-# Follow GPT-2, blessed among the GPTs, with minor differences: layernorm -> rmsnorm, no biases, GeLU -> ReLU
 def linear(x, w):
+    # x @ w.T
     return [sum(wi * xi for wi, xi in zip(wo, x)) for wo in w]
 
 
 def softmax(logits):
+    # F.softmax(logits, dim=-1)
     max_val = max(val.data for val in logits)
     exps = [(val - max_val).exp() for val in logits]
     total = sum(exps)
@@ -135,9 +136,51 @@ def softmax(logits):
 
 
 def rmsnorm(x):
+    # F.rms_norm(x, x.shape)
+    # original gpt2 uses layernorm
     ms = sum(xi * xi for xi in x) / len(x)
     scale = (ms + 1e-5) ** -0.5
     return [xi * scale for xi in x]
+
+
+# Transformer forward pass: token_ids -> logits
+#
+# Shapes (n=seq_len, d=n_embd=16, h=n_head=4, dh=head_dim=4, V=vocab_size):
+# -----------------------------------------------------------------------
+#   wte      (V, d)    token_id -> embedding vector
+#   wpe      (T, d)    position -> embedding vector
+#   attn_wq  (d, d)    x -> queries  (how much do I want to attend?)
+#   attn_wk  (d, d)    x -> keys     (what do I offer to be attended to?)
+#   attn_wv  (d, d)    x -> values   (what do I send if attended to?)
+#   attn_wo  (d, d)    concat heads -> residual
+#   mlp_fc1  (4d, d)   x -> hidden   (expand)
+#   mlp_fc2  (d, 4d)   hidden -> x   (contract)
+#   lm_head  (V, d)    x -> logits   (scores per token)
+#
+# Forward pass:
+# -------------
+#   x[t] = wte[token_ids[t]] + wpe[t]           # (d,)  embed + position
+#
+#   for each head h:
+#     Q = x @ wq.T                              # (n, d)
+#     K = x @ wk.T                              # (n, d)
+#     V = x @ wv.T                              # (n, d)
+#     scores = Q @ K.T / sqrt(head_dim)         # (n, n)  scaled dot-product
+#     scores = masked_fill(scores, causal_mask) # (n, n)  can't see future
+#     weights = softmax(scores)                 # (n, n)  sum to 1
+#     head_out = weights @ V                    # (n, dh)
+#   x = concat(head_outs) @ wo.T                # (n, d)  merge heads
+#
+#   h = relu(x @ mlp_fc1.T)                     # (n, 4d) expand
+#   x = h @ mlp_fc2.T                           # (n, d)  contract
+#
+#   logits = x[-1] @ lm_head.T                  # (V,)    last token only
+#   probs  = softmax(logits)                    # (V,)    next token dist
+#
+#   Q @ K.T  =  "does token i want to look at token j?"
+#               (dot product = similarity between query and key)
+#   weights  =  normalized attention scores (who looks at whom)
+#   weights @ V  =  weighted mix of values from all attended tokens
 
 
 def gpt(token_id, pos_id, keys, values):
@@ -215,7 +258,7 @@ for step in range(num_steps):
         m_hat = m[i] / (1 - beta1 ** (step + 1))
         v_hat = v[i] / (1 - beta2 ** (step + 1))
         p.data -= lr_t * m_hat / (v_hat**0.5 + eps_adam)
-        p.grad = 0
+        p.grad = 0  # optimizer.zero_grad()
 
     print(f"step {step+1:4d} / {num_steps:4d} | loss {loss.data:.4f}", end="\r")
 
