@@ -842,7 +842,7 @@ def _plot(df: pl.DataFrame) -> None:
         + geom_point(aes(shape="variant"), size=2.8)
         + facet_wrap("~kernel", scales="free", ncol=1)
         + scale_color_manual(values=["#4C72B0", "#DD8452", "#C44E52", "#55A868", "#8172B3"])
-        + scale_linetype_manual(values=["solid", "solid", "dotted", "dotted", "dotted"])
+        + scale_linetype_manual(values=["solid", "dotted", "solid", "dotted", "dotted"])
         + scale_shape_manual(values=["o", "^", "D", "s", "v"])
         + expand_limits(y=1)
         + theme_minimal()
