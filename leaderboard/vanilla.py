@@ -130,6 +130,7 @@ def gpt(token_id, pos_id, keys, values, state_dict, n_layer, n_head, head_dim):
 
 random.seed(42)
 
+
 docs = (Path(__file__).parent / "input.txt").read_text().splitlines()
 random.shuffle(docs)
 uchars = sorted(set("".join(docs)))
