@@ -83,8 +83,8 @@ def print_times_all() -> None:
     for name, _ in entries:
         print_times(times_dir / f"{name}.csv")
 
-    chart_data = Data([[v] for v in [math.log10(m * 1000) for _, m in entries]], [e[0] for e in entries])
-    chart_args = Args(title="mean inference time [log10(us) scale]", width=40, format="{:.3f}", space_between=True)
+    chart_data = Data([[m * 1000] for _, m in entries], [e[0] for e in entries])
+    chart_args = Args(title="mean inference time [us]", width=40, format="{:.1f}", space_between=True)
     BarChart(chart_data, chart_args).draw()
 
 
