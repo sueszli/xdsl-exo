@@ -24,13 +24,15 @@ class Value:
         return Value(self.data * other.data, (self, other), (other.data, self.data))
 
     def __pow__(self, other):
-        return Value(self.data**other, (self,), (other * self.data ** (other - 1),))
+        out = self.data**other
+        return Value(out, (self,), (other * out / self.data,))
 
     def log(self):
         return Value(math.log(self.data), (self,), (1 / self.data,))
 
     def exp(self):
-        return Value(math.exp(self.data), (self,), (math.exp(self.data),))
+        out = math.exp(self.data)
+        return Value(out, (self,), (out,))
 
     def relu(self):
         return Value(max(0, self.data), (self,), (float(self.data > 0),))
@@ -59,23 +61,35 @@ class Value:
     def backward(self):
         topo = []
         visited = set()
-
-        def build_topo(v):
+        completed = set()
+        stack = [self]
+        while stack:
+            v = stack[-1]
             if v not in visited:
                 visited.add(v)
                 for child in v._children:
-                    build_topo(child)
-                topo.append(v)
-
-        build_topo(self)
+                    if child not in visited:
+                        stack.append(child)
+            else:
+                stack.pop()
+                if v not in completed:
+                    completed.add(v)
+                    topo.append(v)
         self.grad = 1
         for v in reversed(topo):
+            vgrad = v.grad
             for child, local_grad in zip(v._children, v._local_grads):
-                child.grad += local_grad * v.grad
+                child.grad += local_grad * vgrad
 
 
 def linear(x, w):
-    return [sum(wi * xi for wi, xi in zip(wo, x)) for wo in w]
+    result = []
+    for wo in w:
+        data = sum(wi.data * xi.data for wi, xi in zip(wo, x))
+        children = (*wo, *x)
+        local_grads = (*(xi.data for xi in x), *(wi.data for wi in wo))
+        result.append(Value(data, children, local_grads))
+    return result
 
 
 def softmax(logits):
@@ -161,13 +175,15 @@ eps_adam = 1e-8
 m = [0.0] * len(params)
 v = [0.0] * len(params)
 
+char_to_id = {ch: i for i, ch in enumerate(uchars)}
+
 num_steps = 1000
 step_times = []
 for step in range(num_steps):
     t0 = time.perf_counter()
 
     doc = docs[step % len(docs)]
-    tokens = [BOS] + [uchars.index(ch) for ch in doc] + [BOS]
+    tokens = [BOS] + [char_to_id[ch] for ch in doc] + [BOS]
     n = min(block_size, len(tokens) - 1)
 
     keys = [[] for _ in range(n_layer)]
@@ -185,11 +201,13 @@ for step in range(num_steps):
     loss.backward()
 
     lr_t = learning_rate * (1 - step / num_steps)
+    bc1 = 1 - beta1 ** (step + 1)
+    bc2 = 1 - beta2 ** (step + 1)
     for i, p in enumerate(params):
         m[i] = beta1 * m[i] + (1 - beta1) * p.grad
         v[i] = beta2 * v[i] + (1 - beta2) * p.grad**2
-        m_hat = m[i] / (1 - beta1 ** (step + 1))
-        v_hat = v[i] / (1 - beta2 ** (step + 1))
+        m_hat = m[i] / bc1
+        v_hat = v[i] / bc2
         p.data -= lr_t * m_hat / (v_hat**0.5 + eps_adam)
         p.grad = 0
 
