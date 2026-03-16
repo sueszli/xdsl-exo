@@ -4,8 +4,6 @@ from pathlib import Path
 
 from utils import assert_weights_match
 
-random.seed(42)
-
 
 class Value:
     __slots__ = ("data", "grad", "_children", "_local_grads")
@@ -130,6 +128,8 @@ def gpt(token_id, pos_id, keys, values, state_dict, n_layer, n_head, head_dim):
     return logits
 
 
+random.seed(42)
+
 docs = (Path(__file__).parent / "input.txt").read_text().splitlines()
 random.shuffle(docs)
 uchars = sorted(set("".join(docs)))
@@ -152,7 +152,6 @@ for i in range(n_layer):
     state_dict[f"layer{i}.mlp_fc1"] = matrix(4 * n_embd, n_embd)
     state_dict[f"layer{i}.mlp_fc2"] = matrix(n_embd, 4 * n_embd)
 params = [p for mat in state_dict.values() for row in mat for p in row]
-print(f"num params: {len(params)}")
 
 
 learning_rate = 0.01
