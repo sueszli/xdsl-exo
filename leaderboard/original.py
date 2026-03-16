@@ -230,7 +230,6 @@ v: list[float] = [0.0] * len(params)  # second moment buffer
 # train loop
 num_steps = 1000
 for step in range(num_steps):
-
     doc = docs[step % len(docs)]
     tokens = [BOS] + [uchars.index(ch) for ch in doc] + [BOS]  # turn to token ids
     n = min(block_size, len(tokens) - 1)  # num prediction steps
