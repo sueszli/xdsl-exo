@@ -1,5 +1,10 @@
+# /// script
+# dependencies = ["plotext"]
+# ///
+
 import csv
 import inspect
+import plotext as plt
 import itertools
 import json
 import math
@@ -57,6 +62,36 @@ def print_times(path: Path) -> None:
     print()
 
 
+def print_times_all() -> None:
+    times_dir = Path(__file__).parent / "times"
+    if not times_dir.exists():
+        return
+
+    entries = []
+    for p in sorted(times_dir.glob("*.csv")):
+        with open(p) as f:
+            times = [float(row["time_ms"]) for row in csv.DictReader(f)]
+        if times:
+            entries.append((p.stem, sum(times) / len(times)))
+    if not entries:
+        return
+
+    entries.sort(key=lambda x: x[1], reverse=True)
+    for name, _ in entries:
+        print_times(times_dir / f"{name}.csv")
+
+    names = [e[0] for e in entries]
+    log_means = [math.log10(m) for _, m in entries]
+    plt.bar(names, log_means, orientation="h", width=1.0)
+    plt.plotsize(60, len(entries) + 5)
+    plt.title("mean inference time (ms) [log10 scale]")
+    plt.xlabel("log10(ms)")
+    plt.xfrequency(4)
+    plt.theme("clear")
+    plt.show()
+    plt.clf()
+
+
 def save_times(step_times: list[float]) -> None:
     name = Path(inspect.stack()[1].filename).stem
     path = Path(__file__).parent / "times" / f"{name}.csv"
@@ -66,3 +101,7 @@ def save_times(step_times: list[float]) -> None:
         w.writerow(["step", "time_ms"])
         w.writerows([[i + 1, f"{t * 1000:.3f}"] for i, t in enumerate(step_times)])
     print_times(path)
+
+
+if __name__ == "__main__":
+    print_times_all()
