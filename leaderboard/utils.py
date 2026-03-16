@@ -1,3 +1,5 @@
+import csv
+import inspect
 import json
 from pathlib import Path
 
@@ -11,6 +13,7 @@ def dump_weights(state_dict) -> None:
 
 def assert_weights_match(state_dict, atol: float = 1e-5) -> None:
     # assert cur == ref element-wise within atol. report worst violation on failure
+    assert WEIGHTS_PATH.exists(), f"weights file not found: {WEIGHTS_PATH}"
     ref = json.load(open(WEIGHTS_PATH))
     cur = {k: [[v.data for v in row] for row in mat] for k, mat in state_dict.items()}
 
@@ -28,3 +31,13 @@ def assert_weights_match(state_dict, atol: float = 1e-5) -> None:
                     max_diff, max_loc = d, f"{k}[{i}][{j}]"
 
     assert violations == 0, f"weights mismatch (atol={atol}): {violations}/{total} params exceed tolerance, max diff={max_diff:.2e} at {max_loc}"
+
+
+def save_times(step_times: list[float]) -> None:
+    name = Path(inspect.stack()[1].filename).stem
+    path = Path(__file__).parent / "times" / f"{name}.csv"
+    path.parent.mkdir(exist_ok=True)
+    with open(path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["step", "time_ms"])
+        w.writerows([[i + 1, f"{t * 1000:.3f}"] for i, t in enumerate(step_times)])

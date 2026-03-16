@@ -1,8 +1,9 @@
 import math
 import random
+import time
 from pathlib import Path
 
-from utils import assert_weights_match
+from utils import assert_weights_match, save_times
 
 
 class Value:
@@ -129,8 +130,6 @@ def gpt(token_id, pos_id, keys, values, state_dict, n_layer, n_head, head_dim):
 
 
 random.seed(42)
-
-
 docs = (Path(__file__).parent / "input.txt").read_text().splitlines()
 random.shuffle(docs)
 uchars = sorted(set("".join(docs)))
@@ -163,7 +162,9 @@ m = [0.0] * len(params)
 v = [0.0] * len(params)
 
 num_steps = 1000
+step_times = []
 for step in range(num_steps):
+    t0 = time.perf_counter()
 
     doc = docs[step % len(docs)]
     tokens = [BOS] + [uchars.index(ch) for ch in doc] + [BOS]
@@ -192,7 +193,8 @@ for step in range(num_steps):
         p.data -= lr_t * m_hat / (v_hat**0.5 + eps_adam)
         p.grad = 0
 
+    step_times.append(time.perf_counter() - t0)
     print(f"step {step+1:4d} / {num_steps:4d} | loss {loss.data:.4f}", end="\r")
 
-
+save_times(step_times)
 assert_weights_match(state_dict)

@@ -5,9 +5,10 @@
 
 import math
 import random
+import time
 from pathlib import Path
 
-from utils import dump_weights
+from utils import dump_weights, save_times
 
 random.seed(42)
 
@@ -231,7 +232,9 @@ v: list[float] = [0.0] * len(params)  # second moment buffer
 
 # train loop
 num_steps = 1000
+step_times = []
 for step in range(num_steps):
+    t0 = time.perf_counter()
     doc = docs[step % len(docs)]
     tokens = [BOS] + [uchars.index(ch) for ch in doc] + [BOS]  # turn to token ids
     n = min(block_size, len(tokens) - 1)  # num prediction steps
@@ -264,8 +267,10 @@ for step in range(num_steps):
         p.data -= lr_t * m_hat / (v_hat**0.5 + eps_adam)  # update weights
         p.grad = 0  # reset gradients
 
+    step_times.append(time.perf_counter() - t0)
     print(f"step {step+1:4d} / {num_steps:4d} | loss {loss.data:.4f}", end="\r")
 
+save_times(step_times)
 dump_weights(state_dict)
 
 
