@@ -84,13 +84,12 @@ def tokenize(doc: str, uchars: list[str]) -> tuple[jax.Array, jax.Array, jax.Arr
 docs = (Path(__file__).parent / "input.txt").read_text().splitlines()
 random.shuffle(docs)
 uchars = sorted(set("".join(docs)))
-vocab_size = len(uchars) + 1
 
 matrix = lambda nout, nin, std=0.08: jnp.array([[random.gauss(0, std) for _ in range(nin)] for _ in range(nout)])
 state_dict: dict[str, jax.Array] = {
-    "wte": matrix(vocab_size, N_EMBED),
+    "wte": matrix(len(uchars) + 1, N_EMBED),
     "wpe": matrix(BLOCK_SIZE, N_EMBED),
-    "lm_head": matrix(vocab_size, N_EMBED),
+    "lm_head": matrix(len(uchars) + 1, N_EMBED),
     **{f"layer{i}.attn_wq": matrix(N_EMBED, N_EMBED) for i in range(N_LAYER)},
     **{f"layer{i}.attn_wk": matrix(N_EMBED, N_EMBED) for i in range(N_LAYER)},
     **{f"layer{i}.attn_wv": matrix(N_EMBED, N_EMBED) for i in range(N_LAYER)},
