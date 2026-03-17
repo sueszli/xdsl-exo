@@ -1,8 +1,9 @@
 # /// script
 # requires-python = "==3.14.*"
-# dependencies = ["jax[cpu]", "optax", "tqdm"]
+# dependencies = ["jax[cpu]", "optax", "tqdm", "numpy"]
 # ///
 
+import functools
 import random
 import time
 from collections import namedtuple
@@ -11,6 +12,7 @@ from pathlib import Path
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import optax
 from tqdm import tqdm
 from utils import assert_weights_match, save_times
@@ -57,12 +59,26 @@ def step_fn(params: dict[str, jax.Array], opt_state: optax.OptState, input_ids: 
     return loss, new_params, new_opt_state
 
 
+@functools.cache
+def char_to_id(uchars_tuple: tuple[str, ...]) -> dict[str, int]:
+    return {ch: i for i, ch in enumerate(uchars_tuple)}
+
+
 def tokenize(doc: str, uchars: list[str]) -> tuple[jax.Array, jax.Array, jax.Array]:
+    c2i = char_to_id(tuple(uchars))
     bos = len(uchars)
-    tokens = jnp.array([bos] + [uchars.index(ch) for ch in doc] + [bos])
+    tokens = [bos] + [c2i[ch] for ch in doc] + [bos]
     n = min(BLOCK_SIZE, len(tokens) - 1)
-    pad = (0, BLOCK_SIZE - n)
-    return jnp.pad(tokens[:n], pad), jnp.pad(tokens[1 : n + 1], pad), jnp.pad(jnp.ones(n), pad)
+
+    x = np.zeros(BLOCK_SIZE, dtype=np.int32)
+    y = np.zeros(BLOCK_SIZE, dtype=np.int32)
+    m = np.zeros(BLOCK_SIZE, dtype=np.float32)
+
+    x[:n] = tokens[:n]
+    y[:n] = tokens[1 : n + 1]
+    m[:n] = 1.0
+
+    return jnp.array(x), jnp.array(y), jnp.array(m)
 
 
 docs = (Path(__file__).parent / "input.txt").read_text().splitlines()
