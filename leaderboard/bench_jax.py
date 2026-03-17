@@ -99,7 +99,7 @@ for step in range(num_steps):
     t0 = time.perf_counter()
     input_ids, target_ids, loss_mask = tokenized[step % len(tokenized)]
     loss, state_dict, opt_state = step_fn(input_ids, target_ids, loss_mask, state_dict, opt_state)
-    print(f"step {step+1:4d} / {num_steps:4d} | loss {float(loss):.4f}", end="\r")  # float(loss) syncs JAX
+    print(f"step {step+1:4d} / {num_steps:4d} | loss {float(loss):.4f}", end="\r")
     step_times.append(time.perf_counter() - t0)
 
 save_times(step_times)
