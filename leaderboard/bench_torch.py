@@ -1,16 +1,14 @@
 # /// script
 # requires-python = "==3.14.*"
-# dependencies = ["torch", "tqdm"]
+# dependencies = ["torch"]
 # ///
 
-import functools
 import random
 import time
 from pathlib import Path
 
 import torch
 import torch.nn.functional as F
-from tqdm import tqdm
 from utils import assert_weights_match, save_times
 
 random.seed(42)
@@ -27,53 +25,44 @@ def rmsnorm(x: torch.Tensor) -> torch.Tensor:
     return x * (x.pow(2).mean(-1, keepdim=True) + 1e-5).rsqrt()
 
 
-def forward(params: dict[str, torch.Tensor], input_ids: torch.Tensor, target_ids: torch.Tensor) -> torch.Tensor:
-    n = input_ids.shape[0]
-    x = rmsnorm(params["wte"][input_ids] + params["wpe"][:n])
+@torch.compile
+def forward(params: dict[str, torch.Tensor], input_ids: torch.Tensor, target_ids: torch.Tensor, loss_mask: torch.Tensor) -> torch.Tensor:
+    x = rmsnorm(params["wte"][input_ids] + params["wpe"])
     for li in range(N_LAYER):
         x_residual = x
         xn = rmsnorm(x)
-        q = F.linear(xn, params[f"layer{li}.attn_wq"]).view(n, N_HEAD, N_EMBED // N_HEAD).transpose(0, 1)
-        k = F.linear(xn, params[f"layer{li}.attn_wk"]).view(n, N_HEAD, N_EMBED // N_HEAD).transpose(0, 1)
-        v = F.linear(xn, params[f"layer{li}.attn_wv"]).view(n, N_HEAD, N_EMBED // N_HEAD).transpose(0, 1)
+        q = F.linear(xn, params[f"layer{li}.attn_wq"]).view(BLOCK_SIZE, N_HEAD, N_EMBED // N_HEAD).transpose(0, 1)
+        k = F.linear(xn, params[f"layer{li}.attn_wk"]).view(BLOCK_SIZE, N_HEAD, N_EMBED // N_HEAD).transpose(0, 1)
+        v = F.linear(xn, params[f"layer{li}.attn_wv"]).view(BLOCK_SIZE, N_HEAD, N_EMBED // N_HEAD).transpose(0, 1)
         attn_out = F.scaled_dot_product_attention(q, k, v, is_causal=True)
-        x = F.linear(attn_out.transpose(0, 1).reshape(n, N_EMBED), params[f"layer{li}.attn_wo"]) + x_residual
+        x = F.linear(attn_out.transpose(0, 1).reshape(BLOCK_SIZE, N_EMBED), params[f"layer{li}.attn_wo"]) + x_residual
         x_residual = x
         xn = rmsnorm(x)
         x = F.linear(F.relu(F.linear(xn, params[f"layer{li}.mlp_fc1"])), params[f"layer{li}.mlp_fc2"]) + x_residual
-    return F.cross_entropy(F.linear(x, params["lm_head"]), target_ids)
+    logits = F.linear(x, params["lm_head"])
+    per_token_loss = F.cross_entropy(logits, target_ids, reduction="none")
+    return (per_token_loss * loss_mask).sum() / loss_mask.sum()
 
 
-def step_fn(params: dict[str, torch.Tensor], optimizer: torch.optim.Optimizer, input_ids: torch.Tensor, target_ids: torch.Tensor, step: int) -> tuple[torch.Tensor, dict[str, torch.Tensor], torch.optim.Optimizer]:
-    optimizer.zero_grad()
-    loss = forward(params, input_ids, target_ids)
-    loss.backward()
-
-    learning_rate = 0.01
-    lr_t = learning_rate * (1 - step / NUM_STEPS)
-
-    for param_group in optimizer.param_groups:
-        param_group["lr"] = lr_t
-
-    optimizer.step()
-
-    return loss, params, optimizer
-
-
-@functools.cache
-def char_to_id(uchars_tuple: tuple[str, ...]) -> dict[str, int]:
-    return {ch: i for i, ch in enumerate(uchars_tuple)}
-
-
-def tokenize(docs: list[str], uchars: list[str]) -> list[tuple[torch.Tensor, torch.Tensor]]:
-    def tokenize_doc(doc: str) -> tuple[torch.Tensor, torch.Tensor]:
-        c2i = char_to_id(tuple(uchars))
+def tokenize(docs: list[str], uchars: list[str]) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def tokenize_doc(doc: str) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        c2i = {ch: i for i, ch in enumerate(uchars)}
         bos = len(uchars)
         tokens = [bos] + [c2i[ch] for ch in doc] + [bos]
         n = min(BLOCK_SIZE, len(tokens) - 1)
-        return torch.tensor(tokens[:n]), torch.tensor(tokens[1 : n + 1])
 
-    return [tokenize_doc(doc) for doc in tqdm(docs, desc="tokenizing")]
+        input_ids = torch.zeros(BLOCK_SIZE, dtype=torch.long)
+        target_ids = torch.zeros(BLOCK_SIZE, dtype=torch.long)
+        loss_mask = torch.zeros(BLOCK_SIZE, dtype=torch.float64)
+
+        input_ids[:n] = torch.tensor(tokens[:n], dtype=torch.long)
+        target_ids[:n] = torch.tensor(tokens[1 : n + 1], dtype=torch.long)
+        loss_mask[:n] = 1.0
+
+        return input_ids, target_ids, loss_mask
+
+    per_doc = [tokenize_doc(doc) for doc in docs]
+    return map(torch.stack, zip(*[per_doc[step % len(per_doc)] for step in range(NUM_STEPS)]))
 
 
 docs = (Path(__file__).parent / "input.txt").read_text().splitlines()
@@ -81,7 +70,7 @@ random.shuffle(docs)
 uchars = sorted(set("".join(docs)))
 
 matrix = lambda nout, nin, std=0.08: torch.tensor([[random.gauss(0, std) for _ in range(nin)] for _ in range(nout)], dtype=torch.float64).requires_grad_(True)
-state_dict = {
+state_dict: dict[str, torch.Tensor] = {
     "wte": matrix(len(uchars) + 1, N_EMBED),
     "wpe": matrix(BLOCK_SIZE, N_EMBED),
     "lm_head": matrix(len(uchars) + 1, N_EMBED),
@@ -93,15 +82,24 @@ state_dict = {
     **{f"layer{i}.mlp_fc2": matrix(N_EMBED, 4 * N_EMBED) for i in range(N_LAYER)},
 }
 
-opt_state = torch.optim.Adam(list(state_dict.values()), lr=0.01, betas=(0.85, 0.99), eps=1e-8)
+optimizer = torch.optim.Adam(list(state_dict.values()), lr=0.01, betas=(0.85, 0.99), eps=1e-8, foreach=True)
+train_inputs, train_targets, train_masks = tokenize(docs, uchars)
 
-tokenized = tokenize(docs, uchars)
+# precompile / warmup
+_p = {k: v.clone().detach().requires_grad_(True) for k, v in state_dict.items()}
+_o = torch.optim.Adam(list(_p.values()), lr=0.01, betas=(0.85, 0.99), eps=1e-8, foreach=True)
+forward(_p, train_inputs[0], train_targets[0], train_masks[0]).backward()
+_o.step()
+del _p, _o
 
 step_times = []
 for step in range(NUM_STEPS):
     t0 = time.perf_counter()
-    input_ids, target_ids = tokenized[step % len(tokenized)]
-    loss, state_dict, opt_state = step_fn(state_dict, opt_state, input_ids, target_ids, step)
+    optimizer.zero_grad(set_to_none=True)
+    loss = forward(state_dict, train_inputs[step], train_targets[step], train_masks[step])
+    loss.backward()
+    optimizer.param_groups[0]["lr"] = 0.01 * (1 - step / NUM_STEPS)
+    optimizer.step()
     step_times.append(time.perf_counter() - t0)
     print(f"step {step+1:4d} / {NUM_STEPS:4d} | loss {loss.item():.4f}", end="\r")
 
