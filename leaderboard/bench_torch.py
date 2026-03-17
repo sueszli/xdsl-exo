@@ -91,14 +91,13 @@ state_dict: dict[str, torch.Tensor] = {
     **{f"layer{i}.mlp_fc2": matrix(N_EMBED, 4 * N_EMBED) for i in range(N_LAYER)},
 }
 
-optimizer = torch.optim.Adam(list(state_dict.values()), lr=0.01, betas=(0.85, 0.99), eps=1e-8, foreach=True)
+make_optimizer = lambda params: torch.optim.Adam(list(params.values()), lr=0.01, betas=(0.85, 0.99), eps=1e-8, foreach=True)
+optimizer = make_optimizer(state_dict)
 train_inputs, train_targets, train_masks = tokenize(docs, uchars)
 
-# precompile: run one full step on cloned params to trigger torch.compile before timing
-_p = {k: v.clone().detach().requires_grad_(True) for k, v in state_dict.items()}
-_o = torch.optim.Adam(list(_p.values()), lr=0.01, betas=(0.85, 0.99), eps=1e-8, foreach=True)
-step_fn(_p, _o, train_inputs[0], train_targets[0], train_masks[0], 0.01)
-del _p, _o
+# precompile: trigger torch.compile before timing
+step_fn(_p := {k: v.clone().detach().requires_grad_(True) for k, v in state_dict.items()}, make_optimizer(_p), train_inputs[0], train_targets[0], train_masks[0], 0.01)
+del _p
 
 step_times = []
 for step in range(NUM_STEPS):
