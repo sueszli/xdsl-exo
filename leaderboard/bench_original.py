@@ -111,6 +111,7 @@ class Value:
 # training
 #
 
+
 # init params
 matrix = lambda nout, nin, std=0.08: [[Value(random.gauss(0, std)) for _ in range(nin)] for _ in range(nout)]  # torch.randn(nout, nin) * std
 state_dict: dict[str, list[list[Value]]] = {
