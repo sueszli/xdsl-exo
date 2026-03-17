@@ -47,7 +47,7 @@ def rmsnorm(x: jax.Array) -> jax.Array:
     return x * (jnp.mean(x**2, axis=-1, keepdims=True) + 1e-5) ** -0.5
 
 
-def forward(input_ids: jax.Array, target_ids: jax.Array, params: dict[str, jax.Array]) -> jax.Array:
+def forward(input_ids: jax.Array, target_ids: jax.Array, loss_mask: jax.Array, params: dict[str, jax.Array]) -> jax.Array:
     n = input_ids.shape[0]
     x = rmsnorm(params["wte"][input_ids] + params["wpe"][jnp.arange(n)])
     for li in range(n_layer):
@@ -62,7 +62,8 @@ def forward(input_ids: jax.Array, target_ids: jax.Array, params: dict[str, jax.A
         x_residual = x
         xn = rmsnorm(x)
         x = jax.nn.relu(xn @ params[f"layer{li}.mlp_fc1"].T) @ params[f"layer{li}.mlp_fc2"].T + x_residual
-    return -jax.nn.log_softmax(x @ params["lm_head"].T, axis=-1)[jnp.arange(n), target_ids].mean()
+    per_token_loss = -jax.nn.log_softmax(x @ params["lm_head"].T, axis=-1)[jnp.arange(n), target_ids]
+    return (per_token_loss * loss_mask).sum() / loss_mask.sum()
 
 
 learning_rate = 0.01
@@ -72,19 +73,32 @@ eps_adam = 1e-8
 num_steps = 1000
 optimizer = optax.adam(optax.linear_schedule(learning_rate, 0.0, num_steps), b1=beta1, b2=beta2, eps=eps_adam)
 opt_state = optimizer.init(state_dict)
-step_fn = jax.jit(jax.value_and_grad(forward, argnums=2))
+
+
+@jax.jit
+def step_fn(input_ids, target_ids, loss_mask, params, opt_state):
+    loss, grads = jax.value_and_grad(forward, argnums=3)(input_ids, target_ids, loss_mask, params)
+    updates, new_opt_state = optimizer.update(grads, opt_state)
+    new_params = optax.apply_updates(params, updates)
+    return loss, new_params, new_opt_state
+
+
+def tokenize(doc):
+    tokens = [BOS] + [uchars.index(ch) for ch in doc] + [BOS]
+    n = min(block_size, len(tokens) - 1)
+    inp = tokens[:n] + [0] * (block_size - n)
+    tgt = tokens[1 : n + 1] + [0] * (block_size - n)
+    mask = [1.0] * n + [0.0] * (block_size - n)
+    return jnp.array(inp), jnp.array(tgt), jnp.array(mask)
+
+
+tokenized = [tokenize(doc) for doc in docs]
 
 step_times = []
 for step in range(num_steps):
     t0 = time.perf_counter()
-    doc = docs[step % len(docs)]
-    tokens = [BOS] + [uchars.index(ch) for ch in doc] + [BOS]
-    n = min(block_size, len(tokens) - 1)
-    input_ids = jnp.array(tokens[:n])
-    target_ids = jnp.array(tokens[1 : n + 1])
-    loss, grads = step_fn(input_ids, target_ids, state_dict)
-    updates, opt_state = optimizer.update(grads, opt_state)
-    state_dict = optax.apply_updates(state_dict, updates)
+    input_ids, target_ids, loss_mask = tokenized[step % len(tokenized)]
+    loss, state_dict, opt_state = step_fn(input_ids, target_ids, loss_mask, state_dict, opt_state)
     print(f"step {step+1:4d} / {num_steps:4d} | loss {float(loss):.4f}", end="\r")  # float(loss) syncs JAX
     step_times.append(time.perf_counter() - t0)
 
