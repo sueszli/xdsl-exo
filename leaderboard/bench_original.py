@@ -179,8 +179,6 @@ def rmsnorm(x: list[Value]) -> list[Value]:
 #   K  — whether this token is worth looking at
 #   V  — what this token injects when selected
 #   O  — project head outputs back into residual-stream space
-
-
 def gpt(
     token_id: int,
     pos_id: int,  # token position in the sequence
@@ -236,6 +234,7 @@ eps_adam = 1e-8
 m: list[float] = [0.0] * len(params)  # first moment buffer
 v: list[float] = [0.0] * len(params)  # second moment buffer
 
+
 # train loop
 step_times = []
 for step in range(NUM_STEPS):
@@ -278,9 +277,11 @@ for step in range(NUM_STEPS):
 save_times(step_times)
 dump_weights(state_dict)
 
+
 #
 # inference
 #
+
 
 print("\ninference:")
 temperature = 0.5
