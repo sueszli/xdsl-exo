@@ -50,7 +50,6 @@ def forward(input_ids: jax.Array, target_ids: jax.Array, loss_mask: jax.Array, p
 docs = (Path(__file__).parent / "input.txt").read_text().splitlines()
 random.shuffle(docs)
 uchars = sorted(set("".join(docs)))
-bos = len(uchars)
 vocab_size = len(uchars) + 1
 
 matrix = lambda nout, nin, std=0.08: jnp.array([[random.gauss(0, std) for _ in range(nin)] for _ in range(nout)])
@@ -79,6 +78,7 @@ def step_fn(input_ids: jax.Array, target_ids: jax.Array, loss_mask: jax.Array, p
 
 
 def tokenize(doc: str) -> tuple[jax.Array, jax.Array, jax.Array]:
+    bos = len(uchars)
     tokens = jnp.array([bos] + [uchars.index(ch) for ch in doc] + [bos])
     n = min(BLOCK_SIZE, len(tokens) - 1)
     pad = (0, BLOCK_SIZE - n)
