@@ -65,6 +65,17 @@ def linear_bwd_w(dout: list[list[float]], x: list[list[float]]) -> list[list[flo
     return dW
 
 
+def softmax(v: list[float]) -> list[float]:
+    max_val = max(v)
+    exps = [math.exp(x - max_val) for x in v]
+    total = sum(exps)
+    return [e / total for e in exps]
+
+
+def madd(A: list[list[float]], B: list[list[float]]) -> list[list[float]]:
+    return [[a + b for a, b in zip(ra, rb)] for ra, rb in zip(A, B)]
+
+
 def rmsnorm_fwd(x: list[list[float]]) -> tuple[list[list[float]], list[float]]:
     n = len(x)
     d = len(x[0])
@@ -116,37 +127,30 @@ def layer_fwd(x: list[list[float]], params: dict, li: int) -> tuple[list[list[fl
     v = [[row[h * head_dim : (h + 1) * head_dim] for row in v_flat] for h in range(N_HEAD)]
 
     inv_scale = 1.0 / head_dim**0.5
-    attn_w = [[[0.0] * n for _ in range(n)] for _ in range(N_HEAD)]
+    attn_w = [None] * N_HEAD
     attn_out_flat = [[0.0] * N_EMBED for _ in range(n)]
     for h in range(N_HEAD):
         q_h, k_h, v_h = q[h], k[h], v[h]
         h_off = h * head_dim
+        vhT = list(zip(*v_h))
+        aw_h = [None] * n
         for i in range(n):
             q_h_i = q_h[i]
             qk_i = [sum(map(mul, q_h_i, k_h[j])) * inv_scale if j <= i else -1e10 for j in range(n)]
-            max_val = max(qk_i)
-            exps = [math.exp(v - max_val) for v in qk_i]
-            total = sum(exps)
-            aw_i = [e / total for e in exps]
-            attn_w[h][i] = aw_i
-            flat_i = attn_out_flat[i]
-            for d in range(head_dim):
-                val = 0.0
-                for j in range(n):
-                    val += aw_i[j] * v_h[j][d]
-                flat_i[h_off + d] = val
+            aw_i = softmax(qk_i)
+            aw_h[i] = aw_i
+            attn_out_flat[i][h_off : h_off + head_dim] = [sum(map(mul, aw_i, vd)) for vd in vhT]
+        attn_w[h] = aw_h
 
-    attn_proj = linear_fwd(attn_out_flat, wo)
-    x = [[attn_proj[i][j] + x_pre_attn[i][j] for j in range(N_EMBED)] for i in range(n)]
+    x = madd(linear_fwd(attn_out_flat, wo), x_pre_attn)
 
     x_pre_mlp = x
     xn_mlp, rms_mlp = rmsnorm_fwd(x)
 
     h_pre = linear_fwd(xn_mlp, fc1)
-    h_val = [[v if v > 0.0 else 0.0 for v in row] for row in h_pre]  # relu
+    h_val = [[v if v > 0.0 else 0.0 for v in row] for row in h_pre]
 
-    mlp_proj = linear_fwd(h_val, fc2)
-    x = [[mlp_proj[i][j] + x_pre_mlp[i][j] for j in range(N_EMBED)] for i in range(n)]
+    x = madd(linear_fwd(h_val, fc2), x_pre_mlp)
 
     return x, LayerCache(x_pre_attn, xn_attn, rms_attn, q, k, v, attn_w, attn_out_flat, x_pre_mlp, xn_mlp, rms_mlp, h_pre, h_val)
 
@@ -166,14 +170,12 @@ def layer_bwd(dx: list[list[float]], params: dict, cache: LayerCache, li: int) -
     dx_res_mlp = dx
 
     dfc2 = linear_bwd_w(dx, cache.h)
-    dh_pre = linear_bwd_x(dx, fc2)
-    mlp_dim = len(fc1)
-    dh_pre = [[dh_pre[i][j] if cache.h_pre[i][j] > 0.0 else 0.0 for j in range(mlp_dim)] for i in range(n)]
+    dh_pre_raw = linear_bwd_x(dx, fc2)
+    dh_pre = [[g if cache.h_pre[i][j] > 0.0 else 0.0 for j, g in enumerate(dh_pre_raw[i])] for i in range(n)]
     dfc1 = linear_bwd_w(dh_pre, cache.xn_mlp)
     dxn_mlp = linear_bwd_x(dh_pre, fc1)
 
-    dx_rms = rmsnorm_bwd(dxn_mlp, cache.x_pre_mlp, cache.rms_mlp)
-    dx = [[a + b for a, b in zip(r1, r2)] for r1, r2 in zip(dx_rms, dx_res_mlp)]
+    dx = madd(rmsnorm_bwd(dxn_mlp, cache.x_pre_mlp, cache.rms_mlp), dx_res_mlp)
 
     dx_res_attn = dx
 
@@ -182,54 +184,32 @@ def layer_bwd(dx: list[list[float]], params: dict, cache: LayerCache, li: int) -
 
     attn_w_cache = cache.attn_w
     v_cache = cache.v
-    dv = [[[0.0] * head_dim for _ in range(n)] for _ in range(N_HEAD)]
-    dattn_w = [[[0.0] * n for _ in range(n)] for _ in range(N_HEAD)]
+    dv = [None] * N_HEAD
+    dattn_w = [None] * N_HEAD
     for h in range(N_HEAD):
-        aw_h, v_h = attn_w_cache[h], v_cache[h]
         h_off = h * head_dim
-        dv_h, daw_h = dv[h], dattn_w[h]
-        for i in range(n):
-            dv_h_i = dv_h[i]
-            for d in range(head_dim):
-                val = 0.0
-                for j in range(n):
-                    val += aw_h[j][i] * dattn_out_flat[j][h_off + d]
-                dv_h_i[d] = val
-        for i in range(n):
-            dat_i, daw_h_i = dattn_out_flat[i], daw_h[i]
-            for j in range(n):
-                val = 0.0
-                for d in range(head_dim):
-                    val += dat_i[h_off + d] * v_h[j][d]
-                daw_h_i[j] = val
+        dat_h = [row[h_off : h_off + head_dim] for row in dattn_out_flat]
+        dv[h] = linear_bwd_w(attn_w_cache[h], dat_h)
+        dattn_w[h] = linear_fwd(dat_h, v_cache[h])
 
-    dlogits_attn = [[[0.0] * n for _ in range(n)] for _ in range(N_HEAD)]
+    dlogits_attn = [None] * N_HEAD
     for h in range(N_HEAD):
-        aw_h, daw_h, dla_h = attn_w_cache[h], dattn_w[h], dlogits_attn[h]
+        aw_h, daw_h = attn_w_cache[h], dattn_w[h]
+        dla_h = [None] * n
         for i in range(n):
             aw_i, daw_i = aw_h[i], daw_h[i]
             s = sum(map(mul, daw_i, aw_i))
-            dla_i = dla_h[i]
-            for j in range(n):
-                dla_i[j] = aw_i[j] * (daw_i[j] - s) * inv_scale
+            dla_h[i] = [aw_i[j] * (daw_i[j] - s) * inv_scale for j in range(n)]
+        dlogits_attn[h] = dla_h
 
     k_cache = cache.k
     q_cache = cache.q
-    dq = [[[0.0] * head_dim for _ in range(n)] for _ in range(N_HEAD)]
-    dk = [[[0.0] * head_dim for _ in range(n)] for _ in range(N_HEAD)]
+    dq = [None] * N_HEAD
+    dk = [None] * N_HEAD
     for h in range(N_HEAD):
         dla_h = dlogits_attn[h]
-        k_h, q_h = k_cache[h], q_cache[h]
-        dq_h, dk_h = dq[h], dk[h]
-        for i in range(n):
-            dla_i, dq_i, dk_i = dla_h[i], dq_h[i], dk_h[i]
-            for d in range(head_dim):
-                val1, val2 = 0.0, 0.0
-                for j in range(n):
-                    val1 += dla_i[j] * k_h[j][d]
-                    val2 += dla_h[j][i] * q_h[j][d]
-                dq_i[d] = val1
-                dk_i[d] = val2
+        dq[h] = linear_fwd(dla_h, list(zip(*k_cache[h])))
+        dk[h] = linear_bwd_w(dla_h, q_cache[h])
 
     dq_flat = [[v for h in range(N_HEAD) for v in dq[h][i]] for i in range(n)]
     dk_flat = [[v for h in range(N_HEAD) for v in dk[h][i]] for i in range(n)]
@@ -244,8 +224,7 @@ def layer_bwd(dx: list[list[float]], params: dict, cache: LayerCache, li: int) -
     WvT = list(zip(*wv))
     dxn_attn = [[sum(map(mul, dq_flat[i], WqT[d])) + sum(map(mul, dk_flat[i], WkT[d])) + sum(map(mul, dv_flat[i], WvT[d])) for d in range(N_EMBED)] for i in range(n)]
 
-    dx_rms = rmsnorm_bwd(dxn_attn, cache.x_pre_attn, cache.rms_attn)
-    dx = [[a + b for a, b in zip(r1, r2)] for r1, r2 in zip(dx_rms, dx_res_attn)]
+    dx = madd(rmsnorm_bwd(dxn_attn, cache.x_pre_attn, cache.rms_attn), dx_res_attn)
 
     grads = {
         f"layer{li}.attn_wq": dwq,
@@ -274,15 +253,8 @@ def forward(params: dict, input_ids: list[int], target_ids: list[int], loss_mask
         x, lc = layer_fwd(x, params, li)
         layer_caches.append(lc)
 
-    lm_head = params["lm_head"]
-    logits = linear_fwd(x, lm_head)  # (n, vocab_size)
-    probs = []
-    for i in range(n):
-        logits_i = logits[i]
-        max_val = max(logits_i)
-        exps = [math.exp(v - max_val) for v in logits_i]
-        total = sum(exps)
-        probs.append([e / total for e in exps])
+    logits = linear_fwd(x, params["lm_head"])
+    probs = [softmax(row) for row in logits]
 
     sum_mask = sum(loss_mask) or 1.0
     loss = -sum(math.log(probs[i][target_ids[i]]) * loss_mask[i] for i in range(n)) / sum_mask
@@ -300,8 +272,8 @@ def backward(params: dict, cache: FwdCache) -> dict:
     for i in range(n):
         dlogits[i][target_ids[i]] -= inv_sum_mask * loss_mask[i]
 
-    dlm_head = linear_bwd_w(dlogits, x)  # (vocab_size, N_EMBED)
-    dx = linear_bwd_x(dlogits, lm_head)  # (n, N_EMBED)
+    dlm_head = linear_bwd_w(dlogits, x)
+    dx = linear_bwd_x(dlogits, lm_head)
 
     grads = {k: [[0.0] * len(mat[0]) for _ in mat] for k, mat in params.items()}
     grads["lm_head"] = dlm_head
