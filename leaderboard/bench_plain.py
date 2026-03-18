@@ -27,6 +27,11 @@ MlpCache = namedtuple("MlpCache", ["x_pre", "xn", "rms", "h_pre", "h"])
 FwdCache = namedtuple("FwdCache", ["input_ids", "target_ids", "loss_mask", "sum_mask", "emb", "rms_init", "x", "probs", "layer_caches"])
 
 
+#
+# kernels
+#
+
+
 def linear_fwd(x: list[list[float]], W: list[list[float]]) -> list[list[float]]:
     n = len(x)
     out_dim = len(W)
@@ -83,6 +88,11 @@ def madd(A: list[list[float]], B: list[list[float]]) -> list[list[float]]:
 
 def merge_heads(heads: list) -> list[list[float]]:
     return [[v for head in heads for v in head[i]] for i in range(len(heads[0]))]
+
+
+#
+# model
+#
 
 
 def rmsnorm_fwd(x: list[list[float]]) -> tuple[list[list[float]], list[float]]:
