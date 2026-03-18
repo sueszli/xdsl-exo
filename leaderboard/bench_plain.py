@@ -47,7 +47,7 @@ def rmsnorm_bwd(dout_2d, x_2d, rms):
         do = dout_2d[i]
         x = x_2d[i]
         scale = rms[i]
-        scale3_over_d = (scale ** 3) / d
+        scale3_over_d = (scale**3) / d
         dot = sum(doi * xi for doi, xi in zip(do, x))
         dx_i = dx[i]
         for j in range(d):
@@ -115,7 +115,7 @@ def forward_backward(params, input_ids, target_ids, loss_mask):
 
         attn_w = [[[0.0] * n for _ in _range(n)] for _ in _range(N_HEAD)]
         attn_out_flat = [[0.0] * N_EMBED for _ in _range(n)]
-        scale = head_dim ** 0.5
+        scale = head_dim**0.5
         inv_scale = 1.0 / scale
         _range_head_dim = _range(head_dim)
 
