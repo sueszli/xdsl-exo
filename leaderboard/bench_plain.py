@@ -1,5 +1,6 @@
 # /// script
 # requires-python = "==3.14.*"
+# dependencies = ["tqdm"]
 # ///
 
 import math
@@ -8,6 +9,7 @@ import time
 from collections import namedtuple
 from pathlib import Path
 
+from tqdm import tqdm
 from utils import assert_weights_match, save_times
 
 random.seed(42)
@@ -384,12 +386,11 @@ opt_state = {"m": {k: [[0.0] * len(mat[0]) for _ in mat] for k, mat in state_dic
 tokenized = [tokenize(doc, uchars) for doc in docs]
 
 step_times = []
-for step in range(NUM_STEPS):
+for step in tqdm(range(NUM_STEPS), desc="training"):
     t0 = time.perf_counter()
     input_ids, target_ids, loss_mask = tokenized[step % len(tokenized)]
     loss, state_dict, opt_state = step_fn(state_dict, opt_state, input_ids, target_ids, loss_mask, step)
     step_times.append(time.perf_counter() - t0)
-    print(f"step {step+1:4d} / {NUM_STEPS:4d} | loss {loss:.4f}", end="\r")
 
 save_times(step_times)
 W = namedtuple("W", ["data"])
