@@ -840,98 +840,48 @@ def attn_fwd(x: Tensor, wq: Tensor, wk: Tensor, wv: Tensor, wo: Tensor) -> tuple
     attn_w = empty_array((N_HEAD, BLOCK_SIZE, BLOCK_SIZE), dtype=float)
     out_flat = empty_array((BLOCK_SIZE, N_EMBED), dtype=float)
     out = empty_array((BLOCK_SIZE, N_EMBED), dtype=float)
-    for h in range(N_HEAD):
-        for t in range(BLOCK_SIZE):
-            logits = [CAUSAL_MASK_VALUE] * BLOCK_SIZE
-            for s in range(t + 1):
-                logit = 0.0
-                for d in range(HEAD_DIM):
-                    logit += q[h, t, d] * k[h, s, d]
-                logits[s] = logit * INV_SCALE
-            mx = max(logits)
-            weights = [math.exp(v - mx) for v in logits]
-            denom = sum(weights)
-            for s in range(BLOCK_SIZE):
-                attn_w[h, t, s] = weights[s] / denom
-
-    for h in range(N_HEAD):
-        for t in range(BLOCK_SIZE):
-            for d in range(HEAD_DIM):
-                acc = 0.0
-                for s in range(BLOCK_SIZE):
-                    acc += attn_w[h, t, s] * v[h, s, d]
-                out_flat[t, h * HEAD_DIM + d] = acc
-
-    for t in range(BLOCK_SIZE):
-        for j in range(N_EMBED):
-            acc = 0.0
-            for e in range(N_EMBED):
-                acc += out_flat[t, e] * wo[j, e]
-            out[t, j] = acc + x[t, j]
+    JIT_ATTN_FWD._raw(
+        out.ctypes.data,
+        xn.ctypes.data,
+        rms.ctypes.data,
+        q.ctypes.data,
+        k.ctypes.data,
+        v.ctypes.data,
+        attn_w.ctypes.data,
+        out_flat.ctypes.data,
+        x.ctypes.data,
+        wq.ctypes.data,
+        wk.ctypes.data,
+        wv.ctypes.data,
+        wo.ctypes.data,
+    )
     return out, AttnCache(x, xn, rms, q, k, v, attn_w, out_flat)
 
 
 def attn_bwd(dx: Tensor, grads: dict, wq: Tensor, wk: Tensor, wv: Tensor, wo: Tensor, c: AttnCache, li: int) -> Tensor:
     out = zeros_array((BLOCK_SIZE, N_EMBED), dtype=float)
     dattn_out = zeros_array((N_HEAD, BLOCK_SIZE, HEAD_DIM), dtype=float)
-
-    for row in range(N_EMBED):
-        for e in range(N_EMBED):
-            acc = 0.0
-            for t in range(BLOCK_SIZE):
-                acc += dx[t, row] * c.out_flat[t, e]
-            grads[f"layer{li}.attn_wo"][row, e] = acc
-
-    for row in range(N_EMBED):
-        for e in range(N_EMBED):
-            grads[f"layer{li}.attn_wq"][row, e] = 0.0
-            grads[f"layer{li}.attn_wk"][row, e] = 0.0
-            grads[f"layer{li}.attn_wv"][row, e] = 0.0
-
-    for h in range(N_HEAD):
-        for t in range(BLOCK_SIZE):
-            for d in range(HEAD_DIM):
-                acc = 0.0
-                for j in range(N_EMBED):
-                    acc += dx[t, j] * wo[j, h * HEAD_DIM + d]
-                dattn_out[h, t, d] = acc
-
-    for h in range(N_HEAD):
-        for t in range(BLOCK_SIZE):
-            dot = 0.0
-            for s in range(BLOCK_SIZE):
-                dattn_w = 0.0
-                for d in range(HEAD_DIM):
-                    dattn_w += dattn_out[h, t, d] * c.v[h, s, d]
-                dot += dattn_w * c.attn_w[h, t, s]
-
-            for s in range(BLOCK_SIZE):
-                dattn_w = 0.0
-                for d in range(HEAD_DIM):
-                    dattn_w += dattn_out[h, t, d] * c.v[h, s, d]
-                dlogit = c.attn_w[h, t, s] * (dattn_w - dot) * INV_SCALE
-
-                for d in range(HEAD_DIM):
-                    dq_contrib = dlogit * c.k[h, s, d]
-                    dk_contrib = dlogit * c.q[h, t, d]
-                    dv_contrib = c.attn_w[h, t, s] * dattn_out[h, t, d]
-
-                    for e in range(N_EMBED):
-                        out[t, e] += dq_contrib * wq[h * HEAD_DIM + d, e]
-                        out[s, e] += dk_contrib * wk[h * HEAD_DIM + d, e]
-                        out[s, e] += dv_contrib * wv[h * HEAD_DIM + d, e]
-                        grads[f"layer{li}.attn_wq"][h * HEAD_DIM + d, e] += dq_contrib * c.xn[t, e]
-                        grads[f"layer{li}.attn_wk"][h * HEAD_DIM + d, e] += dk_contrib * c.xn[s, e]
-                        grads[f"layer{li}.attn_wv"][h * HEAD_DIM + d, e] += dv_contrib * c.xn[s, e]
-
-    for i in range(BLOCK_SIZE):
-        dot = 0.0
-        scale = c.rms[i, 0]
-        for j in range(N_EMBED):
-            dot += out[i, j] * c.x_pre[i, j]
-        corr = scale * scale * scale * (1.0 / N_EMBED) * dot
-        for j in range(N_EMBED):
-            out[i, j] = out[i, j] * scale - c.x_pre[i, j] * corr + dx[i, j]
+    JIT_ATTN_BWD._raw(
+        out.ctypes.data,
+        grads[f"layer{li}.attn_wq"].ctypes.data,
+        grads[f"layer{li}.attn_wk"].ctypes.data,
+        grads[f"layer{li}.attn_wv"].ctypes.data,
+        grads[f"layer{li}.attn_wo"].ctypes.data,
+        dattn_out.ctypes.data,
+        dx.ctypes.data,
+        c.x_pre.ctypes.data,
+        c.xn.ctypes.data,
+        c.rms.ctypes.data,
+        c.q.ctypes.data,
+        c.k.ctypes.data,
+        c.v.ctypes.data,
+        c.attn_w.ctypes.data,
+        c.out_flat.ctypes.data,
+        wq.ctypes.data,
+        wk.ctypes.data,
+        wv.ctypes.data,
+        wo.ctypes.data,
+    )
     return out
 
 
@@ -963,7 +913,8 @@ def forward(params: dict, input_ids: Tensor, target_ids: Tensor, loss_mask: Tens
 
     logits = empty_array((BLOCK_SIZE, params["lm_head"].shape[0]), dtype=float)
     JIT_LOGITS._raw(logits.ctypes.data, x.ctypes.data, params["lm_head"].ctypes.data)
-    probs = softmax(logits)
+    probs = empty_like_array(logits)
+    JIT_SOFTMAX._raw(probs.ctypes.data, logits.ctypes.data)
     sum_mask = float(loss_mask.sum())
     loss = cross_entropy_loss(probs, target_ids, loss_mask, sum_mask)
     return float(loss), FwdCache(input_ids, target_ids, loss_mask, sum_mask, emb, rms_init, x, probs, layer_caches)
@@ -1072,6 +1023,7 @@ opt_state = {
 tokenized = [tokenize(doc, uchars) for doc in docs]
 
 JIT_LOGITS = _jit_matmul_nt(BLOCK_SIZE, N_EMBED, len(uchars) + 1)
+JIT_SOFTMAX = _jit_softmax_2d(BLOCK_SIZE, len(uchars) + 1)
 JIT_LM_HEAD_BWD = jit(simplify(_lm_head_bwd.partial_eval(V=len(uchars) + 1)))
 JIT_ZERO_GRADS = _jit_zero_1d(total_params)
 JIT_ADAM = _jit_adam(total_params)
