@@ -51,6 +51,23 @@ def matmul_left_t(M: size, N: size, K: size, out: f64[N, K] @ DRAM, x: f64[M, N]
 
 
 @proc
+def softmax(M: size, N: size, x: f64[M, N] @ DRAM):
+    # in-place softmax over last dimension
+    for i in seq(0, M):
+        mx: f64 @ Stack
+        sum_val: f64 @ Stack
+        mx = -1e10
+        for j in seq(0, N):
+            mx = select(mx, x[i, j], x[i, j], mx)
+        sum_val = 0.0
+        for j in seq(0, N):
+            x[i, j] = expf(x[i, j] - mx)
+            sum_val += x[i, j]
+        for j in seq(0, N):
+            x[i, j] = x[i, j] / sum_val
+
+
+@proc
 def relu(M: size, N: size, out: f64[M, N] @ DRAM, x: f64[M, N] @ DRAM):
     # out = max(x, 0)
     for i in seq(0, M):
@@ -121,20 +138,3 @@ def adam(N: size, param: f64[N] @ DRAM, grad: f64[N] @ DRAM, m: f64[N] @ DRAM, v
         param[i] = param[i] - lr[0] * m_hat / (sqrt(v_hat) + 1e-8)
         m[i] = m_val
         v[i] = v_val
-
-
-@proc
-def softmax(M: size, N: size, x: f64[M, N] @ DRAM):
-    # in-place softmax over last dimension
-    for i in seq(0, M):
-        mx: f64 @ Stack
-        sum_val: f64 @ Stack
-        mx = -1e10
-        for j in seq(0, N):
-            mx = select(mx, x[i, j], x[i, j], mx)
-        sum_val = 0.0
-        for j in seq(0, N):
-            x[i, j] = expf(x[i, j] - mx)
-            sum_val += x[i, j]
-        for j in seq(0, N):
-            x[i, j] = x[i, j] / sum_val

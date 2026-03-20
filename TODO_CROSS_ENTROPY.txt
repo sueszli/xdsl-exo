@@ -1,0 +1,85 @@
+TODO: Implement Cross-Entropy as a Separate Kernel
+===================================================
+
+Current State
+-------------
+Cross-entropy loss gradient computation is fused inside `lm_head_step_fused` in bench_exojit.py:102-108.
+It modifies the softmax probabilities in-place to compute the gradient.
+
+The fused code (lines 102-108):
+    for t in seq(0, BLOCK_SIZE):
+        scale: f64 @ Stack
+        scale = loss_mask[t] * inv_sum_mask[0]
+        for v_idx in seq(0, vocab_size):
+            logits[t, v_idx] = logits[t, v_idx] * scale
+            if v_idx == target_ids[t]:
+                logits[t, v_idx] += -inv_sum_mask[0] * loss_mask[t]
+
+This computes: grad = (softmax_probs * scale) - one_hot_target * inv_sum_mask[0] * loss_mask[t]
+
+
+Implementation Plan
+-------------------
+
+1. Add `cross_entropy_bwd` kernel to utils/exo_kernels.py:
+
+   @proc
+   def cross_entropy_bwd(M: size, N: size, probs: f64[M, N] @ DRAM, target_ids: size[M] @ DRAM, loss_mask: f64[M] @ DRAM, inv_sum_mask: f64[1] @ DRAM):
+       """
+       Compute cross-entropy loss gradient in-place on softmax probabilities.
+       
+       Args:
+           M: batch size (BLOCK_SIZE)
+           N: vocab size
+           probs: softmax probabilities [M, N], modified in-place to become gradients
+           target_ids: target token ids [M]
+           loss_mask: mask for valid positions [M]
+           inv_sum_mask: 1.0 / num_valid_positions
+       
+       In-place transformation:
+           probs[t, v] = probs[t, v] * loss_mask[t] * inv_sum_mask[0]
+           probs[t, target_ids[t]] -= inv_sum_mask[0] * loss_mask[t]
+       """
+       for t in seq(0, M):
+           scale: f64 @ Stack
+           scale = loss_mask[t] * inv_sum_mask[0]
+           for v_idx in seq(0, N):
+               probs[t, v_idx] = probs[t, v_idx] * scale
+               if v_idx == target_ids[t]:
+                   probs[t, v_idx] += -inv_sum_mask[0] * loss_mask[t]
+
+2. Update imports in bench_exojit.py (line 18):
+   from utils.exo_kernels import adam, add, cross_entropy_bwd, matmul, matmul_left_t, matmul_right_t, relu, relu_bwd, rmsnorm, rmsnorm_bwd, softmax
+
+3. Refactor `lm_head_step_fused` into `lm_head_fwd` and `lm_head_bwd`:
+
+   @proc
+   def lm_head_fwd(vocab_size: size, logits: f64[BLOCK_SIZE, vocab_size] @ DRAM, x: f64[BLOCK_SIZE, N_EMBED] @ DRAM, lm_head: f64[vocab_size, N_EMBED] @ DRAM):
+       matmul_right_t(BLOCK_SIZE, vocab_size, N_EMBED, logits, x, lm_head)
+       softmax(BLOCK_SIZE, vocab_size, logits)
+
+   @proc
+   def lm_head_bwd(vocab_size: size, dx: f64[BLOCK_SIZE, N_EMBED] @ DRAM, dweight: f64[vocab_size, N_EMBED] @ DRAM, logits: f64[BLOCK_SIZE, vocab_size] @ DRAM, x: f64[BLOCK_SIZE, N_EMBED] @ DRAM, lm_head: f64[vocab_size, N_EMBED] @ DRAM, loss_mask: f64[BLOCK_SIZE] @ DRAM, inv_sum_mask: f64[1] @ DRAM, target_ids: size[BLOCK_SIZE] @ DRAM):
+       cross_entropy_bwd(BLOCK_SIZE, vocab_size, logits, target_ids, loss_mask, inv_sum_mask)
+       matmul_left_t(BLOCK_SIZE, vocab_size, N_EMBED, dweight, logits, x)
+       matmul(BLOCK_SIZE, N_EMBED, vocab_size, dx, logits, lm_head)
+
+4. Update the bwd() procedure call site to use the new split kernels.
+
+5. Alternatively, keep lm_head_step_fused but add cross_entropy_bwd as a standalone 
+   utility that can be called independently for benchmarking or other use cases.
+
+
+Benefits
+--------
+- Reusable cross-entropy gradient kernel for other models
+- Clearer separation of concerns
+- Easier to benchmark cross-entropy in isolation
+- Can be composed with different output layers
+
+
+Notes
+-----
+- The kernel operates in-place on the softmax probabilities
+- loss_mask handles variable-length sequences
+- inv_sum_mask enables proper averaging over valid positions
