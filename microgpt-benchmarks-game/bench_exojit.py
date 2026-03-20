@@ -504,21 +504,19 @@ if __name__ == "__main__":
     params_layout = [(vocab_size, N_EMBED), (BLOCK_SIZE, N_EMBED), (vocab_size, N_EMBED)] + [(N_EMBED, N_EMBED)] * 4 + [(4 * N_EMBED, N_EMBED), (N_EMBED, 4 * N_EMBED)]
     flat_params = Buf(sum(prod(s) for s in params_layout))
     params = bind(PARAMS_FIELDS, flat_params, params_layout)
-    for name, buf, _ in named_params(params, params_layout):
+    for _, buf, _ in named_params(params, params_layout):
         for i in range(buf.n):
             buf[i] = random.gauss(0.0, 0.08)
 
     flat_grads = Buf(flat_params.n)
     grads = bind(PARAMS_FIELDS, flat_grads, params_layout)
-    opt_m = Buf(flat_params.n)
-    opt_v = Buf(flat_params.n)
+    opt_m, opt_v = Buf(flat_params.n), Buf(flat_params.n)
 
-    scratch = bind(SCRATCH_FIELDS, Buf(sum(prod(s) for s in scratch_layout(vocab_size))), scratch_layout(vocab_size))
+    sl = scratch_layout(vocab_size)
+    scratch = bind(SCRATCH_FIELDS, Buf(sum(prod(s) for s in sl)), sl)
     scalars = bind(SCALARS_FIELDS, Buf(7), ((1,) for _ in SCALARS_FIELDS))
-    scalars["rms_inv_n"][0] = 1.0 / N_EMBED
-    scalars["opt_beta1"][0] = 0.9
-    scalars["opt_beta2"][0] = 0.999
-    scalars["attn_scale"][0] = 1.0 / HEAD_DIM**0.5
+    for k, v in [("rms_inv_n", 1.0 / N_EMBED), ("opt_beta1", 0.9), ("opt_beta2", 0.999), ("attn_scale", 1.0 / HEAD_DIM**0.5)]:
+        scalars[k][0] = v
 
     args = {
         "vocab_size": vocab_size,
@@ -541,23 +539,21 @@ if __name__ == "__main__":
 
     grads_to_clear = [(grads["wte"].ptr, grads["wte"].n * 8), (grads["wpe"].ptr, grads["wpe"].n * 8)]
     lr_t = [0.01 * (1.0 - s / NUM_STEPS) for s in range(NUM_STEPS)]
-    bc1 = list(map(lambda s: 1.0 - 0.9 ** (s + 1), range(NUM_STEPS)))
-    bc2 = list(map(lambda s: 1.0 - 0.999 ** (s + 1), range(NUM_STEPS)))
-    memset = ctypes.memset
-    perf_counter = time.perf_counter
-    step_times = []
+    bc1 = [1.0 - 0.9 ** (s + 1) for s in range(NUM_STEPS)]
+    bc2 = [1.0 - 0.999 ** (s + 1) for s in range(NUM_STEPS)]
 
+    step_times = []
     for step, (lr, b1, b2) in enumerate(zip(lr_t, bc1, bc2)):
         scalars["opt_lr"][0] = lr
         scalars["opt_bc1"][0] = b1
         scalars["opt_bc2"][0] = b2
         batch = tokenized[step % len(tokenized)]
         for ptr, n in grads_to_clear:
-            memset(ptr, 0, n)
-        t0 = perf_counter()
+            ctypes.memset(ptr, 0, n)
+        t0 = time.perf_counter()
         args.update({k: batch[k].ptr for k in ("loss_mask", "inv_sum_mask", "input_ids", "target_ids")})
         train_step(**args)
-        step_times.append(perf_counter() - t0)
+        step_times.append(time.perf_counter() - t0)
 
     save_times(step_times)
     W = namedtuple("W", ["data"])
