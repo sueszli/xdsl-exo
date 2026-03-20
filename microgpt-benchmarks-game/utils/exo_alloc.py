@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ctypes
-import random
 from math import prod
 from typing import Any
 
@@ -102,49 +101,6 @@ def zeros(shape: tuple[int, ...], dtype: type[float] | type[int] = float) -> Ten
 def zeros_like(x: Tensor) -> Tensor:
     # allocate zeros with x.shape and x.dtype
     return zeros(x.shape, dtype=x.dtype)
-
-
-def reshape(x: Tensor, shape: tuple[int, ...], *, offset: int = 0) -> Tensor:
-    # shared-buffer reshape view
-    return x.view(shape, offset=offset)
-
-
-def normal(shape: tuple[int, ...], loc: float = 0.0, scale: float = 1.0) -> Tensor:
-    # iid gaussian fill: n(loc, scale^2)
-    out = empty(shape, dtype=float)
-    for i in range(out._size):
-        out._buf[i] = random.gauss(loc, scale)
-    return out
-
-
-def pack_tensors(tensors: dict[str, Tensor]) -> tuple[Tensor, dict[str, Tensor], int]:
-    # flatten tensors into one shared storage block and return typed views
-    total = sum(t.numel for t in tensors.values())
-    flat = empty((total,), dtype=float)
-    flat_ptr = flat.ptr
-    elt_bytes = flat.itemsize
-    offset = 0
-    views = {}
-    for name, tensor in tensors.items():
-        ctypes.memmove(flat_ptr + offset * elt_bytes, tensor.ptr, tensor.numel * elt_bytes)
-        views[name] = reshape(flat, tensor.shape, offset=offset)
-        offset += tensor.numel
-    return flat, views, elt_bytes
-
-
-def view_tensors(flat: Tensor, tensors: dict[str, Tensor]) -> dict[str, Tensor]:
-    # rebuild tensor views over existing flat storage
-    offset = 0
-    views = {}
-    for name, tensor in tensors.items():
-        views[name] = reshape(flat, tensor.shape, offset=offset)
-        offset += tensor.numel
-    return views
-
-
-def tensor_ptrs(tensors: dict[str, Tensor]) -> dict[str, int]:
-    # expose raw data pointers for raw-jit entry points
-    return {name: tensor.ptr for name, tensor in tensors.items()}
 
 
 def alloc_layout(spec: dict[str, tuple[int, ...]], dtype: type[float] | type[int] = float) -> tuple[Tensor, dict[str, Tensor]]:
