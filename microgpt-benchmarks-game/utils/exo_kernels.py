@@ -91,7 +91,7 @@ def rmsnorm_bwd(M: size, N: size, out: f64[M, N] @ DRAM, dx: f64[M, N] @ DRAM, x
 
 @proc
 def adam(N: size, param: f64[N] @ DRAM, grad: f64[N] @ DRAM, m: f64[N] @ DRAM, v: f64[N] @ DRAM, lr: f64[1] @ DRAM, beta1_t: f64[1] @ DRAM, beta2_t: f64[1] @ DRAM):
-    # Adam constants are fixed for this benchmark; only lr and bias-correction vary per step.
+    # adam step over flat buffer (with bias correction from caller)
     inv_b1: f64 @ Stack
     inv_b2: f64 @ Stack
     inv_beta1_t: f64 @ Stack
