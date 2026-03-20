@@ -300,9 +300,6 @@ class Scalars:
     one: Tensor
     rms_inv_n: Tensor
     rms_eps: Tensor
-    adam_b1: Tensor
-    adam_b2: Tensor
-    adam_eps: Tensor
 
 
 @dataclass(frozen=True)
@@ -320,7 +317,7 @@ def init_normal_(tensor: Tensor, *, scale: float) -> None:
         flat[i] = random.gauss(0.0, scale)
 
 
-SCALAR_LAYOUT = ((1,), (1,), (1,), (1,), (1,), (1,), (1,), (1,), (1,), (1,))
+SCALAR_LAYOUT = ((1,), (1,), (1,), (1,), (1,), (1,), (1,))
 
 
 def layout_numel(layout: tuple[tuple[int, ...], ...]) -> int:
@@ -439,9 +436,6 @@ def main() -> None:
     scalars.one[0] = 1.0
     scalars.rms_inv_n[0] = 1.0 / N_EMBED
     scalars.rms_eps[0] = 1e-5
-    scalars.adam_b1[0] = 0.85
-    scalars.adam_b2[0] = 0.99
-    scalars.adam_eps[0] = 1e-8
 
     lm_head_step = jit(lm_head_step_fused, raw=True)
     embed_rms_fwd_step = jit(embed_rms_fwd, raw=True)
@@ -524,9 +518,6 @@ def main() -> None:
         flat_grads.ptr,
         opt_state.m.ptr,
         opt_state.v.ptr,
-        scalars.adam_b1.ptr,
-        scalars.adam_b2.ptr,
-        scalars.adam_eps.ptr,
         scalars.opt_lr.ptr,
         scalars.opt_bc1.ptr,
         scalars.opt_bc2.ptr,
