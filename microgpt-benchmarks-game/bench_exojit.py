@@ -4,6 +4,7 @@ import ctypes
 import random
 import sys
 import time
+from collections import namedtuple
 from dataclasses import dataclass
 from math import prod
 from pathlib import Path
@@ -187,6 +188,30 @@ def attn_bwd_fused(out: f64[BLOCK_SIZE, N_EMBED] @ DRAM, dwq: f64[N_EMBED, N_EMB
     rmsnorm_bwd(BLOCK_SIZE, N_EMBED, out, dx, x_pre, rms, inv_n)
 
 
+@proc
+def fwd(vocab_size: size, emb: f64[BLOCK_SIZE, N_EMBED] @ DRAM, x0: f64[BLOCK_SIZE, N_EMBED] @ DRAM, rms_init: f64[BLOCK_SIZE, 1] @ DRAM, x1: f64[BLOCK_SIZE, N_EMBED] @ DRAM, attn_xn: f64[BLOCK_SIZE, N_EMBED] @ DRAM, attn_rms: f64[BLOCK_SIZE, 1] @ DRAM, q: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, k: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, v: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, attn_w: f64[N_HEAD * BLOCK_SIZE, BLOCK_SIZE] @ DRAM, out_flat: f64[BLOCK_SIZE, N_EMBED] @ DRAM, mlp_xn: f64[BLOCK_SIZE, N_EMBED] @ DRAM, mlp_rms: f64[BLOCK_SIZE, 1] @ DRAM, h_pre: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, h: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, dx0: f64[BLOCK_SIZE, N_EMBED] @ DRAM, wte: f64[vocab_size, N_EMBED] @ DRAM, wpe: f64[BLOCK_SIZE, N_EMBED] @ DRAM, attn_wq: f64[N_EMBED, N_EMBED] @ DRAM, attn_wk: f64[N_EMBED, N_EMBED] @ DRAM, attn_wv: f64[N_EMBED, N_EMBED] @ DRAM, attn_wo: f64[N_EMBED, N_EMBED] @ DRAM, mlp_fc1: f64[4 * N_EMBED, N_EMBED] @ DRAM, mlp_fc2: f64[N_EMBED, 4 * N_EMBED] @ DRAM, inv_n: f64[1] @ DRAM, input_ids: size[BLOCK_SIZE] @ DRAM):
+    embed_rms_fwd(vocab_size, emb, x0, rms_init, wte, wpe, inv_n, input_ids)
+    attn_fwd_fused(x1, attn_xn, attn_rms, q, k, v, attn_w, out_flat, x0, attn_wq, attn_wk, attn_wv, attn_wo, inv_n)
+    rmsnorm(BLOCK_SIZE, N_EMBED, mlp_xn, mlp_rms, x1, inv_n)
+    matmul_right_t(BLOCK_SIZE, 4 * N_EMBED, N_EMBED, h_pre, mlp_xn, mlp_fc1)
+    relu(BLOCK_SIZE, 4 * N_EMBED, h, h_pre)
+    matmul_right_t(BLOCK_SIZE, N_EMBED, 4 * N_EMBED, dx0, h, mlp_fc2)
+    add(BLOCK_SIZE, N_EMBED, dx0, x1)
+
+
+@proc
+def bwd(vocab_size: size, dx1: f64[BLOCK_SIZE, N_EMBED] @ DRAM, g_lm_head: f64[vocab_size, N_EMBED] @ DRAM, logits: f64[BLOCK_SIZE, vocab_size] @ DRAM, dx0: f64[BLOCK_SIZE, N_EMBED] @ DRAM, lm_head: f64[vocab_size, N_EMBED] @ DRAM, loss_mask: f64[BLOCK_SIZE] @ DRAM, inv_sum_mask: f64[1] @ DRAM, target_ids: size[BLOCK_SIZE] @ DRAM, g_mlp_fc2: f64[N_EMBED, 4 * N_EMBED] @ DRAM, g_mlp_fc1: f64[4 * N_EMBED, N_EMBED] @ DRAM, dh: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, dh_pre: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, g_attn_wq: f64[N_EMBED, N_EMBED] @ DRAM, g_attn_wk: f64[N_EMBED, N_EMBED] @ DRAM, g_attn_wv: f64[N_EMBED, N_EMBED] @ DRAM, g_attn_wo: f64[N_EMBED, N_EMBED] @ DRAM, dattn_out: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, g_wte: f64[vocab_size, N_EMBED] @ DRAM, g_wpe: f64[BLOCK_SIZE, N_EMBED] @ DRAM, emb: f64[BLOCK_SIZE, N_EMBED] @ DRAM, rms_init: f64[BLOCK_SIZE, 1] @ DRAM, x0: f64[BLOCK_SIZE, N_EMBED] @ DRAM, attn_xn: f64[BLOCK_SIZE, N_EMBED] @ DRAM, attn_rms: f64[BLOCK_SIZE, 1] @ DRAM, q: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, k: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, v: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, attn_w: f64[N_HEAD * BLOCK_SIZE, BLOCK_SIZE] @ DRAM, out_flat: f64[BLOCK_SIZE, N_EMBED] @ DRAM, x1: f64[BLOCK_SIZE, N_EMBED] @ DRAM, mlp_xn: f64[BLOCK_SIZE, N_EMBED] @ DRAM, mlp_rms: f64[BLOCK_SIZE, 1] @ DRAM, h_pre: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, h: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, attn_wq: f64[N_EMBED, N_EMBED] @ DRAM, attn_wk: f64[N_EMBED, N_EMBED] @ DRAM, attn_wv: f64[N_EMBED, N_EMBED] @ DRAM, attn_wo: f64[N_EMBED, N_EMBED] @ DRAM, mlp_fc1: f64[4 * N_EMBED, N_EMBED] @ DRAM, mlp_fc2: f64[N_EMBED, 4 * N_EMBED] @ DRAM, inv_n: f64[1] @ DRAM, input_ids: size[BLOCK_SIZE] @ DRAM):
+    lm_head_step_fused(vocab_size, dx1, g_lm_head, logits, dx0, lm_head, loss_mask, inv_sum_mask, target_ids)
+    matmul_left_t(BLOCK_SIZE, N_EMBED, 4 * N_EMBED, g_mlp_fc2, dx1, h)
+    matmul(BLOCK_SIZE, 4 * N_EMBED, N_EMBED, dh, dx1, mlp_fc2)
+    relu_bwd(BLOCK_SIZE, 4 * N_EMBED, dh_pre, dh, h_pre)
+    matmul_left_t(BLOCK_SIZE, 4 * N_EMBED, N_EMBED, g_mlp_fc1, dh_pre, mlp_xn)
+    matmul(BLOCK_SIZE, N_EMBED, 4 * N_EMBED, dx0, dh_pre, mlp_fc1)
+    rmsnorm_bwd(BLOCK_SIZE, N_EMBED, dx0, dx1, x1, mlp_rms, inv_n)
+    attn_bwd_fused(dx1, g_attn_wq, g_attn_wk, g_attn_wv, g_attn_wo, dattn_out, dx0, x0, attn_xn, attn_rms, q, k, v, attn_w, out_flat, attn_wq, attn_wk, attn_wv, attn_wo, inv_n)
+    embed_rms_bwd(vocab_size, g_wte, g_wpe, dx1, emb, rms_init, inv_n, input_ids)
+
+
 @dataclass(frozen=True)
 class TokenBatch:
     input_ids: Tensor
@@ -341,30 +366,11 @@ def tokenize(doc: str, c2i: dict[str, int], bos: int) -> TokenBatch:
     return TokenBatch(inputs, targets, loss_mask, inv_sum_mask)
 
 
-def wrap_state_dict(params: Params) -> dict[str, list[list[object]]]:
-    class W:
-        __slots__ = ("data",)
-
-        def __init__(self, data: float):
-            self.data = data
-
-    return {name: [[W(float(tensor[i, j])) for j in range(tensor.shape[1])] for i in range(tensor.shape[0])] for name, tensor in named_params(params)}
-
-
 if __name__ == "__main__":
     random.seed(42)
     num_steps = 1000
-    attn_fwd, attn_bwd = (jit(simplify(proc))._raw for proc in (attn_fwd_fused, attn_bwd_fused))
-
-    # jit stuff
-    rmsnorm_fn = jit(rmsnorm, raw=True)
-    matmul_right_t_fn = jit(matmul_right_t, raw=True)
-    relu_fn = jit(relu, raw=True)
-    add_fn = jit(add, raw=True)
-    matmul_left_t_fn = jit(matmul_left_t, raw=True)
-    matmul_fn = jit(matmul, raw=True)
-    relu_bwd_fn = jit(relu_bwd, raw=True)
-    rmsnorm_bwd_fn = jit(rmsnorm_bwd, raw=True)
+    fwd_step = jit(simplify(fwd))._raw
+    bwd_step = jit(simplify(bwd))._raw
 
     docs = (Path(__file__).parent / "input.txt").read_text().splitlines()
     random.shuffle(docs)
@@ -385,9 +391,6 @@ if __name__ == "__main__":
     scalars = bind_layout(Scalars, empty((layout_numel(SCALAR_LAYOUT),)), SCALAR_LAYOUT)
     scalars.rms_inv_n[0] = 1.0 / N_EMBED
 
-    lm_head_step = jit(lm_head_step_fused, raw=True)
-    embed_rms_fwd_step = jit(embed_rms_fwd, raw=True)
-    embed_rms_bwd_step = jit(embed_rms_bwd, raw=True)
     adam_step = jit(simplify(adam.partial_eval(N=flat_params.numel)))._raw
 
     c2i = {ch: i for i, ch in enumerate(uchars)}
@@ -412,32 +415,14 @@ if __name__ == "__main__":
         memset(grads.wpe.ptr, 0, g_wpe_bytes)
         t0 = perf_counter()
 
-        embed_rms_fwd_step(vocab_size, scratch.emb.ptr, scratch.x0.ptr, scratch.rms_init.ptr, params.wte.ptr, params.wpe.ptr, scalars.rms_inv_n.ptr, batch.input_ids.ptr)
+        fwd_step(vocab_size, scratch.emb.ptr, scratch.x0.ptr, scratch.rms_init.ptr, scratch.x1.ptr, scratch.attn_xn.ptr, scratch.attn_rms.ptr, scratch.q.ptr, scratch.k.ptr, scratch.v.ptr, scratch.attn_w.ptr, scratch.out_flat.ptr, scratch.mlp_xn.ptr, scratch.mlp_rms.ptr, scratch.h_pre.ptr, scratch.h.ptr, scratch.dx0.ptr, params.wte.ptr, params.wpe.ptr, params.attn_wq.ptr, params.attn_wk.ptr, params.attn_wv.ptr, params.attn_wo.ptr, params.mlp_fc1.ptr, params.mlp_fc2.ptr, scalars.rms_inv_n.ptr, batch.input_ids.ptr)
 
-        attn_fwd(scratch.x1.ptr, scratch.attn_xn.ptr, scratch.attn_rms.ptr, scratch.q.ptr, scratch.k.ptr, scratch.v.ptr, scratch.attn_w.ptr, scratch.out_flat.ptr, scratch.x0.ptr, params.attn_wq.ptr, params.attn_wk.ptr, params.attn_wv.ptr, params.attn_wo.ptr, scalars.rms_inv_n.ptr)
-
-        rmsnorm_fn(BLOCK_SIZE, N_EMBED, scratch.mlp_xn.ptr, scratch.mlp_rms.ptr, scratch.x1.ptr, scalars.rms_inv_n.ptr)
-        matmul_right_t_fn(BLOCK_SIZE, 4 * N_EMBED, N_EMBED, scratch.h_pre.ptr, scratch.mlp_xn.ptr, params.mlp_fc1.ptr)
-        relu_fn(BLOCK_SIZE, 4 * N_EMBED, scratch.h.ptr, scratch.h_pre.ptr)
-        matmul_right_t_fn(BLOCK_SIZE, N_EMBED, 4 * N_EMBED, scratch.dx0.ptr, scratch.h.ptr, params.mlp_fc2.ptr)
-        add_fn(BLOCK_SIZE, N_EMBED, scratch.dx0.ptr, scratch.x1.ptr)
-
-        lm_head_step(vocab_size, scratch.dx1.ptr, grads.lm_head.ptr, scratch.logits.ptr, scratch.dx0.ptr, params.lm_head.ptr, batch.loss_mask.ptr, batch.inv_sum_mask.ptr, batch.target_ids.ptr)
-
-        matmul_left_t_fn(BLOCK_SIZE, N_EMBED, 4 * N_EMBED, grads.mlp_fc2.ptr, scratch.dx1.ptr, scratch.h.ptr)
-        matmul_fn(BLOCK_SIZE, 4 * N_EMBED, N_EMBED, scratch.dh.ptr, scratch.dx1.ptr, params.mlp_fc2.ptr)
-        relu_bwd_fn(BLOCK_SIZE, 4 * N_EMBED, scratch.dh_pre.ptr, scratch.dh.ptr, scratch.h_pre.ptr)
-        matmul_left_t_fn(BLOCK_SIZE, 4 * N_EMBED, N_EMBED, grads.mlp_fc1.ptr, scratch.dh_pre.ptr, scratch.mlp_xn.ptr)
-        matmul_fn(BLOCK_SIZE, N_EMBED, 4 * N_EMBED, scratch.dx0.ptr, scratch.dh_pre.ptr, params.mlp_fc1.ptr)
-        rmsnorm_bwd_fn(BLOCK_SIZE, N_EMBED, scratch.dx0.ptr, scratch.dx1.ptr, scratch.x1.ptr, scratch.mlp_rms.ptr, scalars.rms_inv_n.ptr)
-
-        attn_bwd(scratch.dx1.ptr, grads.attn_wq.ptr, grads.attn_wk.ptr, grads.attn_wv.ptr, grads.attn_wo.ptr, scratch.dattn_out.ptr, scratch.dx0.ptr, scratch.x0.ptr, scratch.attn_xn.ptr, scratch.attn_rms.ptr, scratch.q.ptr, scratch.k.ptr, scratch.v.ptr, scratch.attn_w.ptr, scratch.out_flat.ptr, params.attn_wq.ptr, params.attn_wk.ptr, params.attn_wv.ptr, params.attn_wo.ptr, scalars.rms_inv_n.ptr)
-
-        embed_rms_bwd_step(vocab_size, grads.wte.ptr, grads.wpe.ptr, scratch.dx1.ptr, scratch.emb.ptr, scratch.rms_init.ptr, scalars.rms_inv_n.ptr, batch.input_ids.ptr)
+        bwd_step(vocab_size, scratch.dx1.ptr, grads.lm_head.ptr, scratch.logits.ptr, scratch.dx0.ptr, params.lm_head.ptr, batch.loss_mask.ptr, batch.inv_sum_mask.ptr, batch.target_ids.ptr, grads.mlp_fc2.ptr, grads.mlp_fc1.ptr, scratch.dh.ptr, scratch.dh_pre.ptr, grads.attn_wq.ptr, grads.attn_wk.ptr, grads.attn_wv.ptr, grads.attn_wo.ptr, scratch.dattn_out.ptr, grads.wte.ptr, grads.wpe.ptr, scratch.emb.ptr, scratch.rms_init.ptr, scratch.x0.ptr, scratch.attn_xn.ptr, scratch.attn_rms.ptr, scratch.q.ptr, scratch.k.ptr, scratch.v.ptr, scratch.attn_w.ptr, scratch.out_flat.ptr, scratch.x1.ptr, scratch.mlp_xn.ptr, scratch.mlp_rms.ptr, scratch.h_pre.ptr, scratch.h.ptr, params.attn_wq.ptr, params.attn_wk.ptr, params.attn_wv.ptr, params.attn_wo.ptr, params.mlp_fc1.ptr, params.mlp_fc2.ptr, scalars.rms_inv_n.ptr, batch.input_ids.ptr)
 
         adam_step(flat_params.ptr, flat_grads.ptr, opt_state.m.ptr, opt_state.v.ptr, scalars.opt_lr.ptr, scalars.opt_bc1.ptr, scalars.opt_bc2.ptr)
 
         step_times.append(perf_counter() - t0)
 
     save_times(step_times)
-    assert_weights_match(wrap_state_dict(params))
+    W = namedtuple("W", ["data"])
+    assert_weights_match({name: [[W(float(tensor[i, j])) for j in range(tensor.shape[1])] for i in range(tensor.shape[0])] for name, tensor in named_params(params)})
