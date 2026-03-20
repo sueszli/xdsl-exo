@@ -1129,7 +1129,7 @@ def _jit_wrap(raw_fn: JitFunc, proc: Procedure, arg_kinds: bytes) -> Callable[..
     return wrapped
 
 
-def jit(proc: Procedure, raw: bool = False) -> Callable[..., None] | JitFunc:
+def _jit_compile(proc: Procedure, raw: bool = False) -> Callable[..., None] | JitFunc:
     mlir_module = to_mlir(proc)
     cache_key = hashlib.sha256(str(mlir_module).encode()).hexdigest()[:16]
     ir_text = _disk_cache(cache_key, lambda: str(LLVMLiteGenerator.generate(mlir_module)))
@@ -1151,6 +1151,20 @@ def jit(proc: Procedure, raw: bool = False) -> Callable[..., None] | JitFunc:
     if raw:
         return raw_fn
     return _jit_wrap(raw_fn, proc, arg_kinds)
+
+
+def jit(proc=None, *, raw: bool = False, optimize: Callable[[Procedure], Procedure] | None = None):
+    # call directly: `jit(proc)(...)`
+    # call as a decorator: `@jit(optimize=fn)`
+    if proc is None:
+        return lambda fn: jit(fn, raw=raw, optimize=optimize)
+    if callable(proc) and not isinstance(proc, Procedure):
+        from exo import proc as exo_proc
+
+        proc = exo_proc(proc)
+    if optimize:
+        proc = optimize(proc)
+    return _jit_compile(proc, raw=raw)
 
 
 #

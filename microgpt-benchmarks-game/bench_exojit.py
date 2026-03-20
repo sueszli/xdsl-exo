@@ -126,25 +126,6 @@ def attn_fwd_fused(out: f64[BLOCK_SIZE, N_EMBED] @ DRAM, xn: f64[BLOCK_SIZE, N_E
 
 
 @proc
-def mlp_fwd_fused(out: f64[BLOCK_SIZE, N_EMBED] @ DRAM, xn: f64[BLOCK_SIZE, N_EMBED] @ DRAM, rms: f64[BLOCK_SIZE, 1] @ DRAM, h_pre: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, h: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, x: f64[BLOCK_SIZE, N_EMBED] @ DRAM, fc1: f64[4 * N_EMBED, N_EMBED] @ DRAM, fc2: f64[N_EMBED, 4 * N_EMBED] @ DRAM, inv_n: f64[1] @ DRAM):
-    rmsnorm(BLOCK_SIZE, N_EMBED, xn, rms, x, inv_n)
-    matmul_right_t(BLOCK_SIZE, 4 * N_EMBED, N_EMBED, h_pre, xn, fc1)
-    relu(BLOCK_SIZE, 4 * N_EMBED, h, h_pre)
-    matmul_right_t(BLOCK_SIZE, N_EMBED, 4 * N_EMBED, out, h, fc2)
-    add(BLOCK_SIZE, N_EMBED, out, x)
-
-
-@proc
-def mlp_bwd_fused(out: f64[BLOCK_SIZE, N_EMBED] @ DRAM, dw1: f64[4 * N_EMBED, N_EMBED] @ DRAM, dw2: f64[N_EMBED, 4 * N_EMBED] @ DRAM, dx: f64[BLOCK_SIZE, N_EMBED] @ DRAM, x_pre: f64[BLOCK_SIZE, N_EMBED] @ DRAM, xn: f64[BLOCK_SIZE, N_EMBED] @ DRAM, rms: f64[BLOCK_SIZE, 1] @ DRAM, h_pre: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, h: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, dh: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, dh_pre: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, fc1: f64[4 * N_EMBED, N_EMBED] @ DRAM, fc2: f64[N_EMBED, 4 * N_EMBED] @ DRAM, inv_n: f64[1] @ DRAM):
-    matmul_left_t(BLOCK_SIZE, N_EMBED, 4 * N_EMBED, dw2, dx, h)
-    matmul(BLOCK_SIZE, 4 * N_EMBED, N_EMBED, dh, dx, fc2)
-    relu_bwd(BLOCK_SIZE, 4 * N_EMBED, dh_pre, dh, h_pre)
-    matmul_left_t(BLOCK_SIZE, 4 * N_EMBED, N_EMBED, dw1, dh_pre, xn)
-    matmul(BLOCK_SIZE, N_EMBED, 4 * N_EMBED, out, dh_pre, fc1)
-    rmsnorm_bwd(BLOCK_SIZE, N_EMBED, out, dx, x_pre, rms, inv_n)
-
-
-@proc
 def attn_bwd_fused(out: f64[BLOCK_SIZE, N_EMBED] @ DRAM, dwq: f64[N_EMBED, N_EMBED] @ DRAM, dwk: f64[N_EMBED, N_EMBED] @ DRAM, dwv: f64[N_EMBED, N_EMBED] @ DRAM, dwo: f64[N_EMBED, N_EMBED] @ DRAM, dattn_out: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, dx: f64[BLOCK_SIZE, N_EMBED] @ DRAM, x_pre: f64[BLOCK_SIZE, N_EMBED] @ DRAM, xn: f64[BLOCK_SIZE, N_EMBED] @ DRAM, rms: f64[BLOCK_SIZE, 1] @ DRAM, q: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, k: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, v: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, attn_w: f64[N_HEAD * BLOCK_SIZE, BLOCK_SIZE] @ DRAM, out_flat: f64[BLOCK_SIZE, N_EMBED] @ DRAM, wq: f64[N_EMBED, N_EMBED] @ DRAM, wk: f64[N_EMBED, N_EMBED] @ DRAM, wv: f64[N_EMBED, N_EMBED] @ DRAM, wo: f64[N_EMBED, N_EMBED] @ DRAM, inv_n: f64[1] @ DRAM):
     attn_tmp: f64[BLOCK_SIZE] @ Stack
     for t in seq(0, BLOCK_SIZE):
@@ -373,7 +354,17 @@ def wrap_state_dict(params: Params) -> dict[str, list[list[object]]]:
 if __name__ == "__main__":
     random.seed(42)
     num_steps = 1000
-    attn_fwd, attn_bwd, mlp_fwd, mlp_bwd = (jit(simplify(proc))._raw for proc in (attn_fwd_fused, attn_bwd_fused, mlp_fwd_fused, mlp_bwd_fused))
+    attn_fwd, attn_bwd = (jit(simplify(proc))._raw for proc in (attn_fwd_fused, attn_bwd_fused))
+
+    # jit stuff
+    rmsnorm_fn = jit(rmsnorm, raw=True)
+    matmul_right_t_fn = jit(matmul_right_t, raw=True)
+    relu_fn = jit(relu, raw=True)
+    add_fn = jit(add, raw=True)
+    matmul_left_t_fn = jit(matmul_left_t, raw=True)
+    matmul_fn = jit(matmul, raw=True)
+    relu_bwd_fn = jit(relu_bwd, raw=True)
+    rmsnorm_bwd_fn = jit(rmsnorm_bwd, raw=True)
 
     docs = (Path(__file__).parent / "input.txt").read_text().splitlines()
     random.shuffle(docs)
@@ -425,11 +416,20 @@ if __name__ == "__main__":
 
         attn_fwd(scratch.x1.ptr, scratch.attn_xn.ptr, scratch.attn_rms.ptr, scratch.q.ptr, scratch.k.ptr, scratch.v.ptr, scratch.attn_w.ptr, scratch.out_flat.ptr, scratch.x0.ptr, params.attn_wq.ptr, params.attn_wk.ptr, params.attn_wv.ptr, params.attn_wo.ptr, scalars.rms_inv_n.ptr)
 
-        mlp_fwd(scratch.dx0.ptr, scratch.mlp_xn.ptr, scratch.mlp_rms.ptr, scratch.h_pre.ptr, scratch.h.ptr, scratch.x1.ptr, params.mlp_fc1.ptr, params.mlp_fc2.ptr, scalars.rms_inv_n.ptr)
+        rmsnorm_fn(BLOCK_SIZE, N_EMBED, scratch.mlp_xn.ptr, scratch.mlp_rms.ptr, scratch.x1.ptr, scalars.rms_inv_n.ptr)
+        matmul_right_t_fn(BLOCK_SIZE, 4 * N_EMBED, N_EMBED, scratch.h_pre.ptr, scratch.mlp_xn.ptr, params.mlp_fc1.ptr)
+        relu_fn(BLOCK_SIZE, 4 * N_EMBED, scratch.h.ptr, scratch.h_pre.ptr)
+        matmul_right_t_fn(BLOCK_SIZE, N_EMBED, 4 * N_EMBED, scratch.dx0.ptr, scratch.h.ptr, params.mlp_fc2.ptr)
+        add_fn(BLOCK_SIZE, N_EMBED, scratch.dx0.ptr, scratch.x1.ptr)
 
         lm_head_step(vocab_size, scratch.dx1.ptr, grads.lm_head.ptr, scratch.logits.ptr, scratch.dx0.ptr, params.lm_head.ptr, batch.loss_mask.ptr, batch.inv_sum_mask.ptr, batch.target_ids.ptr)
 
-        mlp_bwd(scratch.dx0.ptr, grads.mlp_fc1.ptr, grads.mlp_fc2.ptr, scratch.dx1.ptr, scratch.x1.ptr, scratch.mlp_xn.ptr, scratch.mlp_rms.ptr, scratch.h_pre.ptr, scratch.h.ptr, scratch.dh.ptr, scratch.dh_pre.ptr, params.mlp_fc1.ptr, params.mlp_fc2.ptr, scalars.rms_inv_n.ptr)
+        matmul_left_t_fn(BLOCK_SIZE, N_EMBED, 4 * N_EMBED, grads.mlp_fc2.ptr, scratch.dx1.ptr, scratch.h.ptr)
+        matmul_fn(BLOCK_SIZE, 4 * N_EMBED, N_EMBED, scratch.dh.ptr, scratch.dx1.ptr, params.mlp_fc2.ptr)
+        relu_bwd_fn(BLOCK_SIZE, 4 * N_EMBED, scratch.dh_pre.ptr, scratch.dh.ptr, scratch.h_pre.ptr)
+        matmul_left_t_fn(BLOCK_SIZE, 4 * N_EMBED, N_EMBED, grads.mlp_fc1.ptr, scratch.dh_pre.ptr, scratch.mlp_xn.ptr)
+        matmul_fn(BLOCK_SIZE, N_EMBED, 4 * N_EMBED, scratch.dx0.ptr, scratch.dh_pre.ptr, params.mlp_fc1.ptr)
+        rmsnorm_bwd_fn(BLOCK_SIZE, N_EMBED, scratch.dx0.ptr, scratch.dx1.ptr, scratch.x1.ptr, scratch.mlp_rms.ptr, scalars.rms_inv_n.ptr)
 
         attn_bwd(scratch.dx1.ptr, grads.attn_wq.ptr, grads.attn_wk.ptr, grads.attn_wv.ptr, grads.attn_wo.ptr, scratch.dattn_out.ptr, scratch.dx0.ptr, scratch.x0.ptr, scratch.attn_xn.ptr, scratch.attn_rms.ptr, scratch.q.ptr, scratch.k.ptr, scratch.v.ptr, scratch.attn_w.ptr, scratch.out_flat.ptr, params.attn_wq.ptr, params.attn_wk.ptr, params.attn_wv.ptr, params.attn_wo.ptr, scalars.rms_inv_n.ptr)
 
