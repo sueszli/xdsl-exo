@@ -196,9 +196,10 @@ class IRGenerator:
 
         self.builder.insert(memref.StoreOp.get(value, memref_val, index_indices))
 
-    def _expr_const(self, const: LoopIR.Const) -> SSAValue:
+    def _expr_const(self, const: LoopIR.Const, expected_type: Attribute | None = None) -> SSAValue:
         # lower loopir literal to llvm.mlir.constant op
-        mlir_type = self._to_mlir_type(const.type)
+        is_num_with_context = isinstance(const.type, T.Num) and expected_type is not None
+        mlir_type = expected_type if is_num_with_context else self._to_mlir_type(const.type)
 
         if mlir_type in [f16, f32, f64]:
             attr = FloatAttr(const.val, mlir_type)
@@ -224,7 +225,8 @@ class IRGenerator:
     def _expr_usub(self, usub: LoopIR.USub) -> SSAValue:
         # lower unary negation to llvm.fneg (float) or 0-x llvm.sub (int)
         expr = self._expr(usub.arg)
-        mlir_type = self._to_mlir_type(usub.type)
+        is_num_type = isinstance(usub.type, T.Num)
+        mlir_type = expr.type if is_num_type else self._to_mlir_type(usub.type)
 
         if mlir_type in [f16, f32, f64]:
             return self._emit(FNegOp(expr, fast_math=llvm.FastMathAttr("fast")))
@@ -248,9 +250,24 @@ class IRGenerator:
 
     def _expr_binop(self, binop: LoopIR.BinOp) -> SSAValue:
         # lower binary op to typed llvm op
-        mlir_type = self._to_mlir_type(binop.type)
-        lhs = self._expr(binop.lhs)
-        rhs = self._expr(binop.rhs)
+        is_num_type = isinstance(binop.type, T.Num)
+
+        if is_num_type:
+            # For division with constant numerator, evaluate rhs first to get type
+            if binop.op == "/" and isinstance(binop.lhs, LoopIR.Const):
+                rhs = self._expr(binop.rhs)
+                mlir_type = rhs.type
+                lhs = self._expr(binop.lhs, mlir_type)
+            else:
+                # evaluate operands first to infer type
+                lhs = self._expr(binop.lhs)
+                rhs = self._expr(binop.rhs)
+                # use actual operand type (should match for valid Exo)
+                mlir_type = lhs.type
+        else:
+            mlir_type = self._to_mlir_type(binop.type)
+            lhs = self._expr(binop.lhs, mlir_type)
+            rhs = self._expr(binop.rhs, mlir_type)
 
         if mlir_type == i1:
             return self._cmp_binop(lhs, rhs, binop.op, self._emit)
@@ -296,27 +313,32 @@ class IRGenerator:
 
     def _expr_extern(self, extern: LoopIR.Extern) -> SSAValue:
         # lower extern function call to func.call with return value
-        args = [self._expr(arg) for arg in extern.args]
-
         if extern.f.name() == "select":
             # select(a, b, c, d) -> (a < b) ? c : d
-            cmp = self._emit(FCmpOp(args[0], args[1], "olt"))
-            return self._emit(llvm.SelectOp(cmp, args[2], args[3]))
+            arg_b = self._expr(extern.args[1])
+            expected_type = arg_b.type
+            arg_a = self._expr(extern.args[0], expected_type)
+            arg_c = self._expr(extern.args[2], expected_type)
+            arg_d = self._expr(extern.args[3], expected_type)
+            cmp = self._emit(FCmpOp(arg_a, arg_b, "olt"))
+            return self._emit(llvm.SelectOp(cmp, arg_c, arg_d))
 
         if extern.f.name() == "sqrt":
+            args = [self._expr(arg) for arg in extern.args]
             return self._emit(FSqrtOp(args[0]))
 
+        args = [self._expr(arg) for arg in extern.args]
         output_type = self._to_mlir_type(extern.f.typecheck(extern.args))
         name = extern.f.name()
         return self._emit(llvm.CallOp(name, *args, return_type=output_type))
 
-    def _expr(self, expr: object) -> OpResult | SSAValue:
+    def _expr(self, expr: object, expected_type: Attribute | None = None) -> OpResult | SSAValue:
         # dispatch loopir expression node to its typed lowering method
         match expr:
             case LoopIR.Read():
                 return self._expr_read(expr)
             case LoopIR.Const():
-                return self._expr_const(expr)
+                return self._expr_const(expr, expected_type)
             case LoopIR.USub():
                 return self._expr_usub(expr)
             case LoopIR.BinOp():
@@ -331,15 +353,17 @@ class IRGenerator:
     def _stmt_assign(self, stmt: LoopIR.Assign) -> None:
         # lower assignment to memref.store
         idx = [self._expr(expr) for expr in stmt.idx]
-        value = self._expr(stmt.rhs)
         memref_val = self._syms[repr(stmt.name)]
+        expected_type = memref_val.type.element_type if isinstance(memref_val.type, MemRefType) else None
+        value = self._expr(stmt.rhs, expected_type)
         self._memref_store(value, memref_val, idx)
 
     def _stmt_reduce(self, stmt: LoopIR.Reduce) -> None:
         # lower reduce to load + add + store (accumulate into buffer)
         idx = [self._expr(expr) for expr in stmt.idx]
-        value = self._expr(stmt.rhs)
         memref_val = self._syms[repr(stmt.name)]
+        expected_type = memref_val.type.element_type if isinstance(memref_val.type, MemRefType) else None
+        value = self._expr(stmt.rhs, expected_type)
 
         current = self._memref_load(memref_val, idx)
         if value.type in [f16, f32, f64]:
