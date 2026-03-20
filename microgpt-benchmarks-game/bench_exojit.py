@@ -99,7 +99,7 @@ def softmax(M: size, N: size, x: f64[M, N] @ DRAM):
     for i in seq(0, M):
         mx: f64 @ Stack
         sum_val: f64 @ Stack
-        mx = -1e10
+        mx = CAUSAL_MASK_VALUE
         for j in seq(0, N):
             mx = select(mx, x[i, j], x[i, j], mx)
         sum_val = 0.0
