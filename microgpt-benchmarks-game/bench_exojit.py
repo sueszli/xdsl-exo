@@ -406,16 +406,16 @@ SCRATCH_FIELDS = "emb rms_init x0 x1 logits attn_xn attn_rms q k v attn_w attn_o
 SCALARS_FIELDS = "opt_lr opt_bc1 opt_bc2 rms_inv_n opt_beta1 opt_beta2 attn_scale".split()
 
 
-def bind(fields, flat, layout):
+def bind(fields: list[str], flat: Buf, layout: tuple[tuple[int, ...], ...]) -> dict[str, Buf]:
     off = 0
-    d = {}
+    d: dict[str, Buf] = {}
     for name, shape in zip(fields, layout):
         d[name] = flat.view(prod(shape), off)
         off += prod(shape)
     return d
 
 
-def scratch_layout(vocab_size):
+def scratch_layout(vocab_size: int) -> tuple[tuple[int, ...], ...]:
     return (
         (BLOCK_SIZE, N_EMBED),
         (BLOCK_SIZE, 1),
@@ -445,7 +445,7 @@ def scratch_layout(vocab_size):
     )
 
 
-def named_params(params, layout):
+def named_params(params: dict[str, Buf], layout: tuple[tuple[int, int], ...]) -> list[tuple[str, Buf, int]]:
     names = ("wte", "wpe", "lm_head", "layer0.attn_wq", "layer0.attn_wk", "layer0.attn_wv", "layer0.attn_wo", "layer0.mlp_fc1", "layer0.mlp_fc2")
     return [(n, params[PARAMS_FIELDS[i]], layout[i][1]) for i, n in enumerate(names)]
 
@@ -474,82 +474,91 @@ class Buf:
         self._a[self._o + i] = v
 
 
-def tokenize(doc, c2i, bos):
-    tokens = [bos] + [c2i[ch] for ch in doc] + [bos]
-    n = min(BLOCK_SIZE, len(tokens) - 1)
-    inputs = Buf(BLOCK_SIZE, int)
-    targets = Buf(BLOCK_SIZE, int)
-    loss_mask = Buf(BLOCK_SIZE)
-    for i in range(n):
-        inputs[i] = tokens[i]
-        targets[i] = tokens[i + 1]
-        loss_mask[i] = 1.0
-    inv_sum_mask = Buf(1)
-    inv_sum_mask[0] = 1.0 / max(1, n)
-    return {"input_ids": inputs, "target_ids": targets, "loss_mask": loss_mask, "inv_sum_mask": inv_sum_mask}
+def tokenize(docs: list[str], uchars: list[str]) -> list[dict[str, Buf]]:
+    bos = len(uchars)
+    result = []
+    for doc in docs:
+        tokens = [bos] + [{ch: i for i, ch in enumerate(uchars)}[ch] for ch in doc] + [bos]
+        n = min(BLOCK_SIZE, len(tokens) - 1)
+        inputs = Buf(BLOCK_SIZE, int)
+        targets = Buf(BLOCK_SIZE, int)
+        loss_mask = Buf(BLOCK_SIZE)
+        for i in range(n):
+            inputs[i] = tokens[i]
+            targets[i] = tokens[i + 1]
+            loss_mask[i] = 1.0
+        inv_sum_mask = Buf(1)
+        inv_sum_mask[0] = 1.0 / max(1, n)
+        result.append({"input_ids": inputs, "target_ids": targets, "loss_mask": loss_mask, "inv_sum_mask": inv_sum_mask})
+    return result
+
+
+docs = (Path(__file__).parent / "input.txt").read_text().splitlines()
+random.shuffle(docs)
+uchars = sorted(set("".join(docs)))
+vocab_size = len(uchars) + 1
+tokenized = tokenize(docs, uchars)
+
+params_layout = [(vocab_size, N_EMBED), (BLOCK_SIZE, N_EMBED), (vocab_size, N_EMBED)] + [(N_EMBED, N_EMBED)] * 4 + [(4 * N_EMBED, N_EMBED), (N_EMBED, 4 * N_EMBED)]
+flat_params = Buf(sum(prod(s) for s in params_layout))
+params = bind(PARAMS_FIELDS, flat_params, params_layout)
+for name, buf, _ in named_params(params, params_layout):
+    for i in range(buf.n):
+        buf[i] = random.gauss(0.0, 0.08)
+
+flat_grads = Buf(flat_params.n)
+grads = bind(PARAMS_FIELDS, flat_grads, params_layout)
+opt_m = Buf(flat_params.n)
+opt_v = Buf(flat_params.n)
+
+scratch = bind(SCRATCH_FIELDS, Buf(sum(prod(s) for s in scratch_layout(vocab_size))), scratch_layout(vocab_size))
+scalars = bind(SCALARS_FIELDS, Buf(7), ((1,) for _ in SCALARS_FIELDS))
+scalars["rms_inv_n"][0] = 1.0 / N_EMBED
+scalars["opt_beta1"][0] = 0.9
+scalars["opt_beta2"][0] = 0.999
+scalars["attn_scale"][0] = 1.0 / HEAD_DIM**0.5
+
+args = {
+    "vocab_size": vocab_size,
+    "total_params": flat_params.n,
+    **{f: scratch[f].ptr for f in SCRATCH_FIELDS},
+    **{f: params[f].ptr for f in PARAMS_FIELDS},
+    **{"g_" + f: grads[f].ptr for f in PARAMS_FIELDS},
+    "flat_params": flat_params.ptr,
+    "flat_grads": flat_grads.ptr,
+    "opt_m": opt_m.ptr,
+    "opt_v": opt_v.ptr,
+    "inv_n": scalars["rms_inv_n"].ptr,
+    "attn_scale": scalars["attn_scale"].ptr,
+    "lr": scalars["opt_lr"].ptr,
+    "beta1_t": scalars["opt_bc1"].ptr,
+    "beta2_t": scalars["opt_bc2"].ptr,
+    "beta1": scalars["opt_beta1"].ptr,
+    "beta2": scalars["opt_beta2"].ptr,
+}
+
+grads_to_clear = [(grads["wte"].ptr, grads["wte"].n * 8), (grads["wpe"].ptr, grads["wpe"].n * 8)]
+lr_t = [0.01 * (1.0 - s / NUM_STEPS) for s in range(NUM_STEPS)]
+bc1 = list(map(lambda s: 1.0 - 0.9 ** (s + 1), range(NUM_STEPS)))
+bc2 = list(map(lambda s: 1.0 - 0.999 ** (s + 1), range(NUM_STEPS)))
+memset = ctypes.memset
+perf_counter = time.perf_counter
+step_times = []
+
+for step, (lr, b1, b2) in enumerate(zip(lr_t, bc1, bc2)):
+    scalars["opt_lr"][0] = lr
+    scalars["opt_bc1"][0] = b1
+    scalars["opt_bc2"][0] = b2
+    batch = tokenized[step % len(tokenized)]
+    for ptr, n in grads_to_clear:
+        memset(ptr, 0, n)
+    t0 = perf_counter()
+    args.update({k: batch[k].ptr for k in ("loss_mask", "inv_sum_mask", "input_ids", "target_ids")})
+    train_step(**args)
+    step_times.append(perf_counter() - t0)
 
 
 if __name__ == "__main__":
-    docs = (Path(__file__).parent / "input.txt").read_text().splitlines()
-    random.shuffle(docs)
-    uchars = sorted(set("".join(docs)))
-    vocab_size = len(uchars) + 1
-
-    params_layout = (
-        (vocab_size, N_EMBED),
-        (BLOCK_SIZE, N_EMBED),
-        (vocab_size, N_EMBED),
-        (N_EMBED, N_EMBED),
-        (N_EMBED, N_EMBED),
-        (N_EMBED, N_EMBED),
-        (N_EMBED, N_EMBED),
-        (4 * N_EMBED, N_EMBED),
-        (N_EMBED, 4 * N_EMBED),
-    )
-    flat_params = Buf(sum(prod(s) for s in params_layout))
-    params = bind(PARAMS_FIELDS, flat_params, params_layout)
-    for name, buf, _ in named_params(params, params_layout):
-        for i in range(buf.n):
-            buf[i] = random.gauss(0.0, 0.08)
-
-    flat_grads = Buf(flat_params.n)
-    grads = bind(PARAMS_FIELDS, flat_grads, params_layout)
-    opt_m = Buf(flat_params.n)
-    opt_v = Buf(flat_params.n)
-
-    scratch = bind(SCRATCH_FIELDS, Buf(sum(prod(s) for s in scratch_layout(vocab_size))), scratch_layout(vocab_size))
-    scalars = bind(SCALARS_FIELDS, Buf(7), ((1,), (1,), (1,), (1,), (1,), (1,), (1,)))
-    scalars["rms_inv_n"][0] = 1.0 / N_EMBED
-    scalars["opt_beta1"][0] = 0.9
-    scalars["opt_beta2"][0] = 0.999
-    scalars["attn_scale"][0] = 1.0 / HEAD_DIM**0.5
-
-    c2i = {ch: i for i, ch in enumerate(uchars)}
-    bos = vocab_size - 1
-    tokenized = [tokenize(doc, c2i, bos) for doc in docs]
-
-    g_wte_bytes = grads["wte"].n * 8
-    g_wpe_bytes = grads["wpe"].n * 8
-    lr_t = [0.01 * (1.0 - step / NUM_STEPS) for step in range(NUM_STEPS)]
-    bc1 = [1.0 - 0.9 ** (step + 1) for step in range(NUM_STEPS)]
-    bc2 = [1.0 - 0.999 ** (step + 1) for step in range(NUM_STEPS)]
-    memset = ctypes.memset
-    perf_counter = time.perf_counter
-    step_times = []
-
-    for step in range(NUM_STEPS):
-        scalars["opt_lr"][0] = lr_t[step]
-        scalars["opt_bc1"][0] = bc1[step]
-        scalars["opt_bc2"][0] = bc2[step]
-        batch = tokenized[step % len(tokenized)]
-        memset(grads["wte"].ptr, 0, g_wte_bytes)
-        memset(grads["wpe"].ptr, 0, g_wpe_bytes)
-        t0 = perf_counter()
-
-        train_step(vocab_size, flat_params.n, scratch["emb"].ptr, scratch["x0"].ptr, scratch["rms_init"].ptr, scratch["x1"].ptr, scratch["attn_xn"].ptr, scratch["attn_rms"].ptr, scratch["q"].ptr, scratch["k"].ptr, scratch["v"].ptr, scratch["attn_w"].ptr, scratch["attn_out"].ptr, scratch["out_flat"].ptr, scratch["mlp_xn"].ptr, scratch["mlp_rms"].ptr, scratch["h_pre"].ptr, scratch["h"].ptr, scratch["dx0"].ptr, scratch["dx1"].ptr, scratch["logits"].ptr, scratch["dq"].ptr, scratch["dk"].ptr, scratch["dv"].ptr, scratch["dattn_out"].ptr, scratch["dh"].ptr, scratch["dh_pre"].ptr, params["wte"].ptr, params["wpe"].ptr, params["lm_head"].ptr, params["attn_wq"].ptr, params["attn_wk"].ptr, params["attn_wv"].ptr, params["attn_wo"].ptr, params["mlp_fc1"].ptr, params["mlp_fc2"].ptr, grads["wte"].ptr, grads["wpe"].ptr, grads["lm_head"].ptr, grads["attn_wq"].ptr, grads["attn_wk"].ptr, grads["attn_wv"].ptr, grads["attn_wo"].ptr, grads["mlp_fc1"].ptr, grads["mlp_fc2"].ptr, flat_params.ptr, flat_grads.ptr, opt_m.ptr, opt_v.ptr, scalars["rms_inv_n"].ptr, scalars["attn_scale"].ptr, batch["loss_mask"].ptr, batch["inv_sum_mask"].ptr, batch["input_ids"].ptr, batch["target_ids"].ptr, scalars["opt_lr"].ptr, scalars["opt_bc1"].ptr, scalars["opt_bc2"].ptr, scalars["opt_beta1"].ptr, scalars["opt_beta2"].ptr)
-
-        step_times.append(perf_counter() - t0)
-
     save_times(step_times)
     W = namedtuple("W", ["data"])
     assert_weights_match({name: [[W(float(buf[i * cols + j])) for j in range(cols)] for i in range(buf.n // cols)] for name, buf, cols in named_params(params, params_layout)})

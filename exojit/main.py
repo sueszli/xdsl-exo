@@ -1096,11 +1096,15 @@ def _jit_tensor_converter(*, ffi: FFI, index: int, tensor_type: T.Tensor, writab
     return convert
 
 
+_strip_arg_name = lambda name: re.sub(r"_\d+$", "", str(name))
+_resolve_jit_args = lambda names, args, kw: tuple(kw[n] for n in names) if kw else args
+
+
 def _jit_wrap(raw_fn: JitFunc, proc: Procedure, arg_kinds: bytes) -> Callable[..., None]:
-    # adapt the raw entrypoint to Python objects and sync writable outputs
     ffi = FFI()
     ffi.cdef("typedef unsigned long uintptr_t;")
     converters = []
+    arg_names = [_strip_arg_name(arg.name) for arg in proc._loopir_proc.args]
     for i, arg in enumerate(proc._loopir_proc.args):
         match arg.type:
             case _ if arg.type.is_tensor_or_window():
@@ -1118,7 +1122,8 @@ def _jit_wrap(raw_fn: JitFunc, proc: Procedure, arg_kinds: bytes) -> Callable[..
             case _:
                 assert False, f"unsupported JIT argument type for {arg.name}: {arg.type}"
 
-    def wrapped(*args):
+    def wrapped(*args, **kwargs):
+        args = _resolve_jit_args(arg_names, args, kwargs)
         assert len(args) == len(converters), f"jit expected {len(converters)} arguments, got {len(args)}"
 
         shape_env: dict[object, int] = {}
@@ -1151,8 +1156,13 @@ def _jit_compile(proc: Procedure, raw: bool = False) -> Callable[..., None] | Ji
 
     arg_kinds = _jit_arg_kinds(proc._loopir_proc)
     raw_fn = JitFunc(engine.get_function_address(proc.name()), engine, arg_kinds)
+
     if raw:
-        return raw_fn
+        arg_names = [_strip_arg_name(arg.name) for arg in proc._loopir_proc.args]
+        raw_wrapped = lambda *args, **kwargs: raw_fn(*_resolve_jit_args(arg_names, args, kwargs))
+        raw_wrapped._raw = raw_fn
+        return raw_wrapped
+
     return _jit_wrap(raw_fn, proc, arg_kinds)
 
 
