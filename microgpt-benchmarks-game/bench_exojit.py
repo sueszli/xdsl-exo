@@ -427,83 +427,6 @@ def main() -> None:
     embed_rms_bwd_step = jit(embed_rms_bwd, raw=True)
     adam_step = jit(simplify(adam.partial_eval(N=flat_params.numel)))._raw
 
-    attn_fwd_args = (
-        scratch.x1.ptr,
-        scratch.attn_xn.ptr,
-        scratch.attn_rms.ptr,
-        scratch.q.ptr,
-        scratch.k.ptr,
-        scratch.v.ptr,
-        scratch.attn_w.ptr,
-        scratch.out_flat.ptr,
-        scratch.x0.ptr,
-        params.attn_wq.ptr,
-        params.attn_wk.ptr,
-        params.attn_wv.ptr,
-        params.attn_wo.ptr,
-        scalars.rms_inv_n.ptr,
-        scalars.rms_eps.ptr,
-    )
-    mlp_fwd_args = (
-        scratch.dx0.ptr,
-        scratch.mlp_xn.ptr,
-        scratch.mlp_rms.ptr,
-        scratch.h_pre.ptr,
-        scratch.h.ptr,
-        scratch.x1.ptr,
-        params.mlp_fc1.ptr,
-        params.mlp_fc2.ptr,
-        scalars.rms_inv_n.ptr,
-        scalars.rms_eps.ptr,
-    )
-    mlp_bwd_args = (
-        scratch.dx0.ptr,
-        grads.mlp_fc1.ptr,
-        grads.mlp_fc2.ptr,
-        scratch.dx1.ptr,
-        scratch.x1.ptr,
-        scratch.mlp_xn.ptr,
-        scratch.mlp_rms.ptr,
-        scratch.h_pre.ptr,
-        scratch.h.ptr,
-        scratch.dh.ptr,
-        scratch.dh_pre.ptr,
-        params.mlp_fc1.ptr,
-        params.mlp_fc2.ptr,
-        scalars.rms_inv_n.ptr,
-    )
-    attn_bwd_args = (
-        scratch.dx1.ptr,
-        grads.attn_wq.ptr,
-        grads.attn_wk.ptr,
-        grads.attn_wv.ptr,
-        grads.attn_wo.ptr,
-        scratch.dattn_out.ptr,
-        scratch.dx0.ptr,
-        scratch.x0.ptr,
-        scratch.attn_xn.ptr,
-        scratch.attn_rms.ptr,
-        scratch.q.ptr,
-        scratch.k.ptr,
-        scratch.v.ptr,
-        scratch.attn_w.ptr,
-        scratch.out_flat.ptr,
-        params.attn_wq.ptr,
-        params.attn_wk.ptr,
-        params.attn_wv.ptr,
-        params.attn_wo.ptr,
-        scalars.rms_inv_n.ptr,
-    )
-    adam_args = (
-        flat_params.ptr,
-        flat_grads.ptr,
-        opt_state.m.ptr,
-        opt_state.v.ptr,
-        scalars.opt_lr.ptr,
-        scalars.opt_bc1.ptr,
-        scalars.opt_bc2.ptr,
-    )
-
     c2i = {ch: i for i, ch in enumerate(uchars)}
     bos = vocab_size - 1
     tokenized = [tokenize(doc, c2i, bos) for doc in docs]
@@ -522,40 +445,26 @@ def main() -> None:
         scalars.opt_bc1[0] = bc1[step]
         scalars.opt_bc2[0] = bc2[step]
         batch = tokenized[step % len(tokenized)]
-        embed_args = (
-            vocab_size,
-            scratch.emb.ptr,
-            scratch.x0.ptr,
-            scratch.rms_init.ptr,
-            params.wte.ptr,
-            params.wpe.ptr,
-            scalars.rms_inv_n.ptr,
-            scalars.rms_eps.ptr,
-            batch.input_ids.ptr,
-        )
-        lm_head_args = (
-            vocab_size,
-            scratch.dx1.ptr,
-            grads.lm_head.ptr,
-            scratch.logits.ptr,
-            scratch.dx0.ptr,
-            params.lm_head.ptr,
-            batch.loss_mask.ptr,
-            batch.inv_sum_mask.ptr,
-            batch.target_ids.ptr,
-        )
-
         memset(grads.wte.ptr, 0, g_wte_bytes)
         memset(grads.wpe.ptr, 0, g_wpe_bytes)
         t0 = perf_counter()
-        embed_rms_fwd_step(*embed_args)
-        attn_fwd(*attn_fwd_args)
-        mlp_fwd(*mlp_fwd_args)
-        lm_head_step(*lm_head_args)
-        mlp_bwd(*mlp_bwd_args)
-        attn_bwd(*attn_bwd_args)
+
+        embed_rms_fwd_step(vocab_size, scratch.emb.ptr, scratch.x0.ptr, scratch.rms_init.ptr, params.wte.ptr, params.wpe.ptr, scalars.rms_inv_n.ptr, scalars.rms_eps.ptr, batch.input_ids.ptr)
+
+        attn_fwd(scratch.x1.ptr, scratch.attn_xn.ptr, scratch.attn_rms.ptr, scratch.q.ptr, scratch.k.ptr, scratch.v.ptr, scratch.attn_w.ptr, scratch.out_flat.ptr, scratch.x0.ptr, params.attn_wq.ptr, params.attn_wk.ptr, params.attn_wv.ptr, params.attn_wo.ptr, scalars.rms_inv_n.ptr, scalars.rms_eps.ptr)
+
+        mlp_fwd(scratch.dx0.ptr, scratch.mlp_xn.ptr, scratch.mlp_rms.ptr, scratch.h_pre.ptr, scratch.h.ptr, scratch.x1.ptr, params.mlp_fc1.ptr, params.mlp_fc2.ptr, scalars.rms_inv_n.ptr, scalars.rms_eps.ptr)
+
+        lm_head_step(vocab_size, scratch.dx1.ptr, grads.lm_head.ptr, scratch.logits.ptr, scratch.dx0.ptr, params.lm_head.ptr, batch.loss_mask.ptr, batch.inv_sum_mask.ptr, batch.target_ids.ptr)
+
+        mlp_bwd(scratch.dx0.ptr, grads.mlp_fc1.ptr, grads.mlp_fc2.ptr, scratch.dx1.ptr, scratch.x1.ptr, scratch.mlp_xn.ptr, scratch.mlp_rms.ptr, scratch.h_pre.ptr, scratch.h.ptr, scratch.dh.ptr, scratch.dh_pre.ptr, params.mlp_fc1.ptr, params.mlp_fc2.ptr, scalars.rms_inv_n.ptr)
+
+        attn_bwd(scratch.dx1.ptr, grads.attn_wq.ptr, grads.attn_wk.ptr, grads.attn_wv.ptr, grads.attn_wo.ptr, scratch.dattn_out.ptr, scratch.dx0.ptr, scratch.x0.ptr, scratch.attn_xn.ptr, scratch.attn_rms.ptr, scratch.q.ptr, scratch.k.ptr, scratch.v.ptr, scratch.attn_w.ptr, scratch.out_flat.ptr, params.attn_wq.ptr, params.attn_wk.ptr, params.attn_wv.ptr, params.attn_wo.ptr, scalars.rms_inv_n.ptr)
+
         embed_rms_bwd_step(vocab_size, grads.wte.ptr, grads.wpe.ptr, scratch.dx1.ptr, scratch.emb.ptr, scratch.rms_init.ptr, scalars.rms_inv_n.ptr, batch.input_ids.ptr)
-        adam_step(*adam_args)
+
+        adam_step(flat_params.ptr, flat_grads.ptr, opt_state.m.ptr, opt_state.v.ptr, scalars.opt_lr.ptr, scalars.opt_bc1.ptr, scalars.opt_bc2.ptr)
+
         step_times.append(perf_counter() - t0)
 
     save_times(step_times)
