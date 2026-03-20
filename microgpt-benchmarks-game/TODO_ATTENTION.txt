@@ -1,0 +1,67 @@
+# Integrating dot_product_attention into bench_exojit.py
+
+## Overview
+
+The `dot_product_attention` and `dot_product_attention_bwd` kernels from `utils/exo_kernels.py`
+could replace the inline attention logic in `attn_fwd_fused` and `attn_bwd_fused`.
+
+## Current State
+
+### exo_kernels.py (lines 167-238)
+- `dot_product_attention(S, H, D, out, q, k, v, attn_w, scale)` - forward pass
+- `dot_product_attention_bwd(S, H, D, dq, dk, dv, dout, q, k, v, attn_w, scale)` - backward pass
+- Uses 3D layout: `q[H, S, D]`, `k[H, S, D]`, `v[H, S, D]`, `attn_w[H, S, S]`, `out[H, S, D]`
+
+### bench_exojit.py
+- `attn_fwd_fused` (lines 118-141): Inline attention computation
+- `attn_bwd_fused` (lines 168-203): Inline backward attention computation
+- Uses flattened layout for `attn_w: f64[N_HEAD * BLOCK_SIZE, BLOCK_SIZE]`
+- Uses interleaved output: `out_flat[t, h * HEAD_DIM + d]`
+
+## Integration Steps
+
+### 1. Add imports
+```python
+from utils.exo_kernels import dot_product_attention, dot_product_attention_bwd
+```
+
+### 2. Create wrapper or reshape attn_w buffer
+The main challenge is the different `attn_w` layout:
+- Kernel expects: `attn_w[H, S, S]` (3D)
+- Bench uses: `attn_w[N_HEAD * BLOCK_SIZE, BLOCK_SIZE]` (2D flattened)
+
+Options:
+  A) Reshape `attn_w` to `f64[N_HEAD, BLOCK_SIZE, BLOCK_SIZE]` in scratch_layout
+  B) Create a reshape/view helper in the proc
+  C) Modify the kernel to accept flattened layout
+
+### 3. Replace forward attention (attn_fwd_fused lines 118-141)
+Replace the inline loops with:
+```python
+dot_product_attention(BLOCK_SIZE, N_HEAD, HEAD_DIM, out_interleaved, q, k, v, attn_w, scale)
+```
+
+Then convert `out_interleaved[H, S, D]` to `out_flat[S, H*D]` format.
+
+### 4. Replace backward attention (attn_bwd_fused lines 168-203)
+Replace the inline loops with:
+```python
+dot_product_attention_bwd(BLOCK_SIZE, N_HEAD, HEAD_DIM, dq, dk, dv, dout, q, k, v, attn_w, scale)
+```
+
+### 5. Handle output format conversion
+The kernel outputs `out[H, S, D]` but bench needs `out_flat[S, H*D]` for the subsequent matmul.
+Add a reshape/copy step or modify the downstream matmul to accept interleaved format.
+
+## Challenges
+
+1. **Buffer layout mismatch**: `attn_w` is 2D in bench, 3D in kernel
+2. **Output format**: Kernel outputs `[H, S, D]`, bench uses `[S, H*D]`
+3. **Fusion**: Current code fuses softmax into the attention; kernel separates it
+4. **Weight gradient computation**: Backward pass also computes weight gradients inline
+
+## Recommendation
+
+Simplest path: Keep `attn_w` as 3D `f64[N_HEAD, BLOCK_SIZE, BLOCK_SIZE]` and add
+a format conversion proc for the output. This maintains the reusable kernel while
+minimizing changes to the fused procs.
