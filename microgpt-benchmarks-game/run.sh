@@ -2,7 +2,8 @@
 set -euox pipefail
 cd "$(dirname "$0")"
 
-[ -f weights.json ] || uv run bench_original.py
+[ -f weights.json ] || uv run original.py
+
 uv run bench_plain.py
 uv run bench_numpy.py
 uv run bench_torch.py
