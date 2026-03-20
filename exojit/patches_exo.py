@@ -7,6 +7,7 @@ from collections import ChainMap
 import exo.API as _exo_api
 import exo.frontend.boundscheck as _boundscheck
 import exo.frontend.pyparser as _pyparser
+from exo.core.extern import Extern, _EErr
 from exo.core.LoopIR import LoopIR
 from exo.core.memory import MemGenError, Memory
 from exo.core.prelude import Sym
@@ -21,16 +22,14 @@ def patched_get_src_locals(*, depth):
     return ChainMap(dict(frames[depth].frame.f_locals))
 
 
-ORIGINAL_LIFT_EXPR = _boundscheck.lift_expr
-ORIGINAL_PARSE_STMT_BLOCK = _pyparser.Parser.parse_stmt_block
-
-
-# let exo parse tensor types like `size[n]` and `index[n]`
+_pyparser.get_src_locals = patched_get_src_locals
+_exo_api.get_src_locals = patched_get_src_locals
 _pyparser._prim_types["size"] = _pyparser.UAST.Size()
 _pyparser._prim_types["index"] = _pyparser.UAST.Index()
 
 
-# treat size/index tensor reads as symbolic scalars during bounds checking
+ORIGINAL_LIFT_EXPR = _boundscheck.lift_expr
+ORIGINAL_PARSE_STMT_BLOCK = _pyparser.Parser.parse_stmt_block
 LIFTED_INDEX_SYMS: dict[tuple[object, ...], Sym] = {}
 
 
@@ -62,6 +61,9 @@ def patched_lift_expr(e):
     return _boundscheck.E.Var(sym, e.type, e.srcinfo)
 
 
+_boundscheck.lift_expr = patched_lift_expr
+
+
 def patched_parse_stmt_block(self, stmts):
     rewritten = []
     for stmt in stmts:
@@ -80,9 +82,6 @@ def patched_parse_stmt_block(self, stmts):
     return ORIGINAL_PARSE_STMT_BLOCK(self, rewritten)
 
 
-_pyparser.get_src_locals = patched_get_src_locals
-_exo_api.get_src_locals = patched_get_src_locals
-_boundscheck.lift_expr = patched_lift_expr
 _pyparser.Parser.parse_stmt_block = patched_parse_stmt_block
 
 
@@ -149,3 +148,25 @@ class NEON(Memory):
     @classmethod
     def free(cls, new_name: str, prim_type: str, shape: tuple[str, ...], srcinfo: object) -> str:
         return ""
+
+
+class Log(Extern):
+    def __init__(self):
+        super().__init__("log")
+
+    def typecheck(self, args):
+        if len(args) != 1:
+            raise _EErr(f"expected 1 argument, got {len(args)}")
+        atyp = args[0].type
+        if not atyp.is_real_scalar():
+            raise _EErr(f"expected argument 1 to be a real scalar value, but got type {atyp}")
+        return atyp
+
+    def globl(self, prim_type):
+        return "#include <math.h>"
+
+    def compile(self, args, prim_type):
+        return f"log(({prim_type})({args[0]}))"
+
+
+log = Log()

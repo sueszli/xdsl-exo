@@ -48,6 +48,21 @@ class FSqrtOp(IRDLOperation):
 
 
 @irdl_op_definition
+class FLogOp(IRDLOperation):
+    name = "llvm.intr.log"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    traits = traits_def(Pure())
+
+    def __init__(self, arg: Operation | SSAValue):
+        super().__init__(operands=[arg], result_types=[SSAValue.get(arg).type])
+
+
+@irdl_op_definition
 class FCmpOp(IRDLOperation):
     # TODO: remove after next xdsl release
     name = "llvm.fcmp"

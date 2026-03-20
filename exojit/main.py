@@ -30,21 +30,32 @@ from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import llvm, memref, vector
-from xdsl.dialects.builtin import BoolAttr, Builtin, DenseIntOrFPElementsAttr, FloatAttr, IndexType, IntAttr, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StringAttr, UnrealizedConversionCastOp, f16, f32, f64, i1, i8, i16, i32, i64
+from xdsl.dialects.builtin import (BoolAttr, Builtin, DenseIntOrFPElementsAttr,
+                                   FloatAttr, IndexType, IntAttr, IntegerAttr,
+                                   MemRefType, ModuleOp, NoneAttr, StringAttr,
+                                   UnrealizedConversionCastOp, f16, f32, f64,
+                                   i1, i8, i16, i32, i64)
 from xdsl.dialects.llvm import FNegOp
-from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
+from xdsl.dialects.utils import (get_dynamic_index_list,
+                                 split_dynamic_index_list)
 from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
-from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriteWalker
+from xdsl.pattern_rewriter import (GreedyRewritePatternApplier,
+                                   PatternRewriteWalker)
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.canonicalize import CanonicalizePass
-from xdsl.transforms.common_subexpression_elimination import CommonSubexpressionElimination
-from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
+from xdsl.transforms.common_subexpression_elimination import \
+    CommonSubexpressionElimination
+from xdsl.transforms.reconcile_unrealized_casts import \
+    ReconcileUnrealizedCastsPass
 from xdsl.utils.scoped_dict import ScopedDict
 
 import exojit.patches_exo  # noqa: F401
 from exojit.jitcall import JitFunc
 from exojit.patches_xdsl_intrinsics import ConvertVecIntrinsic
-from exojit.patches_xdsl_llvm import BrOp, CondBrOp, ExtendedConvertMemRefToPtr, FCmpOp, FSqrtOp, RewriteMemRefTypes, VectorFMaxOp
+from exojit.patches_xdsl_llvm import (BrOp, CondBrOp,
+                                      ExtendedConvertMemRefToPtr, FCmpOp,
+                                      FLogOp, FSqrtOp, RewriteMemRefTypes,
+                                      VectorFMaxOp)
 
 FCMP_PREDICATES: dict[str, tuple[str, bool]] = {  # mlir predicate -> (op, ordered?)
     "oeq": ("==", True),
@@ -315,11 +326,12 @@ class IRGenerator:
             arg_d = self._expr(extern.args[3], expected_type)
             cmp = self._emit(FCmpOp(arg_a, arg_b, "olt"))
             return self._emit(llvm.SelectOp(cmp, arg_c, arg_d))
-
         if extern.f.name() == "sqrt":
             args = [self._expr(arg) for arg in extern.args]
             return self._emit(FSqrtOp(args[0]))
-
+        if extern.f.name() == "log":
+            args = [self._expr(arg) for arg in extern.args]
+            return self._emit(FLogOp(args[0]))
         args = [self._expr(arg) for arg in extern.args]
         output_type = self._to_mlir_type(extern.f.typecheck(extern.args))
         name = extern.f.name()
@@ -801,6 +813,8 @@ class LLVMLiteGenerator:
                 val_map[op.res] = builder.call(LLVMLiteGenerator._get_intrinsic(builder.module, "llvm.maxnum", convert_type(op.res.type), arity=2), [val_map[op.lhs], val_map[op.rhs]])
             case FSqrtOp():
                 val_map[op.res] = builder.call(LLVMLiteGenerator._get_intrinsic(builder.module, "llvm.sqrt", convert_type(op.res.type), arity=1), [val_map[op.arg]])
+            case FLogOp():
+                val_map[op.res] = builder.call(LLVMLiteGenerator._get_intrinsic(builder.module, "llvm.log", convert_type(op.res.type), arity=1), [val_map[op.arg]])
             case llvm.AddressOfOp():
                 val_map[op.result] = builder.module.get_global(op.global_name.root_reference.data)
             case llvm.NullOp():

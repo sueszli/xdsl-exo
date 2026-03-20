@@ -3,7 +3,7 @@ from __future__ import annotations
 from exo import *
 from exo.libs.externs import expf, select, sqrt
 
-from exojit.patches_exo import Stack
+from exojit.patches_exo import Stack, log
 
 
 @proc
@@ -138,3 +138,28 @@ def adam(N: size, param: f64[N] @ DRAM, grad: f64[N] @ DRAM, m: f64[N] @ DRAM, v
         param[i] = param[i] - lr[0] * m_hat / (sqrt(v_hat) + 1e-8)
         m[i] = m_val
         v[i] = v_val
+
+
+@proc
+def cross_entropy(M: size, N: size, loss: f64[1] @ DRAM, probs: f64[M, N] @ DRAM, target_ids: size[M] @ DRAM, loss_mask: f64[M] @ DRAM, inv_sum_mask: f64[1] @ DRAM):
+    total: f64 @ Stack
+    total = 0.0
+    for t in seq(0, M):
+        p_target: f64 @ Stack
+        p_target = 0.0
+        for v_idx in seq(0, N):
+            if v_idx == target_ids[t]:
+                p_target = probs[t, v_idx]
+        total += loss_mask[t] * log(p_target + 1e-10)
+    loss[0] = -inv_sum_mask[0] * total
+
+
+@proc
+def cross_entropy_bwd(M: size, N: size, probs: f64[M, N] @ DRAM, target_ids: size[M] @ DRAM, loss_mask: f64[M] @ DRAM, inv_sum_mask: f64[1] @ DRAM):
+    for t in seq(0, M):
+        scale: f64 @ Stack
+        scale = loss_mask[t] * inv_sum_mask[0]
+        for v_idx in seq(0, N):
+            probs[t, v_idx] = probs[t, v_idx] * scale
+            if v_idx == target_ids[t]:
+                probs[t, v_idx] += -inv_sum_mask[0] * loss_mask[t]
