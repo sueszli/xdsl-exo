@@ -501,7 +501,6 @@ tokenized = tokenize(docs, uchars)
 
 
 if __name__ == "__main__":
-
     params_layout = [(vocab_size, N_EMBED), (BLOCK_SIZE, N_EMBED), (vocab_size, N_EMBED)] + [(N_EMBED, N_EMBED)] * 4 + [(4 * N_EMBED, N_EMBED), (N_EMBED, 4 * N_EMBED)]
     flat_params = Buf(sum(prod(s) for s in params_layout))
     params = bind(PARAMS_FIELDS, flat_params, params_layout)
