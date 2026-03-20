@@ -553,16 +553,7 @@ def main() -> None:
             batch.inv_sum_mask.ptr,
             batch.target_ids.ptr,
         )
-        embed_bwd_args = (
-            vocab_size,
-            grads.wte.ptr,
-            grads.wpe.ptr,
-            scratch.dx1.ptr,
-            scratch.emb.ptr,
-            scratch.rms_init.ptr,
-            scalars.rms_inv_n.ptr,
-            batch.input_ids.ptr,
-        )
+
         memset(grads.wte.ptr, 0, g_wte_bytes)
         memset(grads.wpe.ptr, 0, g_wpe_bytes)
         t0 = perf_counter()
@@ -572,7 +563,7 @@ def main() -> None:
         lm_head_step(*lm_head_args)
         mlp_bwd(*mlp_bwd_args)
         attn_bwd(*attn_bwd_args)
-        embed_rms_bwd_step(*embed_bwd_args)
+        embed_rms_bwd_step(vocab_size, grads.wte.ptr, grads.wpe.ptr, scratch.dx1.ptr, scratch.emb.ptr, scratch.rms_init.ptr, scalars.rms_inv_n.ptr, batch.input_ids.ptr)
         adam_step(*adam_args)
         step_times.append(perf_counter() - t0)
 
