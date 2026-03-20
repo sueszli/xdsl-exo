@@ -7,11 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import polars as pl
-from plotnine import (aes, annotate, element_line, element_rect, element_text,
-                      expand_limits, facet_wrap, geom_hline, geom_line,
-                      geom_point, ggplot, labs, scale_color_manual,
-                      scale_linetype_manual, scale_shape_manual, theme,
-                      theme_minimal)
+from plotnine import aes, annotate, element_line, element_rect, element_text, expand_limits, facet_wrap, geom_hline, geom_line, geom_point, ggplot, labs, scale_color_manual, scale_linetype_manual, scale_shape_manual, theme, theme_minimal
 from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent))

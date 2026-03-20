@@ -14,7 +14,7 @@ sys.path.insert(0, str(repo))
 
 from exo import *
 from exo.stdlib.scheduling import simplify
-from utils.exo_kernels import adam, add, matmul, matmul_left_t, matmul_right_t, relu, relu_bwd, rmsnorm, rmsnorm_bwd, softmax
+from utils.exo_kernels import adam, add, cross_entropy_bwd, matmul, matmul_left_t, matmul_right_t, relu, relu_bwd, rmsnorm, rmsnorm_bwd, softmax
 from utils.times import save_times
 from utils.weights import assert_weights_match
 
@@ -58,13 +58,7 @@ CAUSAL_MASK_VALUE = -1e10
 def lm_head_step_fused(vocab_size: size, dx: f64[BLOCK_SIZE, N_EMBED] @ DRAM, dweight: f64[vocab_size, N_EMBED] @ DRAM, logits: f64[BLOCK_SIZE, vocab_size] @ DRAM, x: f64[BLOCK_SIZE, N_EMBED] @ DRAM, lm_head: f64[vocab_size, N_EMBED] @ DRAM, loss_mask: f64[BLOCK_SIZE] @ DRAM, inv_sum_mask: f64[1] @ DRAM, target_ids: size[BLOCK_SIZE] @ DRAM):
     matmul_right_t(BLOCK_SIZE, vocab_size, N_EMBED, logits, x, lm_head)
     softmax(BLOCK_SIZE, vocab_size, logits)
-    for t in seq(0, BLOCK_SIZE):
-        scale: f64 @ Stack
-        scale = loss_mask[t] * inv_sum_mask[0]
-        for v_idx in seq(0, vocab_size):
-            logits[t, v_idx] = logits[t, v_idx] * scale
-            if v_idx == target_ids[t]:
-                logits[t, v_idx] += -inv_sum_mask[0] * loss_mask[t]
+    cross_entropy_bwd(BLOCK_SIZE, vocab_size, logits, target_ids, loss_mask, inv_sum_mask)
     matmul_left_t(BLOCK_SIZE, vocab_size, N_EMBED, dweight, logits, x)
     matmul(BLOCK_SIZE, N_EMBED, vocab_size, dx, logits, lm_head)
 
