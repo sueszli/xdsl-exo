@@ -386,7 +386,7 @@ def mlp_layer_bwd(out: f64[BLOCK_SIZE, N_EMBED] @ DRAM, dfc1: f64[4 * N_EMBED, N
 
 
 @jit(optimize=simplify, raw=True)
-def train_step(vocab_size: size, emb: f64[BLOCK_SIZE, N_EMBED] @ DRAM, x0: f64[BLOCK_SIZE, N_EMBED] @ DRAM, rms_init: f64[BLOCK_SIZE, 1] @ DRAM, x1: f64[BLOCK_SIZE, N_EMBED] @ DRAM, attn_xn: f64[BLOCK_SIZE, N_EMBED] @ DRAM, attn_rms: f64[BLOCK_SIZE, 1] @ DRAM, q: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, k: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, v: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, attn_w: f64[N_HEAD, BLOCK_SIZE, BLOCK_SIZE] @ DRAM, attn_out: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, out_flat: f64[BLOCK_SIZE, N_EMBED] @ DRAM, mlp_xn: f64[BLOCK_SIZE, N_EMBED] @ DRAM, mlp_rms: f64[BLOCK_SIZE, 1] @ DRAM, h_pre: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, h: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, dx0: f64[BLOCK_SIZE, N_EMBED] @ DRAM, dx1: f64[BLOCK_SIZE, N_EMBED] @ DRAM, logits: f64[BLOCK_SIZE, vocab_size] @ DRAM, dq: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, dk: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, dv: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, dattn_out: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, dh: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, dh_pre: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, wte: f64[vocab_size, N_EMBED] @ DRAM, wpe: f64[BLOCK_SIZE, N_EMBED] @ DRAM, lm_head: f64[vocab_size, N_EMBED] @ DRAM, attn_wq: f64[N_EMBED, N_EMBED] @ DRAM, attn_wk: f64[N_EMBED, N_EMBED] @ DRAM, attn_wv: f64[N_EMBED, N_EMBED] @ DRAM, attn_wo: f64[N_EMBED, N_EMBED] @ DRAM, mlp_fc1: f64[4 * N_EMBED, N_EMBED] @ DRAM, mlp_fc2: f64[N_EMBED, 4 * N_EMBED] @ DRAM, g_wte: f64[vocab_size, N_EMBED] @ DRAM, g_wpe: f64[BLOCK_SIZE, N_EMBED] @ DRAM, g_lm_head: f64[vocab_size, N_EMBED] @ DRAM, g_attn_wq: f64[N_EMBED, N_EMBED] @ DRAM, g_attn_wk: f64[N_EMBED, N_EMBED] @ DRAM, g_attn_wv: f64[N_EMBED, N_EMBED] @ DRAM, g_attn_wo: f64[N_EMBED, N_EMBED] @ DRAM, g_mlp_fc1: f64[4 * N_EMBED, N_EMBED] @ DRAM, g_mlp_fc2: f64[N_EMBED, 4 * N_EMBED] @ DRAM, inv_n: f64[1] @ DRAM, attn_scale: f64[1] @ DRAM, loss_mask: f64[BLOCK_SIZE] @ DRAM, inv_sum_mask: f64[1] @ DRAM, input_ids: size[BLOCK_SIZE] @ DRAM, target_ids: size[BLOCK_SIZE] @ DRAM):
+def train_step(vocab_size: size, total_params: size, emb: f64[BLOCK_SIZE, N_EMBED] @ DRAM, x0: f64[BLOCK_SIZE, N_EMBED] @ DRAM, rms_init: f64[BLOCK_SIZE, 1] @ DRAM, x1: f64[BLOCK_SIZE, N_EMBED] @ DRAM, attn_xn: f64[BLOCK_SIZE, N_EMBED] @ DRAM, attn_rms: f64[BLOCK_SIZE, 1] @ DRAM, q: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, k: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, v: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, attn_w: f64[N_HEAD, BLOCK_SIZE, BLOCK_SIZE] @ DRAM, attn_out: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, out_flat: f64[BLOCK_SIZE, N_EMBED] @ DRAM, mlp_xn: f64[BLOCK_SIZE, N_EMBED] @ DRAM, mlp_rms: f64[BLOCK_SIZE, 1] @ DRAM, h_pre: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, h: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, dx0: f64[BLOCK_SIZE, N_EMBED] @ DRAM, dx1: f64[BLOCK_SIZE, N_EMBED] @ DRAM, logits: f64[BLOCK_SIZE, vocab_size] @ DRAM, dq: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, dk: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, dv: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, dattn_out: f64[N_HEAD, BLOCK_SIZE, HEAD_DIM] @ DRAM, dh: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, dh_pre: f64[BLOCK_SIZE, 4 * N_EMBED] @ DRAM, wte: f64[vocab_size, N_EMBED] @ DRAM, wpe: f64[BLOCK_SIZE, N_EMBED] @ DRAM, lm_head: f64[vocab_size, N_EMBED] @ DRAM, attn_wq: f64[N_EMBED, N_EMBED] @ DRAM, attn_wk: f64[N_EMBED, N_EMBED] @ DRAM, attn_wv: f64[N_EMBED, N_EMBED] @ DRAM, attn_wo: f64[N_EMBED, N_EMBED] @ DRAM, mlp_fc1: f64[4 * N_EMBED, N_EMBED] @ DRAM, mlp_fc2: f64[N_EMBED, 4 * N_EMBED] @ DRAM, g_wte: f64[vocab_size, N_EMBED] @ DRAM, g_wpe: f64[BLOCK_SIZE, N_EMBED] @ DRAM, g_lm_head: f64[vocab_size, N_EMBED] @ DRAM, g_attn_wq: f64[N_EMBED, N_EMBED] @ DRAM, g_attn_wk: f64[N_EMBED, N_EMBED] @ DRAM, g_attn_wv: f64[N_EMBED, N_EMBED] @ DRAM, g_attn_wo: f64[N_EMBED, N_EMBED] @ DRAM, g_mlp_fc1: f64[4 * N_EMBED, N_EMBED] @ DRAM, g_mlp_fc2: f64[N_EMBED, 4 * N_EMBED] @ DRAM, flat_params: f64[total_params] @ DRAM, flat_grads: f64[total_params] @ DRAM, opt_m: f64[total_params] @ DRAM, opt_v: f64[total_params] @ DRAM, inv_n: f64[1] @ DRAM, attn_scale: f64[1] @ DRAM, loss_mask: f64[BLOCK_SIZE] @ DRAM, inv_sum_mask: f64[1] @ DRAM, input_ids: size[BLOCK_SIZE] @ DRAM, target_ids: size[BLOCK_SIZE] @ DRAM, lr: f64[1] @ DRAM, beta1_t: f64[1] @ DRAM, beta2_t: f64[1] @ DRAM, beta1: f64[1] @ DRAM, beta2: f64[1] @ DRAM):
     embed_layer(vocab_size, emb, x0, rms_init, wte, wpe, inv_n, input_ids)
     attention_layer(x1, attn_xn, attn_rms, q, k, v, attn_w, attn_out, out_flat, x0, attn_wq, attn_wk, attn_wv, attn_wo, inv_n, attn_scale)
     mlp_layer(dx0, mlp_xn, mlp_rms, h_pre, h, x1, mlp_fc1, mlp_fc2, inv_n)
@@ -398,6 +398,7 @@ def train_step(vocab_size: size, emb: f64[BLOCK_SIZE, N_EMBED] @ DRAM, x0: f64[B
     mlp_layer_bwd(dx0, g_mlp_fc1, g_mlp_fc2, dh, dh_pre, dx1, x1, mlp_xn, mlp_rms, h_pre, h, mlp_fc1, mlp_fc2, inv_n)
     attention_layer_bwd(dx1, g_attn_wq, g_attn_wk, g_attn_wv, g_attn_wo, dattn_out, dx0, x0, attn_xn, attn_rms, q, k, v, attn_w, out_flat, dq, dk, dv, attn_wq, attn_wk, attn_wv, attn_wo, inv_n, attn_scale)
     embed_layer_bwd(vocab_size, g_wte, g_wpe, dx1, emb, rms_init, inv_n, input_ids)
+    adam(total_params, flat_params, flat_grads, opt_m, opt_v, lr, beta1_t, beta2_t, beta1, beta2)
 
 
 PARAMS_FIELDS = "wte wpe lm_head attn_wq attn_wk attn_wv attn_wo mlp_fc1 mlp_fc2".split()
@@ -513,7 +514,8 @@ if __name__ == "__main__":
 
     flat_grads = Buf(flat_params.n)
     grads = bind(PARAMS_FIELDS, flat_grads, params_layout)
-    opt_state = {"m": Buf(flat_params.n), "v": Buf(flat_params.n)}
+    opt_m = Buf(flat_params.n)
+    opt_v = Buf(flat_params.n)
 
     scratch = bind(SCRATCH_FIELDS, Buf(sum(prod(s) for s in scratch_layout(vocab_size))), scratch_layout(vocab_size))
     scalars = bind(SCALARS_FIELDS, Buf(7), ((1,), (1,), (1,), (1,), (1,), (1,), (1,)))
@@ -521,8 +523,6 @@ if __name__ == "__main__":
     scalars["opt_beta1"][0] = 0.9
     scalars["opt_beta2"][0] = 0.999
     scalars["attn_scale"][0] = 1.0 / HEAD_DIM**0.5
-
-    adam_step = jit(simplify(adam.partial_eval(N=flat_params.n)))._raw
 
     c2i = {ch: i for i, ch in enumerate(uchars)}
     bos = vocab_size - 1
@@ -546,9 +546,7 @@ if __name__ == "__main__":
         memset(grads["wpe"].ptr, 0, g_wpe_bytes)
         t0 = perf_counter()
 
-        train_step(vocab_size, scratch["emb"].ptr, scratch["x0"].ptr, scratch["rms_init"].ptr, scratch["x1"].ptr, scratch["attn_xn"].ptr, scratch["attn_rms"].ptr, scratch["q"].ptr, scratch["k"].ptr, scratch["v"].ptr, scratch["attn_w"].ptr, scratch["attn_out"].ptr, scratch["out_flat"].ptr, scratch["mlp_xn"].ptr, scratch["mlp_rms"].ptr, scratch["h_pre"].ptr, scratch["h"].ptr, scratch["dx0"].ptr, scratch["dx1"].ptr, scratch["logits"].ptr, scratch["dq"].ptr, scratch["dk"].ptr, scratch["dv"].ptr, scratch["dattn_out"].ptr, scratch["dh"].ptr, scratch["dh_pre"].ptr, params["wte"].ptr, params["wpe"].ptr, params["lm_head"].ptr, params["attn_wq"].ptr, params["attn_wk"].ptr, params["attn_wv"].ptr, params["attn_wo"].ptr, params["mlp_fc1"].ptr, params["mlp_fc2"].ptr, grads["wte"].ptr, grads["wpe"].ptr, grads["lm_head"].ptr, grads["attn_wq"].ptr, grads["attn_wk"].ptr, grads["attn_wv"].ptr, grads["attn_wo"].ptr, grads["mlp_fc1"].ptr, grads["mlp_fc2"].ptr, scalars["rms_inv_n"].ptr, scalars["attn_scale"].ptr, batch["loss_mask"].ptr, batch["inv_sum_mask"].ptr, batch["input_ids"].ptr, batch["target_ids"].ptr)
-
-        adam_step(flat_params.ptr, flat_grads.ptr, opt_state["m"].ptr, opt_state["v"].ptr, scalars["opt_lr"].ptr, scalars["opt_bc1"].ptr, scalars["opt_bc2"].ptr, scalars["opt_beta1"].ptr, scalars["opt_beta2"].ptr)
+        train_step(vocab_size, flat_params.n, scratch["emb"].ptr, scratch["x0"].ptr, scratch["rms_init"].ptr, scratch["x1"].ptr, scratch["attn_xn"].ptr, scratch["attn_rms"].ptr, scratch["q"].ptr, scratch["k"].ptr, scratch["v"].ptr, scratch["attn_w"].ptr, scratch["attn_out"].ptr, scratch["out_flat"].ptr, scratch["mlp_xn"].ptr, scratch["mlp_rms"].ptr, scratch["h_pre"].ptr, scratch["h"].ptr, scratch["dx0"].ptr, scratch["dx1"].ptr, scratch["logits"].ptr, scratch["dq"].ptr, scratch["dk"].ptr, scratch["dv"].ptr, scratch["dattn_out"].ptr, scratch["dh"].ptr, scratch["dh_pre"].ptr, params["wte"].ptr, params["wpe"].ptr, params["lm_head"].ptr, params["attn_wq"].ptr, params["attn_wk"].ptr, params["attn_wv"].ptr, params["attn_wo"].ptr, params["mlp_fc1"].ptr, params["mlp_fc2"].ptr, grads["wte"].ptr, grads["wpe"].ptr, grads["lm_head"].ptr, grads["attn_wq"].ptr, grads["attn_wk"].ptr, grads["attn_wv"].ptr, grads["attn_wo"].ptr, grads["mlp_fc1"].ptr, grads["mlp_fc2"].ptr, flat_params.ptr, flat_grads.ptr, opt_m.ptr, opt_v.ptr, scalars["rms_inv_n"].ptr, scalars["attn_scale"].ptr, batch["loss_mask"].ptr, batch["inv_sum_mask"].ptr, batch["input_ids"].ptr, batch["target_ids"].ptr, scalars["opt_lr"].ptr, scalars["opt_bc1"].ptr, scalars["opt_bc2"].ptr, scalars["opt_beta1"].ptr, scalars["opt_beta2"].ptr)
 
         step_times.append(perf_counter() - t0)
 
