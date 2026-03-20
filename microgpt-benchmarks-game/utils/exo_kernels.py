@@ -15,14 +15,6 @@ def add(M: size, N: size, out: f64[M, N] @ DRAM, x: f64[M, N] @ DRAM):
 
 
 @proc
-def relu(M: size, N: size, out: f64[M, N] @ DRAM, x: f64[M, N] @ DRAM, zero: f64[1] @ DRAM):
-    # out = max(x, 0)
-    for i in seq(0, M):
-        for j in seq(0, N):
-            out[i, j] = select(zero[0], x[i, j], x[i, j], zero[0])
-
-
-@proc
 def matmul(M: size, N: size, K: size, out: f64[M, N] @ DRAM, x: f64[M, K] @ DRAM, w: f64[K, N] @ DRAM, zero: f64[1] @ DRAM):
     # out = x @ w
     for i in seq(0, M):
@@ -59,6 +51,21 @@ def matmul_left_t(M: size, N: size, K: size, out: f64[N, K] @ DRAM, x: f64[M, N]
 
 
 @proc
+def relu(M: size, N: size, out: f64[M, N] @ DRAM, x: f64[M, N] @ DRAM, zero: f64[1] @ DRAM):
+    # out = max(x, 0)
+    for i in seq(0, M):
+        for j in seq(0, N):
+            out[i, j] = select(zero[0], x[i, j], x[i, j], zero[0])
+
+
+@proc
+def relu_bwd(M: size, N: size, out: f64[M, N] @ DRAM, dout: f64[M, N] @ DRAM, x: f64[M, N] @ DRAM, zero: f64[1] @ DRAM):
+    for i in seq(0, M):
+        for j in seq(0, N):
+            out[i, j] = select(zero[0], x[i, j], dout[i, j], zero[0])
+
+
+@proc
 def rmsnorm(M: size, N: size, out: f64[M, N] @ DRAM, rms: f64[M, 1] @ DRAM, x: f64[M, N] @ DRAM, zero: f64[1] @ DRAM, one: f64[1] @ DRAM, inv_n: f64[1] @ DRAM, eps: f64[1] @ DRAM):
     # out = x / sqrt(mean(x^2) + eps)
     for i in seq(0, M):
@@ -75,7 +82,6 @@ def rmsnorm(M: size, N: size, out: f64[M, N] @ DRAM, rms: f64[M, 1] @ DRAM, x: f
 
 @proc
 def rmsnorm_bwd(M: size, N: size, out: f64[M, N] @ DRAM, dx: f64[M, N] @ DRAM, x_pre: f64[M, N] @ DRAM, rms: f64[M, 1] @ DRAM, zero: f64[1] @ DRAM, inv_n: f64[1] @ DRAM):
-    # out = rmsnorm path gradient + residual path gradient
     for i in seq(0, M):
         dot: f64 @ Stack
         scale: f64 @ Stack
