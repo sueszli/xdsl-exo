@@ -9,7 +9,10 @@ import ctypes
 import random
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
+
+import numpy as np
 
 repo = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(repo))
@@ -17,8 +20,9 @@ sys.path.insert(0, str(repo))
 from exo import *
 from exo.libs.externs import expf, select
 from exo.stdlib.scheduling import simplify
-from utils.exo_alloc import Tensor, empty, full, normal, pack_tensors, tensor_ptrs, view_tensors, zeros, zeros_like
-from utils.exo_kernels import adam, add, fill, fill3, make_embed_rms_bwd_tokens, make_embed_rms_fwd_tokens, make_lm_head_step_fused, matmul_left_t, matmul_right_t, relu, rmsnorm, rmsnorm_bwd
+from microgpt_kernels import embed_rms_bwd_tokens, embed_rms_fwd_tokens, lm_head_step_fused
+from utils.exo_alloc import Tensor, empty, full, normal, pack_tensors, tensor_ptrs, view_tensors, zeros_like
+from utils.exo_kernels import adam, add, fill, matmul_left_t, matmul_right_t, relu, rmsnorm, rmsnorm_bwd
 from utils.times import save_times
 from utils.weights import assert_weights_match
 
@@ -33,34 +37,12 @@ INV_SCALE = 1.0 / HEAD_DIM**0.5
 CAUSAL_MASK_VALUE = -1e10
 
 
-@proc
-def embed_token(V: size, emb_row: [f64][N_EMBED] @ DRAM, wte: f64[V, N_EMBED] @ DRAM, wpe_row: [f64][N_EMBED] @ DRAM, input: size):
-    assert input < V
-    for e in seq(0, N_EMBED):
-        emb_row[e] = wte[input, e] + wpe_row[e]
-
-
-@proc
-def embed_rms_bwd_token(V: size, g_wte: f64[V, N_EMBED] @ DRAM, g_wpe_row: [f64][N_EMBED] @ DRAM, dout_row: [f64][N_EMBED] @ DRAM, x_row: [f64][N_EMBED] @ DRAM, rms_row: [f64][1] @ DRAM, zero: f64[1] @ DRAM, inv_n: f64[1] @ DRAM, input: size):
-    assert input < V
-    dot: f64 @ Stack
-    scale: f64 @ Stack
-    corr: f64 @ Stack
-    dot = zero[0]
-    scale = rms_row[0]
-    for e in seq(0, N_EMBED):
-        dot += dout_row[e] * x_row[e]
-    corr = scale * scale * scale * inv_n[0] * dot
-    for e in seq(0, N_EMBED):
-        dx: f64 @ Stack
-        dx = dout_row[e] * scale - x_row[e] * corr
-        g_wte[input, e] += dx
-        g_wpe_row[e] = dx
-
-
-lm_head_step_fused = make_lm_head_step_fused(BLOCK_SIZE, N_EMBED)
-embed_rms_fwd_tokens = make_embed_rms_fwd_tokens(BLOCK_SIZE, N_EMBED, embed_token)
-embed_rms_bwd_tokens = make_embed_rms_bwd_tokens(BLOCK_SIZE, N_EMBED, embed_rms_bwd_token)
+@dataclass(frozen=True)
+class TokenBatch:
+    input_ids: np.ndarray
+    target_ids: np.ndarray
+    loss_mask: np.ndarray
+    inv_sum_mask: np.ndarray
 
 
 @proc
@@ -160,7 +142,9 @@ def attn_bwd_fused(out: f64[BLOCK_SIZE, N_EMBED] @ DRAM, dwq: f64[N_EMBED, N_EMB
     attn_tmp: f64[BLOCK_SIZE] @ Stack
     fill(BLOCK_SIZE, N_EMBED, out, zero)
     matmul_left_t(BLOCK_SIZE, N_EMBED, N_EMBED, dwo, dx, out_flat, zero)
-    fill3(N_EMBED, N_EMBED, dwq, dwk, dwv, zero)
+    fill(N_EMBED, N_EMBED, dwq, zero)
+    fill(N_EMBED, N_EMBED, dwk, zero)
+    fill(N_EMBED, N_EMBED, dwv, zero)
 
     for h in seq(0, N_HEAD):
         for t in seq(0, BLOCK_SIZE):
@@ -211,25 +195,18 @@ def attn_bwd_fused(out: f64[BLOCK_SIZE, N_EMBED] @ DRAM, dwq: f64[N_EMBED, N_EMB
     rmsnorm_bwd(BLOCK_SIZE, N_EMBED, out, dx, x_pre, rms, zero, inv_n)
 
 
-def tokenize(doc: str, c2i: dict[str, int], bos: int, ptrs: dict[str, dict[str, int]], zero_ptr: int, one_ptr: int, rms_inv_n_ptr: int, rms_eps_ptr: int):
-    p, g, s = ptrs["param"], ptrs["grad"], ptrs["scratch"]
+def tokenize(doc: str, c2i: dict[str, int], bos: int) -> TokenBatch:
     tokens = [bos] + [c2i[ch] for ch in doc] + [bos]
     n = min(BLOCK_SIZE, len(tokens) - 1)
-    inputs = [0] * BLOCK_SIZE
-    targets = [0] * BLOCK_SIZE
-    loss_mask = zeros((BLOCK_SIZE,), dtype=float)
+    inputs = np.zeros(BLOCK_SIZE, dtype=np.int64)
+    targets = np.zeros(BLOCK_SIZE, dtype=np.int64)
+    loss_mask = np.zeros(BLOCK_SIZE, dtype=np.float64)
     for i in range(n):
         inputs[i] = tokens[i]
         targets[i] = tokens[i + 1]
         loss_mask[i] = 1.0
-    inv_sum_mask = full((1,), 1.0 / max(1, n), dtype=float)
-    return (
-        (s["emb"], s["x0"], s["rms_init"], p["wte"], p["wpe"], zero_ptr, one_ptr, rms_inv_n_ptr, rms_eps_ptr, *inputs),
-        (s["dx1"], g["lm_head"], s["logits"], s["dx0"], p["lm_head"], loss_mask.ctypes.data, inv_sum_mask.ctypes.data, zero_ptr, one_ptr, *targets),
-        (g["wte"], g["wpe"], s["dx1"], s["emb"], s["rms_init"], zero_ptr, rms_inv_n_ptr, *inputs),
-        loss_mask,
-        inv_sum_mask,
-    )
+    inv_sum_mask = np.array([1.0 / max(1, n)], dtype=np.float64)
+    return TokenBatch(inputs, targets, loss_mask, inv_sum_mask)
 
 
 def wrap_state_dict(state_dict: dict[str, Tensor]) -> dict[str, list[list[object]]]:
@@ -244,7 +221,6 @@ def wrap_state_dict(state_dict: dict[str, Tensor]) -> dict[str, list[list[object
 
 def main() -> None:
     random.seed(42)
-    n_layer = 1
     num_steps = 1000
     attn_fwd, attn_bwd, mlp_fwd, mlp_bwd = (jit(simplify(proc))._raw for proc in (attn_fwd_fused, attn_bwd_fused, mlp_fwd_fused, mlp_bwd_fused))
 
@@ -258,17 +234,15 @@ def main() -> None:
         "wpe": normal((BLOCK_SIZE, N_EMBED), scale=0.08),
         "lm_head": normal((vocab_size, N_EMBED), scale=0.08),
     }
-    for i in range(n_layer):
-        prefix = f"layer{i}"
-        for name, shape in (
-            ("attn_wq", (N_EMBED, N_EMBED)),
-            ("attn_wk", (N_EMBED, N_EMBED)),
-            ("attn_wv", (N_EMBED, N_EMBED)),
-            ("attn_wo", (N_EMBED, N_EMBED)),
-            ("mlp_fc1", (4 * N_EMBED, N_EMBED)),
-            ("mlp_fc2", (N_EMBED, 4 * N_EMBED)),
-        ):
-            state_dict[f"{prefix}.{name}"] = normal(shape, scale=0.08)
+    for name, shape in (
+        ("layer0.attn_wq", (N_EMBED, N_EMBED)),
+        ("layer0.attn_wk", (N_EMBED, N_EMBED)),
+        ("layer0.attn_wv", (N_EMBED, N_EMBED)),
+        ("layer0.attn_wo", (N_EMBED, N_EMBED)),
+        ("layer0.mlp_fc1", (4 * N_EMBED, N_EMBED)),
+        ("layer0.mlp_fc2", (N_EMBED, 4 * N_EMBED)),
+    ):
+        state_dict[name] = normal(shape, scale=0.08)
 
     flat_params, state_dict, elt_bytes = pack_tensors(state_dict)
     flat_grads, opt_m, opt_v = zeros_like(flat_params), zeros_like(flat_params), zeros_like(flat_params)
@@ -302,9 +276,9 @@ def main() -> None:
         )
     }
 
-    lm_head_step = jit(simplify(lm_head_step_fused.partial_eval(V=vocab_size)), raw=True)
-    embed_rms_fwd = jit(simplify(embed_rms_fwd_tokens.partial_eval(V=vocab_size)), raw=True)
-    embed_rms_bwd = jit(simplify(embed_rms_bwd_tokens.partial_eval(V=vocab_size)), raw=True)
+    lm_head_step = jit(simplify(lm_head_step_fused.partial_eval(BLOCK_SIZE=BLOCK_SIZE, N_EMBED=N_EMBED, V=vocab_size)), raw=True)
+    embed_rms_fwd = jit(simplify(embed_rms_fwd_tokens.partial_eval(BLOCK_SIZE=BLOCK_SIZE, N_EMBED=N_EMBED, V=vocab_size)), raw=True)
+    embed_rms_bwd = jit(simplify(embed_rms_bwd_tokens.partial_eval(BLOCK_SIZE=BLOCK_SIZE, N_EMBED=N_EMBED, V=vocab_size)), raw=True)
     adam_step = jit(simplify(adam.partial_eval(N=flat_params._size)))._raw
 
     ptrs = {
@@ -400,7 +374,7 @@ def main() -> None:
 
     c2i = {ch: i for i, ch in enumerate(uchars)}
     bos = vocab_size - 1
-    tokenized = [tokenize(doc, c2i, bos, ptrs, zero.ctypes.data, one.ctypes.data, rms_inv_n.ctypes.data, rms_eps.ctypes.data) for doc in docs]
+    tokenized = [tokenize(doc, c2i, bos) for doc in docs]
 
     g_wte_bytes = grads["wte"]._size * elt_bytes
     g_wpe_bytes = grads["wpe"]._size * elt_bytes
@@ -415,7 +389,41 @@ def main() -> None:
         opt_lr._buf[0] = lr_t[step]
         opt_bc1._buf[0] = bc1[step]
         opt_bc2._buf[0] = bc2[step]
-        embed_args, lm_head_args, embed_bwd_args, _, _ = tokenized[step % len(tokenized)]
+        batch = tokenized[step % len(tokenized)]
+        embed_args = (
+            s["emb"],
+            s["x0"],
+            s["rms_init"],
+            p["wte"],
+            p["wpe"],
+            zero.ctypes.data,
+            one.ctypes.data,
+            rms_inv_n.ctypes.data,
+            rms_eps.ctypes.data,
+            batch.input_ids.ctypes.data,
+        )
+        lm_head_args = (
+            s["dx1"],
+            g["lm_head"],
+            s["logits"],
+            s["dx0"],
+            p["lm_head"],
+            batch.loss_mask.ctypes.data,
+            batch.inv_sum_mask.ctypes.data,
+            zero.ctypes.data,
+            one.ctypes.data,
+            batch.target_ids.ctypes.data,
+        )
+        embed_bwd_args = (
+            g["wte"],
+            g["wpe"],
+            s["dx1"],
+            s["emb"],
+            s["rms_init"],
+            zero.ctypes.data,
+            rms_inv_n.ctypes.data,
+            batch.input_ids.ctypes.data,
+        )
         memset(g["wte"], 0, g_wte_bytes)
         memset(g["wpe"], 0, g_wpe_bytes)
         t0 = perf_counter()

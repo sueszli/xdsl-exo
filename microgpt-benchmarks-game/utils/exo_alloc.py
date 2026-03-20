@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import ctypes
 import random
-from collections.abc import Sequence
 from math import prod
 from typing import Any
 
@@ -14,12 +13,12 @@ class Ptr:
         self.data = data
 
 
-def ctype(dtype: type[float] | type[int]) -> type[ctypes.c_double] | type[ctypes.c_int32]:
+def ctype(dtype: type[float] | type[int]) -> type[ctypes.c_double] | type[ctypes.c_int64]:
     # python dtype -> ctypes scalar
     if dtype is float:
         return ctypes.c_double
     if dtype is int:
-        return ctypes.c_int32
+        return ctypes.c_int64
     raise TypeError(dtype)
 
 
@@ -69,32 +68,9 @@ class Tensor:
         self._buf[self.flat_index(key)] = value
 
 
-def array(data: Sequence[float | int] | Sequence[Sequence[float | int]], dtype: type[float] | type[int] = float) -> Tensor:
-    # python sequence -> tensor
-    if not data:
-        raise TypeError("array expects a non-empty Python sequence")
-    if isinstance(data[0], Sequence):
-        out = empty((len(data), len(data[0])), dtype=dtype)
-        for i, row in enumerate(data):
-            if len(row) != out.shape[1]:
-                raise ValueError("ragged nested sequences are unsupported")
-            for j, value in enumerate(row):
-                out[i, j] = value
-        return out
-    out = empty((len(data),), dtype=dtype)
-    for i, value in enumerate(data):
-        out[i] = value
-    return out
-
-
 def empty(shape: tuple[int, ...], dtype: type[float] | type[int] = float) -> Tensor:
     # allocate uninitialized storage
     return Tensor(shape, dtype=dtype)
-
-
-def empty_like(x: Tensor) -> Tensor:
-    # allocate with x.shape and x.dtype
-    return empty(x.shape, dtype=x.dtype)
 
 
 def full(shape: tuple[int, ...], fill_value: float | int, dtype: type[float] | type[int] = float) -> Tensor:

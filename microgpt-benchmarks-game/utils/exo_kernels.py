@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import linecache
-
 from exo import *
-from exo.libs.externs import expf, select, sqrt
+from exo.libs.externs import select, sqrt
 
 from exojit.patches_exo import Stack
 
@@ -100,38 +98,6 @@ def relu(M: size, N: size, out: f64[M, N] @ DRAM, x: f64[M, N] @ DRAM, zero: f64
 
 
 @proc
-def fill3(M: size, N: size, a: f64[M, N] @ DRAM, b: f64[M, N] @ DRAM, c: f64[M, N] @ DRAM, value: f64[1] @ DRAM):
-    # fill three tensors with one scalar
-    fill(M, N, a, value)
-    fill(M, N, b, value)
-    fill(M, N, c, value)
-
-
-@proc
-def softmax_xent_row(V: size, row: [f64][V] @ DRAM, loss: [f64][1] @ DRAM, inv_sum_mask: f64[1] @ DRAM, zero: f64[1] @ DRAM, one: f64[1] @ DRAM, target: size):
-    # in-place dlogits row for masked mean cross-entropy
-    assert target < V
-    mx: f64 @ Stack
-    sum_val: f64 @ Stack
-    scale: f64 @ Stack
-    val: f64 @ Stack
-    inv_denom: f64 @ Stack
-    mx = row[0]
-    for v_idx in seq(1, V):
-        mx = select(mx, row[v_idx], row[v_idx], mx)
-    sum_val = zero[0]
-    for v_idx in seq(0, V):
-        val = expf(row[v_idx] - mx)
-        row[v_idx] = val
-        sum_val += val
-    inv_denom = one[0] / sum_val
-    scale = loss[0] * inv_sum_mask[0] * inv_denom
-    for v_idx in seq(0, V):
-        row[v_idx] = row[v_idx] * scale
-    row[target] += -inv_sum_mask[0] * loss[0]
-
-
-@proc
 def adam(N: size, param: f64[N] @ DRAM, grad: f64[N] @ DRAM, m: f64[N] @ DRAM, v: f64[N] @ DRAM, b1: f64[1] @ DRAM, b2: f64[1] @ DRAM, eps: f64[1] @ DRAM, lr: f64[1] @ DRAM, beta1_t: f64[1] @ DRAM, beta2_t: f64[1] @ DRAM):
     # flat adam update with externally supplied bias-correction terms
     inv_b1: f64 @ Stack
@@ -157,67 +123,3 @@ def adam(N: size, param: f64[N] @ DRAM, grad: f64[N] @ DRAM, m: f64[N] @ DRAM, v
         param[i] = param[i] - lr[0] * m_hat / (sqrt(v_hat) + eps[0])
         m[i] = m_val
         v[i] = v_val
-
-
-_PROC_FACTORY_ID = 0
-
-
-def _make_proc(name: str, src: str, **extra_globals):
-    global _PROC_FACTORY_ID
-    scope = dict(globals())
-    scope.update(extra_globals)
-    filename = f"<exo_kernels_generated_{name}_{_PROC_FACTORY_ID}>"
-    _PROC_FACTORY_ID += 1
-    if not src.endswith("\n"):
-        src += "\n"
-    linecache.cache[filename] = (len(src), None, src.splitlines(True), filename)
-    exec(compile(src, filename, "exec"), scope)
-    return scope[name]
-
-
-def make_lm_head_step_fused(block_size: int, n_embed: int):
-    targets = ", ".join(f"target{i}: size" for i in range(block_size))
-    lines = [
-        "@proc",
-        f"def lm_head_step_fused(V: size, dx: f64[{block_size}, {n_embed}] @ DRAM, dweight: f64[V, {n_embed}] @ DRAM, logits: f64[{block_size}, V] @ DRAM, x: f64[{block_size}, {n_embed}] @ DRAM, lm_head: f64[V, {n_embed}] @ DRAM, loss_mask: f64[{block_size}] @ DRAM, inv_sum_mask: f64[1] @ DRAM, zero: f64[1] @ DRAM, one: f64[1] @ DRAM, {targets}):",
-    ]
-    lines.extend(f"    assert target{i} < V" for i in range(block_size))
-    lines.append(f"    matmul_right_t({block_size}, V, {n_embed}, logits, x, lm_head, zero)")
-    lines.extend(f"    softmax_xent_row(V, logits[{i}, :], loss_mask[{i}:{i + 1}], inv_sum_mask, zero, one, target{i})" for i in range(block_size))
-    lines.append(f"    matmul_left_t({block_size}, V, {n_embed}, dweight, logits, x, zero)")
-    lines.append(f"    matmul({block_size}, {n_embed}, V, dx, logits, lm_head, zero)")
-    return _make_proc(
-        "lm_head_step_fused",
-        "\n".join(lines),
-    )
-
-
-def make_embed_rms_fwd_tokens(block_size: int, n_embed: int, embed_token):
-    inputs = ", ".join(f"input{i}: size" for i in range(block_size))
-    lines = [
-        "@proc",
-        f"def embed_rms_fwd_tokens(V: size, emb: f64[{block_size}, {n_embed}] @ DRAM, out: f64[{block_size}, {n_embed}] @ DRAM, rms: f64[{block_size}, 1] @ DRAM, wte: f64[V, {n_embed}] @ DRAM, wpe: f64[{block_size}, {n_embed}] @ DRAM, zero: f64[1] @ DRAM, one: f64[1] @ DRAM, inv_n: f64[1] @ DRAM, eps: f64[1] @ DRAM, {inputs}):",
-    ]
-    lines.extend(f"    assert input{i} < V" for i in range(block_size))
-    lines.extend(f"    embed_token(V, emb[{i}, :], wte, wpe[{i}, :], input{i})" for i in range(block_size))
-    lines.append(f"    rmsnorm({block_size}, {n_embed}, out, rms, emb, zero, one, inv_n, eps)")
-    return _make_proc(
-        "embed_rms_fwd_tokens",
-        "\n".join(lines),
-        embed_token=embed_token,
-    )
-
-
-def make_embed_rms_bwd_tokens(block_size: int, n_embed: int, embed_rms_bwd_token):
-    inputs = ", ".join(f"input{i}: size" for i in range(block_size))
-    lines = [
-        "@proc",
-        f"def embed_rms_bwd_tokens(V: size, g_wte: f64[V, {n_embed}] @ DRAM, g_wpe: f64[{block_size}, {n_embed}] @ DRAM, dout: f64[{block_size}, {n_embed}] @ DRAM, x: f64[{block_size}, {n_embed}] @ DRAM, rms: f64[{block_size}, 1] @ DRAM, zero: f64[1] @ DRAM, inv_n: f64[1] @ DRAM, {inputs}):",
-    ]
-    lines.extend(f"    assert input{i} < V" for i in range(block_size))
-    lines.extend(f"    embed_rms_bwd_token(V, g_wte, g_wpe[{i}, :], dout[{i}, :], x[{i}, :], rms[{i}, 0:1], zero, inv_n, input{i})" for i in range(block_size))
-    return _make_proc(
-        "embed_rms_bwd_tokens",
-        "\n".join(lines),
-        embed_rms_bwd_token=embed_rms_bwd_token,
-    )
