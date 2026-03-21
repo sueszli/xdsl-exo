@@ -12,6 +12,7 @@ rm README
 toilet -t -f pagga "microgpt benchmarks game" >> README
 cat >> README << 'EOF'
 
+
 community speed benchmark for karpathy's microgpt. a minimal gpt trained on a names dataset,
 one forward + backward pass per step. ref: https://karpathy.github.io/2026/02/12/microgpt/
 
