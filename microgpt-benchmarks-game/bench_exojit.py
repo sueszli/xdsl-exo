@@ -1,3 +1,8 @@
+# /// script
+# requires-python = "==3.14.*"
+# dependencies = ["tqdm"]
+# ///
+
 from __future__ import annotations
 
 import ctypes

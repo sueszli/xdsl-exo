@@ -483,36 +483,21 @@ partition = lambda shapes, arr: {name: (ctypes.c_double * prod(shape)).from_buff
 n = sum(prod(s) for s in PARAMS_SHAPES.values())
 flat_params = (ctypes.c_double * n)(*(random.gauss(0.0, 0.08) for _ in range(n)))
 params = partition(PARAMS_SHAPES, flat_params)
-
 flat_grads, opt_m, opt_v = ((ctypes.c_double * n)() for _ in range(3))
 grads = partition(PARAMS_SHAPES, flat_grads)
-
 scratch = partition(SCRATCH_SHAPES, (ctypes.c_double * sum(prod(s) for s in SCRATCH_SHAPES.values()))())
-opt_lr, opt_bc1, opt_bc2 = ((ctypes.c_double * 1)() for _ in range(3))
-
+opt_lr, opt_bc1, opt_bc2, cur_inv_sum_mask = ((ctypes.c_double * 1)() for _ in range(4))
 cur_loss_mask = (ctypes.c_double * BLOCK_SIZE)()
-cur_inv_sum_mask = (ctypes.c_double * 1)()
 
-all_lr = (ctypes.c_double * NUM_STEPS)()
-all_beta1_t = (ctypes.c_double * NUM_STEPS)()
-all_beta2_t = (ctypes.c_double * NUM_STEPS)()
-for step in range(NUM_STEPS):
-    all_lr[step] = 0.01 * (1.0 - step / NUM_STEPS)
-    all_beta1_t[step] = 1.0 - 0.9 ** (step + 1)
-    all_beta2_t[step] = 1.0 - 0.999 ** (step + 1)
+all_lr = (ctypes.c_double * NUM_STEPS)(*(0.01 * (1.0 - s / NUM_STEPS) for s in range(NUM_STEPS)))
+all_beta1_t = (ctypes.c_double * NUM_STEPS)(*(1.0 - 0.9 ** (s + 1) for s in range(NUM_STEPS)))
+all_beta2_t = (ctypes.c_double * NUM_STEPS)(*(1.0 - 0.999 ** (s + 1) for s in range(NUM_STEPS)))
 
-all_input_ids = (ctypes.c_int64 * (NUM_STEPS * BLOCK_SIZE))()
-all_target_ids = (ctypes.c_int64 * (NUM_STEPS * BLOCK_SIZE))()
-all_loss_mask = (ctypes.c_double * (NUM_STEPS * BLOCK_SIZE))()
-all_inv_sum_mask = (ctypes.c_double * NUM_STEPS)()
-for step in range(NUM_STEPS):
-    batch = tokenized[step % len(tokenized)]
-    off = step * BLOCK_SIZE
-    for t in range(BLOCK_SIZE):
-        all_input_ids[off + t] = batch["input_ids"][t]
-        all_target_ids[off + t] = batch["target_ids"][t]
-        all_loss_mask[off + t] = batch["loss_mask"][t]
-    all_inv_sum_mask[step] = batch["inv_sum_mask"][0]
+batches = [tokenized[s % len(tokenized)] for s in range(NUM_STEPS)]
+all_input_ids = (ctypes.c_int64 * (NUM_STEPS * BLOCK_SIZE))(*(v for b in batches for v in b["input_ids"]))
+all_target_ids = (ctypes.c_int64 * (NUM_STEPS * BLOCK_SIZE))(*(v for b in batches for v in b["target_ids"]))
+all_loss_mask = (ctypes.c_double * (NUM_STEPS * BLOCK_SIZE))(*(v for b in batches for v in b["loss_mask"]))
+all_inv_sum_mask = (ctypes.c_double * NUM_STEPS)(*(b["inv_sum_mask"][0] for b in batches))
 
 static_args = {
     "vocab_size": vocab_size,
