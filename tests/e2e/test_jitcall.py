@@ -73,12 +73,12 @@ def test_jit_rejects_keyword_args():
     dst = [0.0, 0.0, 0.0, 0.0]
     src = [0.0, 1.0, 2.0, 3.0]
     with pytest.raises(TypeError, match="keyword"):
-        fn(dst=dst, src=src)
+        fn._raw(dst=dst, src=src)
 
 
 def test_jit_raw_mode_returns_low_level_entrypoint():
-    raw = jit(copy4, raw=True)
-    assert type(raw).__name__ == "JitFunc"
+    fn = jit(copy4, raw=True)
+    assert type(fn._raw).__name__ == "JitFunc"
 
 
 def test_jit_exposes_raw_entrypoint():

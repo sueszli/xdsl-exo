@@ -302,7 +302,8 @@ static int JitFunc_init(JitFuncObject *self, PyObject *args, PyObject *kwds) {
 
     if (arg_kinds.len > MAX_JIT_ARGS) {
         PyErr_SetString(PyExc_TypeError, "JitFunc: too many arguments (max 64)");
-        goto fail;
+        PyBuffer_Release(&arg_kinds);
+        return -1;
     }
 
     kinds = (const unsigned char *)arg_kinds.buf;
@@ -314,7 +315,8 @@ static int JitFunc_init(JitFuncObject *self, PyObject *args, PyObject *kwds) {
             break;
         default:
             PyErr_Format(PyExc_TypeError, "JitFunc: invalid arg kind %u at index %zd", kinds[i], i);
-            goto fail;
+            PyBuffer_Release(&arg_kinds);
+            return -1;
         }
     }
 
@@ -329,10 +331,6 @@ static int JitFunc_init(JitFuncObject *self, PyObject *args, PyObject *kwds) {
     self->engine = engine;
     self->vectorcall = JitFunc_vectorcall;
     return 0;
-
-fail:
-    PyBuffer_Release(&arg_kinds);
-    return -1;
 }
 
 static void JitFunc_dealloc(JitFuncObject *self) {
