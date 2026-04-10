@@ -31,7 +31,7 @@ from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import llvm, memref, vector
 from xdsl.dialects.builtin import BoolAttr, Builtin, DenseIntOrFPElementsAttr, FloatAttr, IndexType, IntAttr, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StringAttr, UnrealizedConversionCastOp, f16, f32, f64, i1, i8, i16, i32, i64
-from xdsl.dialects.llvm import FNegOp
+from xdsl.dialects.llvm import FCmpPredicateFlag, FNegOp
 from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
 from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriteWalker
@@ -44,7 +44,7 @@ from xdsl.utils.scoped_dict import ScopedDict
 import exojit.patches_exo  # noqa: F401
 from exojit.jitcall import JitFunc
 from exojit.patches_xdsl_intrinsics import ConvertVecIntrinsic
-from exojit.patches_xdsl_llvm import BrOp, CondBrOp, ExtendedConvertMemRefToPtr, FCmpOp, FLogOp, FSqrtOp, RewriteMemRefTypes, VectorFMaxOp
+from exojit.patches_xdsl_llvm import BrOp, ExtendedConvertMemRefToPtr, FLogOp, FSqrtOp, RewriteMemRefTypes, VectorFMaxOp
 
 FCMP_PREDICATES: dict[str, tuple[str, bool]] = {  # mlir predicate -> (op, ordered?)
     "oeq": ("==", True),
@@ -247,7 +247,7 @@ class IRGenerator:
             return emit(bool_ops[op](lhs, rhs))
         if lhs.type in [i8, i16, i32, i64]:
             return emit(llvm.ICmpOp(lhs, rhs, IntegerAttr(integer_cmp_table[op], i64)))
-        return emit(FCmpOp(lhs, rhs, float_cmp_table[op]))
+        return emit(llvm.FCmpOp(lhs, rhs, float_cmp_table[op]))
 
     def _expr_binop(self, binop: LoopIR.BinOp) -> SSAValue:
         if not isinstance(binop.type, T.Num):
@@ -314,7 +314,7 @@ class IRGenerator:
             arg_a = self._expr(extern.args[0], expected_type)
             arg_c = self._expr(extern.args[2], expected_type)
             arg_d = self._expr(extern.args[3], expected_type)
-            cmp = self._emit(FCmpOp(arg_a, arg_b, "olt"))
+            cmp = self._emit(llvm.FCmpOp(arg_a, arg_b, "olt"))
             return self._emit(llvm.SelectOp(cmp, arg_c, arg_d))
         if extern.f.name() == "sqrt":
             args = [self._expr(arg) for arg in extern.args]
@@ -378,7 +378,7 @@ class IRGenerator:
         region.add_block(true_block)
         region.add_block(false_block)
 
-        self.builder.insert(CondBrOp(cond, true_block, [], false_block, []))
+        self.builder.insert(llvm.CondBrOp(cond, true_block, [], false_block, []))
 
         # true branch
         self.builder = Builder(insertion_point=InsertPoint.at_end(true_block))
@@ -472,7 +472,7 @@ class IRGenerator:
             self.builder.insert(BrOp(hdr, adj_lo))
             self.builder = Builder(insertion_point=InsertPoint.at_end(hdr))
             iv = hdr.args[0]
-            self.builder.insert(CondBrOp(self._emit(llvm.ICmpOp(iv, adj_hi, IntegerAttr(llvm.ICmpPredicateFlag.SLE.to_int(), i64))), body, [], exit_, []))
+            self.builder.insert(llvm.CondBrOp(self._emit(llvm.ICmpOp(iv, adj_hi, IntegerAttr(llvm.ICmpPredicateFlag.SLE.to_int(), i64))), body, [], exit_, []))
             with self._scoped_state():  # body: bind iter, emit stmts, iv++
                 self.builder = Builder(insertion_point=InsertPoint.at_end(body))
                 self.symbol_table = ScopedDict(self._syms)
@@ -517,7 +517,7 @@ class IRGenerator:
         self.builder = Builder(insertion_point=InsertPoint.at_end(header_block))
         iv = header_block.args[0]
         cond = self._emit(llvm.ICmpOp(iv, hi, IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64)))
-        self.builder.insert(CondBrOp(cond, body_block, [], exit_block, []))
+        self.builder.insert(llvm.CondBrOp(cond, body_block, [], exit_block, []))
 
         # body: emit loop body in a child symbol scope
         with self._scoped_state():
@@ -697,9 +697,7 @@ def _context() -> Context:
     ctx = Context()
     ctx.load_dialect(Builtin)
     ctx.load_dialect(llvm.LLVM)
-    ctx.load_op(FCmpOp)
     ctx.load_op(BrOp)
-    ctx.load_op(CondBrOp)
     ctx.load_op(VectorFMaxOp)
     ctx.load_dialect(memref.MemRef)
     return ctx
@@ -777,15 +775,15 @@ class LLVMLiteGenerator:
                 val_map[op.result] = llvmlite.ir.Constant(convert_type(op.result.type), list(op.value.iter_values()) if is_dense else op.value.value.data)
             case FNegOp():
                 val_map[op.res] = builder.fneg(val_map[op.arg])
-            case FCmpOp():
-                pred, is_ordered = FCMP_PREDICATES[op.predicate.data]
+            case llvm.FCmpOp():
+                pred, is_ordered = FCMP_PREDICATES[FCmpPredicateFlag.from_int(op.predicate.value.data)]
                 val_map[op.res] = (builder.fcmp_ordered if is_ordered else builder.fcmp_unordered)(pred, val_map[op.lhs], val_map[op.rhs], flags=("fast",))
             case llvm.SelectOp():
                 val_map[op.res] = builder.select(val_map[op.cond], val_map[op.lhs], val_map[op.rhs])
             case BrOp():
                 LLVMLiteGenerator._add_phis(phi_map, val_map, op.successor.args, op.operands, builder.block)
                 builder.branch(block_map[op.successor])
-            case CondBrOp():
+            case llvm.CondBrOp():
                 LLVMLiteGenerator._add_phis(phi_map, val_map, op.successors[0].args, op.then_arguments, builder.block)
                 LLVMLiteGenerator._add_phis(phi_map, val_map, op.successors[1].args, op.else_arguments, builder.block)
                 builder.cbranch(val_map[op.cond], block_map[op.successors[0]], block_map[op.successors[1]])

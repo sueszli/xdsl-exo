@@ -4,10 +4,10 @@ from typing import Callable, ClassVar
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, llvm, memref
-from xdsl.dialects.builtin import DYNAMIC_INDEX, I1, AnyFloatConstr, IntegerAttr, IntegerType, MemRefType, StringAttr, UnrealizedConversionCastOp, i1, i64
+from xdsl.dialects.builtin import DYNAMIC_INDEX, IntegerAttr, MemRefType, UnrealizedConversionCastOp, i64
 from xdsl.dialects.llvm import GEP_USE_SSA_VAL, LLVMPointerType
 from xdsl.ir import Block, BlockArgument, Operation, OpResult, SSAValue
-from xdsl.irdl import AnyAttr, AttrSizedOperandSegments, IRDLOperation, VarConstraint, irdl_op_definition, operand_def, prop_def, result_def, successor_def, traits_def, var_operand_def
+from xdsl.irdl import AnyAttr, IRDLOperation, VarConstraint, irdl_op_definition, operand_def, result_def, successor_def, traits_def, var_operand_def
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, TypeConversionPattern, attr_type_rewrite_pattern, op_type_rewrite_pattern
 from xdsl.traits import IsTerminator, Pure
@@ -63,26 +63,6 @@ class FLogOp(IRDLOperation):
 
 
 @irdl_op_definition
-class FCmpOp(IRDLOperation):
-    # TODO: remove after next xdsl release
-    name = "llvm.fcmp"
-
-    T: ClassVar = VarConstraint("T", AnyFloatConstr)
-
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    res = result_def(I1)
-    predicate = prop_def(StringAttr)
-
-    traits = traits_def(Pure())
-
-    assembly_format = "$predicate $lhs `,` $rhs attr-dict `:` type($lhs)"
-
-    def __init__(self, lhs: Operation | SSAValue, rhs: Operation | SSAValue, predicate: str):
-        super().__init__(operands=[lhs, rhs], result_types=[i1], properties={"predicate": StringAttr(predicate)})
-
-
-@irdl_op_definition
 class BrOp(IRDLOperation):
     name = "llvm.br"
     arguments = var_operand_def()
@@ -92,23 +72,6 @@ class BrOp(IRDLOperation):
 
     def __init__(self, dest: Block, *ops: Operation | SSAValue):
         super().__init__(operands=[[op for op in ops]], successors=[dest])
-
-
-@irdl_op_definition
-class CondBrOp(IRDLOperation):
-    # TODO: remove after next xdsl release
-    name = "llvm.cond_br"
-    cond = operand_def(IntegerType(1))
-    then_arguments = var_operand_def()
-    else_arguments = var_operand_def()
-    irdl_options = (AttrSizedOperandSegments(as_property=True),)
-    then_block = successor_def()
-    else_block = successor_def()
-    traits = traits_def(IsTerminator())
-    assembly_format = "$cond `,` $then_block (`(` $then_arguments^ `:` type($then_arguments) `)`)? `,`" " $else_block (`(` $else_arguments^ `:` type($else_arguments) `)`)? attr-dict"
-
-    def __init__(self, cond: Operation | SSAValue, then_block: Block, then_ops: Sequence[Operation | SSAValue], else_block: Block, else_ops: Sequence[Operation | SSAValue]):
-        super().__init__(operands=[cond, then_ops, else_ops], successors=[then_block, else_block])
 
 
 # `memref` -> `llvm.ptr` lowering: replace structured memory ops with raw pointer arithmetic
