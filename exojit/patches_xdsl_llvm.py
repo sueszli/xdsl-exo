@@ -17,6 +17,7 @@ from xdsl.utils.hints import isa
 
 @irdl_op_definition
 class VectorFMaxOp(IRDLOperation):
+    # https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrmaxnum-llvmmaxnumop
     # element-wise max of two vectors, lowered to @llvm.maxnum.v{n}{elem} in llvmlitegenerator
     name = "llvm.intr.maxnum"
 
