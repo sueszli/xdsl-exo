@@ -51,6 +51,7 @@ class FSqrtOp(IRDLOperation):
 
 @irdl_op_definition
 class FLogOp(IRDLOperation):
+    # https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrlog-llvmlogop
     name = "llvm.intr.log"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
