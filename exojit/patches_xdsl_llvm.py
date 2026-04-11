@@ -6,31 +6,13 @@ from xdsl.context import Context
 from xdsl.dialects import builtin, llvm, memref
 from xdsl.dialects.builtin import DYNAMIC_INDEX, IntegerAttr, MemRefType, UnrealizedConversionCastOp, i64
 from xdsl.dialects.llvm import GEP_USE_SSA_VAL, LLVMPointerType
-from xdsl.ir import Block, BlockArgument, Operation, OpResult, SSAValue
-from xdsl.irdl import AnyAttr, IRDLOperation, VarConstraint, irdl_op_definition, operand_def, result_def, successor_def, traits_def, var_operand_def
+from xdsl.ir import BlockArgument, Operation, OpResult, SSAValue
+from xdsl.irdl import AnyAttr, IRDLOperation, VarConstraint, irdl_op_definition, operand_def, result_def, traits_def
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, TypeConversionPattern, attr_type_rewrite_pattern, op_type_rewrite_pattern
-from xdsl.traits import IsTerminator, Pure
+from xdsl.traits import Pure
 from xdsl.transforms.convert_memref_to_ptr import ConvertCastOp
 from xdsl.utils.hints import isa
-
-
-@irdl_op_definition
-class VectorFMaxOp(IRDLOperation):
-    # https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrmaxnum-llvmmaxnumop
-    # element-wise max of two vectors, lowered to @llvm.maxnum.v{n}{elem} in llvmlitegenerator
-    name = "llvm.intr.maxnum"
-
-    T: ClassVar = VarConstraint("T", AnyAttr())
-
-    lhs = operand_def(T)
-    rhs = operand_def(T)
-    res = result_def(T)
-
-    traits = traits_def(Pure())
-
-    def __init__(self, lhs: Operation | SSAValue, rhs: Operation | SSAValue):
-        super().__init__(operands=[lhs, rhs], result_types=[SSAValue.get(lhs).type])
 
 
 @irdl_op_definition
@@ -48,36 +30,6 @@ class FSqrtOp(IRDLOperation):
 
     def __init__(self, arg: Operation | SSAValue):
         super().__init__(operands=[arg], result_types=[SSAValue.get(arg).type])
-
-
-@irdl_op_definition
-class FLogOp(IRDLOperation):
-    # https://github.com/xdslproject/xdsl/pull/5824
-    # https://mlir.llvm.org/docs/Dialects/LLVM/#llvmintrlog-llvmlogop
-    name = "llvm.intr.log"
-
-    T: ClassVar = VarConstraint("T", AnyAttr())
-
-    arg = operand_def(T)
-    res = result_def(T)
-
-    traits = traits_def(Pure())
-
-    def __init__(self, arg: Operation | SSAValue):
-        super().__init__(operands=[arg], result_types=[SSAValue.get(arg).type])
-
-
-@irdl_op_definition
-class BrOp(IRDLOperation):
-    # https://github.com/xdslproject/xdsl/pull/5822
-    name = "llvm.br"
-    arguments = var_operand_def()
-    successor = successor_def()
-    traits = traits_def(IsTerminator())
-    assembly_format = "$successor (`(` $arguments^ `:` type($arguments) `)`)? attr-dict"
-
-    def __init__(self, dest: Block, *ops: Operation | SSAValue):
-        super().__init__(operands=[[op for op in ops]], successors=[dest])
 
 
 # `memref` -> `llvm.ptr` lowering: replace structured memory ops with raw pointer arithmetic
