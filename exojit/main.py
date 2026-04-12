@@ -31,7 +31,7 @@ from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import llvm, memref, vector
 from xdsl.dialects.builtin import BoolAttr, Builtin, DenseIntOrFPElementsAttr, FloatAttr, IndexType, IntAttr, IntegerAttr, MemRefType, ModuleOp, NoneAttr, StringAttr, UnrealizedConversionCastOp, f16, f32, f64, i1, i8, i16, i32, i64
-from xdsl.dialects.llvm import BrOp, FCmpPredicateFlag, FLogOp, FNegOp, FSqrtOp, VectorFMaxOp
+from xdsl.dialects.llvm import BrOp, FLogOp, FNegOp, FSqrtOp
 from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
 from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriteWalker
@@ -771,20 +771,6 @@ class LLVMLiteGenerator:
             case llvm.ConstantOp():
                 is_dense = isinstance(op.value, DenseIntOrFPElementsAttr)
                 val_map[op.result] = llvmlite.ir.Constant(convert_type(op.result.type), list(op.value.iter_values()) if is_dense else op.value.value.data)
-            case FNegOp():
-                val_map[op.res] = builder.fneg(val_map[op.arg])
-            case llvm.FCmpOp():
-                pred, is_ordered = FCMP_PREDICATES[FCmpPredicateFlag.from_int(op.predicate.value.data)]
-                val_map[op.res] = (builder.fcmp_ordered if is_ordered else builder.fcmp_unordered)(pred, val_map[op.lhs], val_map[op.rhs], flags=("fast",))
-            case llvm.SelectOp():
-                val_map[op.res] = builder.select(val_map[op.cond], val_map[op.lhs], val_map[op.rhs])
-            case BrOp():
-                LLVMLiteGenerator._add_phis(phi_map, val_map, op.successor.args, op.operands, builder.block)
-                builder.branch(block_map[op.successor])
-            case llvm.CondBrOp():
-                LLVMLiteGenerator._add_phis(phi_map, val_map, op.successors[0].args, op.then_arguments, builder.block)
-                LLVMLiteGenerator._add_phis(phi_map, val_map, op.successors[1].args, op.else_arguments, builder.block)
-                builder.cbranch(val_map[op.cond], block_map[op.successors[0]], block_map[op.successors[1]])
             case vector.BroadcastOp():
                 source_val = val_map[op.source]
                 vec_type = convert_type(op.vector.type)
@@ -795,12 +781,6 @@ class LLVMLiteGenerator:
                 val_map[op.vector] = builder.shuffle_vector(inserted, undef, mask)
             case vector.FMAOp():
                 val_map[op.res] = builder.call(LLVMLiteGenerator._get_intrinsic(builder.module, "llvm.fma", convert_type(op.res.type), arity=3), [val_map[op.lhs], val_map[op.rhs], val_map[op.acc]])
-            case VectorFMaxOp():
-                val_map[op.res] = builder.call(LLVMLiteGenerator._get_intrinsic(builder.module, "llvm.maxnum", convert_type(op.res.type), arity=2), [val_map[op.lhs], val_map[op.rhs]])
-            case FSqrtOp():
-                val_map[op.res] = builder.call(LLVMLiteGenerator._get_intrinsic(builder.module, "llvm.sqrt", convert_type(op.res.type), arity=1), [val_map[op.arg]])
-            case FLogOp():
-                val_map[op.res] = builder.call(LLVMLiteGenerator._get_intrinsic(builder.module, "llvm.log", convert_type(op.res.type), arity=1), [val_map[op.arg]])
             case llvm.AddressOfOp():
                 val_map[op.result] = builder.module.get_global(op.global_name.root_reference.data)
             case llvm.NullOp():
@@ -810,7 +790,7 @@ class LLVMLiteGenerator:
                 args = [val_map[a] for a in op.args]
                 builder.call(fn, [builder.bitcast(a, fn.ftype.args[i]) if i < len(fn.ftype.args) and a.type != fn.ftype.args[i] else a for i, a in enumerate(args)])
             case _:
-                _xdsl_convert_op(op, builder, val_map)
+                _xdsl_convert_op(op, builder, val_map, block_map)
 
     @staticmethod
     def _generate_func(func_op: llvm.FuncOp, llvm_module: llvmlite.ir.Module) -> None:
