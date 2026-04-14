@@ -756,15 +756,6 @@ class LLVMLiteGenerator:
                 phi_map[a].add_incoming(val_map[v], cur_block)
 
     @staticmethod
-    def _get_intrinsic(module: llvmlite.ir.Module, base_name: str, res_type: llvmlite.ir.Type, arity: int) -> llvmlite.ir.Function:
-        elem = "f32" if (res_type.element if isinstance(res_type, llvmlite.ir.VectorType) else res_type) == llvmlite.ir.FloatType() else "f64"
-        suffix = f".v{res_type.count}{elem}" if isinstance(res_type, llvmlite.ir.VectorType) else f".{elem}"
-        name = base_name + suffix
-        if name not in module.globals:
-            llvmlite.ir.Function(module, llvmlite.ir.FunctionType(res_type, [res_type] * arity), name=name)
-        return module.globals[name]
-
-    @staticmethod
     def _convert_op(op: Operation, builder: llvmlite.ir.IRBuilder, block_map: dict[Block, llvmlite.ir.Block], phi_map: dict[SSAValue, llvmlite.ir.PhiInstr], val_map: dict[SSAValue, llvmlite.ir.Value]) -> None:
         # translate one xdsl op to llvmlite ir. unmatched ops fall back to xdsl's convert_op
         match op:
@@ -779,8 +770,6 @@ class LLVMLiteGenerator:
                 inserted = builder.insert_element(undef, source_val, llvmlite.ir.Constant(llvmlite.ir.IntType(32), 0))
                 mask = llvmlite.ir.Constant(llvmlite.ir.VectorType(llvmlite.ir.IntType(32), n_lanes), [0] * n_lanes)
                 val_map[op.vector] = builder.shuffle_vector(inserted, undef, mask)
-            case vector.FMAOp():
-                val_map[op.res] = builder.call(LLVMLiteGenerator._get_intrinsic(builder.module, "llvm.fma", convert_type(op.res.type), arity=3), [val_map[op.lhs], val_map[op.rhs], val_map[op.acc]])
             case llvm.AddressOfOp():
                 val_map[op.result] = builder.module.get_global(op.global_name.root_reference.data)
             case llvm.NullOp():
