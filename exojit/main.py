@@ -772,8 +772,6 @@ class LLVMLiteGenerator:
                 val_map[op.vector] = builder.shuffle_vector(inserted, undef, mask)
             case llvm.AddressOfOp():
                 val_map[op.result] = builder.module.get_global(op.global_name.root_reference.data)
-            case llvm.NullOp():
-                val_map[op.nullptr] = llvmlite.ir.Constant(llvmlite.ir.PointerType(llvmlite.ir.IntType(8)), None)
             case llvm.CallOp() if op.callee and op.callee.string_value().startswith("__kmpc_"):
                 fn = builder.module.get_global(op.callee.string_value())
                 args = [val_map[a] for a in op.args]
