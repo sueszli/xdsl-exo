@@ -16,6 +16,8 @@ import exo.frontend.pyparser as _pyparser
 from cffi import FFI
 from exo import compile_procs as exo_compile_procs
 from exo.API import Procedure
+from exo.API_cursors import CallCursor, ForCursor, IfCursor, WindowStmtCursor
+from exo.API_scheduling import inline, inline_window
 from exo.backend.LoopIR_compiler import find_all_subprocs
 from exo.backend.mem_analysis import MemoryAnalysis
 from exo.backend.prec_analysis import PrecisionAnalysis
@@ -101,7 +103,7 @@ _CAST_OP_NAMES[FPTruncOp] = "fptrunc"
 @dataclass(frozen=True)
 class Buffer:
     # Compile-time metadata only: the ABI carries a bare pointer, not a descriptor.
-    # Tensors and windows are contiguous row-major; arbitrary strided views are unsupported.
+    # External tensors/windows are contiguous row-major; local views are normalized away.
     ptr: SSAValue
     element_type: Attribute
     shape: list[SSAValue]
@@ -111,14 +113,12 @@ class IRGenerator:
     module: ModuleOp
     builder: Builder
     symbol_table: ScopedDict[str, SSAValue | Buffer] | None
-    seen_proc_names: set[str]
     seen_extern_decls: set[str]
 
     def __init__(self):
         self.module = ModuleOp([])
         self.builder = Builder(insertion_point=InsertPoint.at_end(self.module.body.blocks[0]))
         self.symbol_table = None
-        self.seen_proc_names = set()
         self.seen_extern_decls = set()
 
     @property
@@ -244,21 +244,6 @@ class IRGenerator:
         assert isinstance(mlir_type, IntegerType)
         return self._emit(int_ops[binop.op](lhs, rhs))
 
-    def _expr_window(self, window: LoopIR.WindowExpr) -> Buffer:
-        # Advance to the view origin; retain the existing contiguous/bare-pointer contract.
-        indices = []
-        for access in window.idx:
-            match access:
-                case LoopIR.Point():
-                    indices.append(self._expr(access.pt))
-                case LoopIR.Interval():
-                    indices.append(self._expr(access.lo))
-                case _:
-                    assert False
-        source = self._syms[repr(window.name)]
-        assert isinstance(source, Buffer) and isinstance(window.type, T.Window)
-        return self._buffer(self._address(source, indices), window.type)
-
     def _expr_extern(self, extern: LoopIR.Extern) -> SSAValue:
         name = extern.f.name()
         if name == "select":
@@ -290,7 +275,11 @@ class IRGenerator:
             case LoopIR.BinOp():
                 return self._expr_binop(expr)
             case LoopIR.WindowExpr():
-                return self._expr_window(expr).ptr
+                # Remaining windows are native-instruction operands: pass their origin.
+                source = self._syms[repr(expr.name)]
+                assert isinstance(source, Buffer)
+                indices = [self._expr(access.pt if isinstance(access, LoopIR.Point) else cast(LoopIR.Interval, access).lo) for access in expr.idx]
+                return self._address(source, indices)
             case LoopIR.Extern():
                 return self._expr_extern(expr)
             case _:
@@ -387,23 +376,10 @@ class IRGenerator:
         return self._to_mlir_type(arg.type)
 
     def _stmt_call(self, call: LoopIR.Call) -> None:
-        if call.f.instr is None:
-            self._generate_procedure(call.f)
-            assert len(call.args) == len(call.f.args)
-            args = []
-            for arg, callee_arg in zip(call.args, call.f.args):
-                callee_type = self._arg_type(callee_arg, call.f.body)
-                if isinstance(callee_type, LLVMPointerType) and not callee_arg.type.is_tensor_or_window():
-                    assert isinstance(arg, LoopIR.Read) and not arg.idx, "writable scalar call arguments must be scalar lvalues"
-                    buffer = self._syms[repr(arg.name)]
-                    assert isinstance(buffer, Buffer)
-                    arg_val = buffer.ptr
-                else:
-                    arg_val = self._expr(arg)
-                args.append(arg_val)
-        else:
-            args = [self._expr(arg) for arg in call.args]
-        if call.f.instr is not None and call.f.name not in self.seen_extern_decls:
+        # Instruction specifications are not executable implementations.
+        assert call.f.instr is not None
+        args = [self._expr(arg) for arg in call.args]
+        if call.f.name not in self.seen_extern_decls:
             self.seen_extern_decls.add(call.f.name)
             self._insert_at_module(llvm.FuncOp(call.f.name, llvm.LLVMFunctionType([arg.type for arg in args], llvm.LLVMVoidType()), llvm.LinkageAttr("external")))
         self.builder.insert(llvm.CallOp(call.f.name, *args))
@@ -426,20 +402,12 @@ class IRGenerator:
                 self._stmt_free(stmt)
             case LoopIR.Call():
                 self._stmt_call(stmt)
-            case LoopIR.WindowStmt():
-                assert isinstance(stmt.rhs, LoopIR.WindowExpr) and isinstance(stmt.rhs.type, T.Window)
-                self._syms[repr(stmt.name)] = self._expr_window(stmt.rhs)
             case _:
                 assert False
 
     def _generate_procedure(self, procedure: LoopIR.proc) -> None:
-        if procedure.name in self.seen_proc_names:
-            return
-        self.seen_proc_names.add(procedure.name)
         input_types = [self._arg_type(arg, procedure.body) for arg in procedure.args]
         fn_type = llvm.LLVMFunctionType(input_types, llvm.LLVMVoidType())
-        # save and restore builder/symbol state across the procedure scope
-        parent_builder, parent_symbol_table = self.builder, self.symbol_table
         block = Block(arg_types=input_types)
         func_region = Region(block)
         self.builder = Builder(insertion_point=InsertPoint.at_end(block))
@@ -449,7 +417,6 @@ class IRGenerator:
         for stmt in procedure.body:
             self._stmt(stmt)
         self.builder.insert(llvm.ReturnOp())
-        self.builder, self.symbol_table = parent_builder, parent_symbol_table
         self._insert_at_module(llvm.FuncOp(procedure.name, fn_type, linkage=llvm.LinkageAttr("external"), body=func_region))
 
     def generate(self, procs: list[LoopIR.proc]) -> ModuleOp:
@@ -581,16 +548,33 @@ class JITRuntime:
         return wrapped
 
 
+def _normalization_stmts(block):
+    for stmt in block:
+        yield stmt
+        if isinstance(stmt, (ForCursor, IfCursor)):
+            yield from _normalization_stmts(stmt.body())
+        if isinstance(stmt, IfCursor) and stmt.orelse():
+            yield from _normalization_stmts(stmt.orelse())
+
+
+def _normalize(proc: Procedure) -> LoopIR.proc:
+    # Exo owns argument substitution, alpha-renaming and window composition.
+    for cursor_type, rewrite in ((CallCursor, inline), (WindowStmtCursor, inline_window)):
+        while (cursor := next((s for s in _normalization_stmts(proc.body()) if isinstance(s, cursor_type) and not (isinstance(s, CallCursor) and s.subproc().is_instr())), None)) is not None:
+            proc = rewrite(proc, cursor)
+    # No simplify: it can misfold generic precision and rejects indexed size data.
+    return MemoryAnalysis().run(PrecisionAnalysis().run(proc._loopir_proc))
+
+
 def to_mlir(library: Procedure | Sequence[Procedure]) -> ModuleOp:
-    # exo procedures -> xdsl mlir (llvm dialect)
+    # Validate original call boundaries before normalization can erase them.
     if isinstance(library, Procedure):
         library = [library]
-    compilable = [proc._loopir_proc for proc in library if not proc.is_instr()]
-    all_procs = sorted(find_all_subprocs(compilable), key=lambda proc: proc.name)
-    unique_procs = list({proc.name: proc for proc in all_procs if proc.instr is None}.values())
-
-    exo_analyze = lambda proc: MemoryAnalysis().run(WindowAnalysis().apply_proc(PrecisionAnalysis().run(proc)))
-    return LLVMBackend._lower([exo_analyze(proc) for proc in unique_procs])
+    all_procs = sorted(find_all_subprocs([p._loopir_proc for p in library if not p.is_instr()]), key=lambda proc: proc.name)
+    unique_procs = {proc.name: proc for proc in all_procs if proc.instr is None}
+    for proc in unique_procs.values():
+        MemoryAnalysis().run(WindowAnalysis().apply_proc(PrecisionAnalysis().run(proc)))
+    return LLVMBackend._lower([_normalize(Procedure(proc)) for proc in unique_procs.values()])
 
 
 def jit(proc=None, *, raw: bool = False, optimize: Callable[[Procedure], Procedure] | None = None):
