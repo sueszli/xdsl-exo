@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import weakref
+
 import numpy as np
 import pytest
 from exo import *
+from xdsl.jit.llvm.backend import LLVMJITBackend
 
 from exojit import jit
 
@@ -96,15 +99,33 @@ def test_jit_raw_rejects_python_lists():
         raw([0.0] * 4, [1.0, 2.0, 3.0, 4.0])
 
 
-def test_jit_exposes_raw_entrypoint():
-    wrapped = jit(copy4)
+@pytest.mark.parametrize("raw_mode", [False, True])
+def test_jit_exposes_raw_entrypoint(monkeypatch, raw_mode):
+    backend_jit = LLVMJITBackend.jit
+    engines = []
+
+    def track_engine(self, *args, **kwargs):
+        compiled = backend_jit(self, *args, **kwargs)
+        engines.append(weakref.ref(compiled.engine))
+        return compiled
+
+    monkeypatch.setattr(LLVMJITBackend, "jit", track_engine)
+    wrapped = jit(copy4, raw=raw_mode)
     raw = wrapped._raw
+    wrapper_ref = weakref.ref(wrapped)
+    del wrapped
+    # Use reference release, not forced GC (see conftest.py's xDSL finalizer workaround).
+    assert wrapper_ref() is None
+    assert engines[0]() is not None
     src = np.array([1.0, -2.0, 3.5, 4.25], dtype=np.float32)
     dst = np.zeros_like(src)
     raw(dst, src)
     np.testing.assert_allclose(dst, src)
+    dst.fill(0)
     raw(dst.ctypes.data, src.ctypes.data)
     np.testing.assert_allclose(dst, src)
+    del raw
+    assert engines[0]() is None
 
 
 def test_jit_raw_rejects_non_contiguous_buffers():
