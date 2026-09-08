@@ -28,21 +28,15 @@ from exo.rewrite.range_analysis import constant_bound
 from xdsl.backend.llvm.convert_op import _CAST_OP_NAMES
 from xdsl.builder import Builder
 from xdsl.context import Context
-from xdsl.dialects import builtin, llvm, memref
-from xdsl.dialects.builtin import DYNAMIC_INDEX, AnyFloat, ArrayAttr, Builtin, DictionaryAttr, FixedBitwidthType, FloatAttr, IndexType, IntegerAttr, IntegerType, MemRefType, ModuleOp, NoneAttr, StringAttr, UnitAttr, UnrealizedConversionCastOp, f16, f32, f64, i1, i8, i16, i32, i64
-from xdsl.dialects.llvm import GEP_USE_SSA_VAL, BrOp, FNegOp, GenericCastOp, LLVMPointerType
-from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
-from xdsl.ir import Attribute, Block, BlockArgument, Operation, OpResult, Region, SSAValue
+from xdsl.dialects import llvm
+from xdsl.dialects.builtin import AnyFloat, Builtin, FixedBitwidthType, FloatAttr, IntegerAttr, IntegerType, ModuleOp, f16, f32, f64, i1, i8, i16, i32, i64
+from xdsl.dialects.llvm import BrOp, FNegOp, GenericCastOp, LLVMPointerType
+from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 from xdsl.irdl import irdl_op_definition
 from xdsl.jit.llvm.backend import LLVMJITBackend
-from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, TypeConversionPattern, attr_type_rewrite_pattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.common_subexpression_elimination import CommonSubexpressionElimination
-from xdsl.transforms.convert_memref_to_ptr import ConvertCastOp
-from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
-from xdsl.utils.hints import isa
 from xdsl.utils.scoped_dict import ScopedDict
 
 # ===----------------------------------------------------------------------=== #
@@ -99,149 +93,24 @@ class FPTruncOp(GenericCastOp):
 # xdsl's llvm dialect has fpext but no fptrunc, so teach its llvmlite converter about ours
 _CAST_OP_NAMES[FPTruncOp] = "fptrunc"
 
-# `memref` -> `llvm.ptr` lowering: replace structured memory ops with raw pointer arithmetic
-#
-# standard mlir lowers memref through a "descriptor" struct (base ptr, offset, sizes, strides).
-# we skip that and go straight to flat pointer math because exo only emits statically-shaped,
-# row-major memrefs with no affine maps. the descriptor is unnecessary overhead.
-#
-# pipeline order matters:
-# ----------------------
-#     1. extendedconvertmemreftoptr   — rewrite load/store/subview while shape info is still on the memreftype
-#     2. rewritememreftypes           — erase memreftype -> llvm.ptr everywhere
-#     3. reconcile-unrealized-casts   — clean up identity casts left behind
-#
-# example (convertloadstorepattern):
-# ----------------------------------
-#     memref.store %v, %buf[%i, %j] : memref<4x4xf32>
-#     =>
-#     %c1     = llvm.mlir.constant(1)   ; stride[1] = 1
-#     %c4     = llvm.mlir.constant(4)   ; dim[1] = 4
-#     %stride = llvm.mul %c1, %c4       ; stride[0] = dim[1] = 4
-#     %off0   = llvm.mul %i, %stride    ; i * 4
-#     %off1   = llvm.mul %j, %c1        ; j * 1
-#     %flat   = llvm.add %off0, %off1   ; i*4 + j
-#     %ptr    = llvm.getelementptr inbounds %buf[%flat] : f32
-#     llvm.store %v, %ptr : f32
-
-
-def _loop_upper_bound_as_i64(index: SSAValue) -> SSAValue | None:
-    # for dynamic dims: walk index -> block_arg#0 -> find llvm.icmp in the loop header -> extract the bound
-    # e.g. `icmp slt %iv, %n` => return %n as the dim size
-    if isinstance(index, OpResult) and isinstance(index.op, UnrealizedConversionCastOp):
-        inputs = list(index.op.operands)
-        iv = inputs[0] if len(inputs) == 1 else index
-    else:
-        iv = index
-    if not isinstance(iv, BlockArgument) or iv.index != 0:
-        return None
-    for op in iv.block.ops:
-        if isinstance(op, llvm.ICmpOp):
-            if op.lhs == iv:
-                return op.rhs if op.rhs.type == i64 else None
-            if op.rhs == iv:
-                return op.lhs if op.lhs.type == i64 else None
-    return None
-
-
-def _iconst(ins, n: int) -> SSAValue:
-    return ins(llvm.ConstantOp(IntegerAttr(n, i64), i64)).result
-
-
-def _base_and_offset(base: SSAValue, indices: Sequence[SSAValue], shape: tuple[int, ...], ins) -> tuple[SSAValue, SSAValue | None]:
-    def dim_size(i: int) -> SSAValue:
-        # static constant, or the dynamic loop bound the index is derived from
-        if shape[i] != DYNAMIC_INDEX:
-            return _iconst(ins, shape[i])
-        ub = _loop_upper_bound_as_i64(indices[i])
-        assert ub is not None
-        return ub
-
-    # row-major strides: stride[last]=1, stride[i]=stride[i+1]*dim[i+1]
-    strides: list[SSAValue] = [_iconst(ins, 1)] * len(shape)
-    for i in range(len(shape) - 2, -1, -1):
-        strides[i] = ins(llvm.MulOp(strides[i + 1], dim_size(i + 1))).res
-    # flat element offset = sum(index_i * stride_i)
-    flat: SSAValue | None = None
-    for idx, stride in zip(indices, strides):
-        # peek through unrealized_cast(x:i64 -> index) to recover the original i64
-        if isinstance(idx, OpResult) and isinstance(idx.op, UnrealizedConversionCastOp) and len(idx.op.operands) == 1 and idx.op.operands[0].type == i64:
-            idx = idx.op.operands[0]
-        term = ins(llvm.MulOp(idx, stride)).res
-        flat = term if flat is None else ins(llvm.AddOp(flat, term)).res
-    return ins(UnrealizedConversionCastOp.get([base], [LLVMPointerType()])).results[0], flat
-
-
-class ConvertLoadStorePattern(RewritePattern):
-    # memref.load/store %buf[%i, %j] => ptr arithmetic + llvm.load/store
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.LoadOp | memref.StoreOp, rewriter: PatternRewriter, /):
-        memref_type = op.memref.type
-        assert isa(memref_type, builtin.MemRefType)
-        if not isa(memref_type.layout, builtin.NoneAttr):
-            return  # skip affine map layouts
-        ins = rewriter.insert_op
-        ptr, flat = _base_and_offset(op.memref, list(op.indices), memref_type.get_shape(), ins)
-        if flat is not None:
-            # gep with element type (rather than raw byte math) enables llvm auto-vectorization
-            ptr = ins(llvm.GEPOp(ptr, [GEP_USE_SSA_VAL], memref_type.element_type, ssa_indices=[flat], inbounds=True)).result
-        rewriter.replace_op(op, llvm.LoadOp(ptr, op.res.type) if isinstance(op, memref.LoadOp) else llvm.StoreOp(op.value, ptr))
-
-
-class ConvertSubviewPattern(RewritePattern):
-    # memref.subview %buf[offsets] => ptr to the start of the slice
-    #
-    # subview carries both static offsets (baked into the op) and dynamic offsets (ssa values).
-    # mlir encodes "this offset is dynamic" by setting the static value to dynamic_index (-1);
-    # the actual ssa value then comes from the op.offsets list in order.
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
-        src_type = op.source.type
-        assert isa(src_type, builtin.MemRefType)
-        if not isa(src_type.layout, builtin.NoneAttr):
-            return  # skip affine map layouts
-        src_shape = src_type.get_shape()
-        assert all(d != DYNAMIC_INDEX for d in src_shape), "dynamic source dims in subview not supported"
-        assert isinstance(src_type.element_type, builtin.FixedBitwidthType)
-        ins = rewriter.insert_op
-        # merge static_offsets (constants) and dynamic offsets (ssa values) into one list
-        dyn_iter = iter(op.offsets)
-        all_offsets = [next(dyn_iter) if soff == DYNAMIC_INDEX else _iconst(ins, soff) for soff in op.static_offsets.iter_values()]
-        # ptrtoint/inttoptr rather than gep, so the result stays type-agnostic
-        ptr, flat = _base_and_offset(op.source, all_offsets, src_shape, ins)
-        if flat is not None:
-            byte_offset = ins(llvm.MulOp(flat, _iconst(ins, src_type.element_type.size))).res
-            ptr_int = ins(llvm.PtrToIntOp(ptr)).output
-            ptr = ins(llvm.IntToPtrOp(ins(llvm.AddOp(ptr_int, byte_offset)).res)).output
-        # wrap result as memreftype so downstream load/store patterns still see the right shape for stride computation
-        rewriter.replace_op(op, UnrealizedConversionCastOp.get([ptr], [op.result.type]))
-
-
-@dataclass(frozen=True)
-class ExtendedConvertMemRefToPtr(ModulePass):
-    name = "extended-convert-memref-to-ptr"
-
-    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(GreedyRewritePatternApplier([ConvertCastOp(), ConvertLoadStorePattern(), ConvertSubviewPattern()])).rewrite_module(op)
-
-
-# erase memreftype on all remaining values (runs after the patterns above consumed shape info)
-# before:  %x : memref<4x8xf32>   after:  %x : !llvm.ptr
-class RewriteMemRefTypes(TypeConversionPattern):
-    @attr_type_rewrite_pattern
-    def convert_type(self, type: MemRefType) -> llvm.LLVMPointerType:
-        return llvm.LLVMPointerType()
-
-
 # ===----------------------------------------------------------------------=== #
 # exojit
 # ===----------------------------------------------------------------------=== #
 
 
+@dataclass(frozen=True)
+class Buffer:
+    # Compile-time metadata only: the ABI carries a bare pointer, not a descriptor.
+    # Tensors and windows are contiguous row-major; arbitrary strided views are unsupported.
+    ptr: SSAValue
+    element_type: Attribute
+    shape: list[SSAValue]
+
+
 class IRGenerator:
     module: ModuleOp
     builder: Builder
-    symbol_table: ScopedDict[str, SSAValue] | None
+    symbol_table: ScopedDict[str, SSAValue | Buffer] | None
     seen_proc_names: set[str]
     seen_extern_decls: set[str]
 
@@ -253,7 +122,7 @@ class IRGenerator:
         self.seen_extern_decls = set()
 
     @property
-    def _syms(self) -> ScopedDict[str, SSAValue]:
+    def _syms(self) -> ScopedDict[str, SSAValue | Buffer]:
         assert self.symbol_table is not None
         return self.symbol_table
 
@@ -268,8 +137,8 @@ class IRGenerator:
     def _insert_at_module(self, op: Operation) -> None:
         Builder(insertion_point=InsertPoint.at_end(self.module.body.blocks[0])).insert(op)
 
-    def _to_mlir_type(self, exo_type: object, mem_space: Attribute | None = None) -> Attribute:
-        # map exo type (t.f32, t.tensor, etc.) to mlir type (f32, memref, etc.)
+    def _to_mlir_type(self, exo_type: object) -> Attribute:
+        # map Exo scalar types to LLVM element/value types
         match exo_type:
             case T.F16():
                 return f16
@@ -287,45 +156,38 @@ class IRGenerator:
                 return i64
             case T.Bool():
                 return i1
-            case T.Tensor():
-                assert mem_space is not None
-                inner = self._to_mlir_type(exo_type.type)
-                assert inner in {f16, f32, f64, i8, i16, i32, i64}
-                shape = [self._static_dim(dim) for dim in exo_type.shape()]
-                return MemRefType(inner, shape, NoneAttr(), mem_space)
             case _:
                 assert False
 
-    @staticmethod
-    def _static_dim(expr: LoopIR.expr) -> int:
-        # variable/computed dims -> dynamic_index (-1), for memreftype declarations
-        match expr:
-            case LoopIR.Const():
-                assert isinstance(expr.val, int)
-                return expr.val
-            case LoopIR.Read() | LoopIR.BinOp():
-                return DYNAMIC_INDEX
-            case _:
-                assert False
+    def _shape_expr(self, expr: LoopIR.expr) -> SSAValue:
+        if isinstance(expr, LoopIR.Read):
+            return self._expr_read(expr, [self._shape_expr(index) for index in expr.idx])
+        if isinstance(expr, LoopIR.USub):
+            return self._emit(llvm.SubOp(self._int_const(0), self._shape_expr(expr.arg)))
+        if not isinstance(expr, LoopIR.BinOp):
+            return self._expr(expr)
+        lhs, rhs = self._shape_expr(expr.lhs), self._shape_expr(expr.rhs)
+        value = self._emit({"+": llvm.AddOp, "-": llvm.SubOp, "*": llvm.MulOp, "/": llvm.SDivOp, "%": llvm.SRemOp}[expr.op](lhs, rhs))
+        if expr.op in ("/", "%"):
+            # Exo shape divisors are positive constants; correct LLVM's truncation toward zero.
+            remainder = value if expr.op == "%" else self._emit(llvm.SRemOp(lhs, rhs))
+            negative = self._cmp_binop(remainder, self._int_const(0), "<")
+            adjusted = self._emit(llvm.AddOp(value, rhs) if expr.op == "%" else llvm.SubOp(value, self._int_const(1)))
+            value = self._emit(llvm.SelectOp(negative, adjusted, value))
+        return value
 
-    def _memref_load(self, memref_val: SSAValue, idx: list[SSAValue]) -> SSAValue:
-        if len(idx) == 0:
-            idx = [self._int_const(0)]
-        indices = [self._emit(UnrealizedConversionCastOp.get([index], [IndexType()])) for index in idx]
-        self.builder.insert(load := memref.LoadOp.get(memref_val, indices))
-        return load.res
+    def _buffer(self, ptr: SSAValue, exo_type: T.type) -> Buffer:
+        # Capture dimensions now, before aliased writes can change their source values.
+        return Buffer(ptr, self._to_mlir_type(exo_type.basetype()), [self._shape_expr(dim) for dim in exo_type.shape()] if exo_type.is_tensor_or_window() else [])
 
-    def _memref_store(self, value: SSAValue, memref_val: SSAValue, idx: list[SSAValue]) -> None:
-        # emit memref.store with i64->index casts, handling scalar memref cases
-        if len(idx) == 0:
-            assert isinstance(memref_val.type, MemRefType) and memref_val.type.get_shape() == (1,)
-            idx = [self._int_const(0)]
-        index_indices = [self._emit(UnrealizedConversionCastOp.get([index], [IndexType()])) for index in idx]
-        # if value is a scalar memref, load it first
-        if isinstance(value.type, MemRefType):
-            assert value.type.get_shape() == (1,)
-            value = self._memref_load(value, [])
-        self.builder.insert(memref.StoreOp.get(value, memref_val, index_indices))
+    def _address(self, buffer: Buffer, indices: list[SSAValue]) -> SSAValue:
+        if not indices:
+            return buffer.ptr
+        # Row-major element offset, using declared dimensions rather than loop bounds.
+        offset = indices[0]
+        for index, dim in zip(indices[1:], buffer.shape[1:]):
+            offset = self._emit(llvm.AddOp(self._emit(llvm.MulOp(offset, dim)), index))
+        return self._emit(llvm.GEPOp.from_mixed_indices(buffer.ptr, [offset], buffer.element_type, inbounds=True))
 
     def _expr_const(self, const: LoopIR.Const, expected_type: Attribute | None = None) -> SSAValue:
         mlir_type = expected_type if isinstance(const.type, T.Num) and expected_type is not None else self._to_mlir_type(const.type)
@@ -335,13 +197,11 @@ class IRGenerator:
         assert isinstance(mlir_type, IntegerType)
         return self._int_const(int(const.val), mlir_type)
 
-    def _expr_read(self, read: LoopIR.Read) -> SSAValue:
-        idx = [self._expr(expr) for expr in read.idx]
+    def _expr_read(self, read: LoopIR.Read, idx: list[SSAValue]) -> SSAValue:
         operand = self._syms[repr(read.name)]
-        # only emit a load when the operand is a memref holding scalar elements
-        # (not a window/tensor pass-through, and not a type-matched scalar already)
-        needs_load = isinstance(operand.type, MemRefType) and not isinstance(read.type, (T.Window, T.Tensor)) and operand.type != self._to_mlir_type(read.type)
-        return self._memref_load(operand, idx) if needs_load else operand
+        if isinstance(operand, Buffer):
+            return operand.ptr if read.type.is_tensor_or_window() else self._emit(llvm.LoadOp(self._address(operand, idx), operand.element_type))
+        return operand
 
     def _expr_usub(self, usub: LoopIR.USub) -> SSAValue:
         # llvm.fneg for float, 0-x llvm.sub for int
@@ -384,14 +244,8 @@ class IRGenerator:
         assert isinstance(mlir_type, IntegerType)
         return self._emit(int_ops[binop.op](lhs, rhs))
 
-    def _to_index_list(self, values: Sequence[SSAValue | int]) -> list:
-        # cast i64 ssa values to index type, pass through static ints as-is for subviewop
-        static, dynamic = split_dynamic_index_list(values, DYNAMIC_INDEX)
-        casted = [self._emit(UnrealizedConversionCastOp.get([value], [IndexType()])) for value in dynamic]
-        return get_dynamic_index_list(static, casted, DYNAMIC_INDEX)
-
-    def _expr_window(self, window: LoopIR.WindowExpr) -> SSAValue:
-        # lower window expression to memref.subview
+    def _expr_window(self, window: LoopIR.WindowExpr) -> Buffer:
+        # Advance to the view origin; retain the existing contiguous/bare-pointer contract.
         indices = []
         for access in window.idx:
             match access:
@@ -402,14 +256,8 @@ class IRGenerator:
                 case _:
                     assert False
         source = self._syms[repr(window.name)]
-        assert isinstance(source.type, MemRefType) and isinstance(window.type, T.Window)
-        dest_type = self._to_mlir_type(window.type.as_tensor, source.type.memory_space)
-        output_sizes = [self._expr(dim) if isinstance(dim, (LoopIR.Read, LoopIR.BinOp)) else self._static_dim(dim) for dim in window.type.as_tensor.shape()]
-        offsets_idx = self._to_index_list(indices)
-        sizes_idx = self._to_index_list(output_sizes)
-        strides_idx = self._to_index_list([1] * len(indices))
-        self.builder.insert(subview := memref.SubviewOp.get(source, offsets_idx, sizes_idx, strides_idx, dest_type))
-        return subview.result
+        assert isinstance(source, Buffer) and isinstance(window.type, T.Window)
+        return self._buffer(self._address(source, indices), window.type)
 
     def _expr_extern(self, extern: LoopIR.Extern) -> SSAValue:
         name = extern.f.name()
@@ -434,7 +282,7 @@ class IRGenerator:
     def _expr(self, expr: object, expected_type: Attribute | None = None) -> SSAValue:
         match expr:
             case LoopIR.Read():
-                return self._expr_read(expr)
+                return self._expr_read(expr, [self._expr(index) for index in expr.idx])
             case LoopIR.Const():
                 return self._expr_const(expr, expected_type)
             case LoopIR.USub():
@@ -442,27 +290,23 @@ class IRGenerator:
             case LoopIR.BinOp():
                 return self._expr_binop(expr)
             case LoopIR.WindowExpr():
-                return self._expr_window(expr)
+                return self._expr_window(expr).ptr
             case LoopIR.Extern():
                 return self._expr_extern(expr)
             case _:
                 assert False
 
-    def _stmt_assign(self, stmt: LoopIR.Assign) -> None:
+    def _stmt_assign(self, stmt: LoopIR.Assign | LoopIR.Reduce) -> None:
         idx = [self._expr(expr) for expr in stmt.idx]
-        memref_val = self._syms[repr(stmt.name)]
-        expected_type = memref_val.type.element_type if isinstance(memref_val.type, MemRefType) else None
-        self._memref_store(self._expr(stmt.rhs, expected_type), memref_val, idx)
-
-    def _stmt_reduce(self, stmt: LoopIR.Reduce) -> None:
-        # load + add + store (accumulate into buffer)
-        idx = [self._expr(expr) for expr in stmt.idx]
-        memref_val = self._syms[repr(stmt.name)]
-        expected_type = memref_val.type.element_type if isinstance(memref_val.type, MemRefType) else None
-        value = self._expr(stmt.rhs, expected_type)
-        current = self._memref_load(memref_val, idx)
-        result = self._emit(llvm.FAddOp(current, value, fast_math=llvm.FastMathAttr("fast")) if isinstance(value.type, AnyFloat) else llvm.AddOp(current, value))
-        self._memref_store(result, memref_val, idx)
+        buffer = self._syms[repr(stmt.name)]
+        assert isinstance(buffer, Buffer)
+        value = self._expr(stmt.rhs, buffer.element_type)
+        assert value.type == buffer.element_type, "mixed-width stores are not supported"
+        ptr = self._address(buffer, idx)
+        if isinstance(stmt, LoopIR.Reduce):
+            current = self._emit(llvm.LoadOp(ptr, buffer.element_type))
+            value = self._emit(llvm.FAddOp(current, value, fast_math=llvm.FastMathAttr("fast")) if isinstance(value.type, AnyFloat) else llvm.AddOp(current, value))
+        self.builder.insert(llvm.StoreOp(value, ptr))
 
     def _stmt_if(self, if_stmt: LoopIR.If) -> None:
         cond = self._expr(if_stmt.cond)
@@ -517,66 +361,57 @@ class IRGenerator:
     def _stmt_alloc(self, alloc: LoopIR.Alloc) -> None:
         # llvm.call @malloc (dram) or llvm.alloca (stack)
         mem_name = alloc.mem.name()
-        mem_space = StringAttr(mem_name)
-        mlir_type = self._to_mlir_type(alloc.type, mem_space)
-        if not isinstance(mlir_type, MemRefType):  # scalar allocs: wrap as memref<1x...>
-            mlir_type = MemRefType(mlir_type, [1], NoneAttr(), mem_space)
-        shape = mlir_type.get_shape()
-        assert all(dim != DYNAMIC_INDEX for dim in shape), "dynamic-sized allocs are not supported"
-        total_elements = math.prod(shape)
+        element_type = self._to_mlir_type(alloc.type.basetype())
+        shape = alloc.type.shape() if alloc.type.is_tensor_or_window() else []
+        assert all(isinstance(dim, LoopIR.Const) for dim in shape), "dynamic-sized allocs are not supported"
+        total_elements = math.prod(dim.val for dim in shape)
         if mem_name == "DRAM":
-            assert isinstance(mlir_type.element_type, FixedBitwidthType)
-            raw_ptr = self._emit(llvm.CallOp("malloc", self._int_const(total_elements * mlir_type.element_type.size), return_type=llvm.LLVMPointerType()))  # malloc takes bytes
+            assert isinstance(element_type, FixedBitwidthType)
+            raw_ptr = self._emit(llvm.CallOp("malloc", self._int_const(total_elements * element_type.size), return_type=LLVMPointerType()))  # malloc takes bytes
         else:
-            raw_ptr = self._emit(llvm.AllocaOp(self._int_const(total_elements), mlir_type.element_type))  # alloca takes element count
-        self._syms[repr(alloc.name)] = self._emit(UnrealizedConversionCastOp.get([raw_ptr], [mlir_type]))
+            raw_ptr = self._emit(llvm.AllocaOp(self._int_const(total_elements), element_type))  # alloca takes element count
+        self._syms[repr(alloc.name)] = self._buffer(raw_ptr, alloc.type)
 
     def _stmt_free(self, free: LoopIR.Free) -> None:
         # llvm.call @free for dram, no-op for stack
         if free.mem.name() != "DRAM":
             return
-        self.builder.insert(llvm.CallOp("free", self._emit(UnrealizedConversionCastOp.get([self._syms[repr(free.name)]], [llvm.LLVMPointerType()]))))
+        buffer = self._syms[repr(free.name)]
+        assert isinstance(buffer, Buffer)
+        self.builder.insert(llvm.CallOp("free", buffer.ptr))
 
     def _arg_type(self, arg: LoopIR.fnarg, body: list[LoopIR.stmt]) -> Attribute:
-        # scalars passed by reference (the body writes to them) must arrive as memref<1xt>
-        mem_space = StringAttr(arg.mem.name()) if arg.mem is not None else None
-        mlir_type = self._to_mlir_type(arg.type, mem_space)
-        if not isinstance(mlir_type, MemRefType) and any(repr(sym) == repr(arg.name) for sym, _ in get_writes_of_stmts(body)):
-            mlir_type = MemRefType(mlir_type, [1], NoneAttr())
-        return mlir_type
+        # Tensors/windows and written scalars are passed by reference.
+        if arg.type.is_tensor_or_window() or any(repr(sym) == repr(arg.name) for sym, _ in get_writes_of_stmts(body)):
+            return LLVMPointerType()
+        return self._to_mlir_type(arg.type)
 
     def _stmt_call(self, call: LoopIR.Call) -> None:
-        # memrefs reach callees as bare pointers
-        fn_type = lambda types: llvm.LLVMFunctionType([llvm.LLVMPointerType() if isinstance(t, MemRefType) else t for t in types], llvm.LLVMVoidType())
         if call.f.instr is None:
             self._generate_procedure(call.f)
             assert len(call.args) == len(call.f.args)
             args = []
             for arg, callee_arg in zip(call.args, call.f.args):
                 callee_type = self._arg_type(callee_arg, call.f.body)
-                if isinstance(callee_type, MemRefType) and not callee_arg.type.is_tensor_or_window():
+                if isinstance(callee_type, LLVMPointerType) and not callee_arg.type.is_tensor_or_window():
                     assert isinstance(arg, LoopIR.Read) and not arg.idx, "writable scalar call arguments must be scalar lvalues"
-                    arg_val = self._syms[repr(arg.name)]
-                    assert isinstance(arg_val.type, MemRefType)
+                    buffer = self._syms[repr(arg.name)]
+                    assert isinstance(buffer, Buffer)
+                    arg_val = buffer.ptr
                 else:
                     arg_val = self._expr(arg)
-                # reconcile shape mismatches (e.g. memref<8xf32> vs memref<?xf32>) via memref.cast
-                if isinstance(arg_val.type, MemRefType) and isinstance(callee_type, MemRefType) and arg_val.type != callee_type:
-                    arg_val = self._emit(memref.CastOp.get(arg_val, callee_type))
                 args.append(arg_val)
         else:
             args = [self._expr(arg) for arg in call.args]
         if call.f.instr is not None and call.f.name not in self.seen_extern_decls:
             self.seen_extern_decls.add(call.f.name)
-            self._insert_at_module(llvm.FuncOp(call.f.name, fn_type([SSAValue.get(arg).type for arg in args]), llvm.LinkageAttr("external")))
+            self._insert_at_module(llvm.FuncOp(call.f.name, llvm.LLVMFunctionType([arg.type for arg in args], llvm.LLVMVoidType()), llvm.LinkageAttr("external")))
         self.builder.insert(llvm.CallOp(call.f.name, *args))
 
     def _stmt(self, stmt: object) -> None:
         match stmt:
-            case LoopIR.Assign():
+            case LoopIR.Assign() | LoopIR.Reduce():
                 self._stmt_assign(stmt)
-            case LoopIR.Reduce():
-                self._stmt_reduce(stmt)
             case LoopIR.WriteConfig():
                 assert False, "unsupported WriteConfig"
             case LoopIR.Pass():
@@ -602,19 +437,20 @@ class IRGenerator:
             return
         self.seen_proc_names.add(procedure.name)
         input_types = [self._arg_type(arg, procedure.body) for arg in procedure.args]
-        fn_type = llvm.LLVMFunctionType([llvm.LLVMPointerType() if isinstance(t, MemRefType) else t for t in input_types], llvm.LLVMVoidType())
+        fn_type = llvm.LLVMFunctionType(input_types, llvm.LLVMVoidType())
         # save and restore builder/symbol state across the procedure scope
         parent_builder, parent_symbol_table = self.builder, self.symbol_table
         block = Block(arg_types=input_types)
         func_region = Region(block)
         self.builder = Builder(insertion_point=InsertPoint.at_end(block))
-        self.symbol_table = ScopedDict(local_scope={repr(arg.name): val for arg, val in zip(procedure.args, block.args)})
+        self.symbol_table = ScopedDict()
+        for arg, val in zip(procedure.args, block.args):
+            self._syms[repr(arg.name)] = self._buffer(val, arg.type) if isinstance(val.type, LLVMPointerType) else val
         for stmt in procedure.body:
             self._stmt(stmt)
         self.builder.insert(llvm.ReturnOp())
         self.builder, self.symbol_table = parent_builder, parent_symbol_table
-        noalias_attrs = ArrayAttr([DictionaryAttr({"llvm.noalias": UnitAttr()} if isinstance(t, LLVMPointerType) else {}) for t in input_types])
-        self._insert_at_module(llvm.FuncOp(procedure.name, fn_type, linkage=llvm.LinkageAttr("external"), body=func_region, other_props={"arg_attrs": noalias_attrs}))
+        self._insert_at_module(llvm.FuncOp(procedure.name, fn_type, linkage=llvm.LinkageAttr("external"), body=func_region))
 
     def generate(self, procs: list[LoopIR.proc]) -> ModuleOp:
         for proc in procs:
@@ -632,20 +468,12 @@ class LLVMBackend:
         ctx = Context()
         ctx.load_dialect(Builtin)
         ctx.load_dialect(llvm.LLVM)
-        ctx.load_dialect(memref.MemRef)
         return ctx
 
     @staticmethod
     def _lower(procs: list[LoopIR.proc]) -> ModuleOp:
         ctx = LLVMBackend._context()
         module = IRGenerator().generate(procs)
-        CanonicalizePass().apply(ctx, module)
-        CommonSubexpressionElimination().apply(ctx, module)
-        module.verify()
-        ExtendedConvertMemRefToPtr().apply(ctx, module)
-        PatternRewriteWalker(GreedyRewritePatternApplier([RewriteMemRefTypes()])).rewrite_module(module)
-        ReconcileUnrealizedCastsPass().apply(ctx, module)
-        module.verify()
         CanonicalizePass().apply(ctx, module)
         CommonSubexpressionElimination().apply(ctx, module)
         module.verify()

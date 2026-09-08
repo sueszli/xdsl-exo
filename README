@@ -23,6 +23,11 @@ Exo's default backend emits C, requiring an offline
 compile step. exojit lowers Exo IR through xDSL to
 LLVM and compiles it at import time via llvmlite MCJIT.
 
+Tensors and windows use contiguous row-major storage and a bare-pointer
+ABI. Window calls pass only the view origin; arbitrary strided views
+(such as matrix columns) are not supported. No shape/stride descriptor
+or hidden stride arguments are passed, including for standalone callees.
+
 
     $ uv run exojit example.py --mlir
     $ uv run exojit example.py --c
