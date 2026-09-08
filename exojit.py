@@ -714,8 +714,7 @@ class JITRuntime:
     @staticmethod
     def compile(proc: Procedure, raw: bool = False) -> Callable[..., None]:
         mlir_module = to_mlir(proc)
-        raw_jit = LLVMBackend._jit_backend.jit(mlir_module, proc.name(), LLVMBackend._context())
-        fn = raw_jit.c_func
+        raw_jit = LLVMBackend._jit_backend.jit(mlir_module, proc.name(), LLVMBackend._context())  # retained by call's closure to keep the MCJIT code alive
         ir_args = proc._loopir_proc.args
         for arg in ir_args:
             assert arg.type.is_tensor_or_window() or isinstance(arg.type, (LoopIR.Size, LoopIR.Index, LoopIR.Int, LoopIR.Bool, LoopIR.Stride)), f"unsupported JIT argument type for {arg.name}: {arg.type}"
@@ -724,9 +723,8 @@ class JITRuntime:
         ffi = FFI()
 
         def call(*args) -> None:
-            fn(*[arg if kind is None else ffi.cast("void *", arg) if isinstance(arg, int) else ffi.from_buffer(cast(Any, arg), require_writable=kind) for arg, kind in zip(args, kinds, strict=True)])
+            raw_jit.c_func(*[arg if kind is None else ffi.cast("void *", arg) if isinstance(arg, int) else ffi.from_buffer(cast(Any, arg), require_writable=kind) for arg, kind in zip(args, kinds, strict=True)])
 
-        cast(Any, call)._raw_jit = raw_jit  # mcjit owns the jitted code, so the raw_jit (which retains the engine) must outlive every call
         names = [re.sub(r"_\d+$", "", str(arg.name)) for arg in ir_args]
         if raw:
             wrapped = lambda *args, **kwargs: call(*(tuple(kwargs[name] for name in names) if kwargs else args))
