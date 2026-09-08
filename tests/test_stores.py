@@ -12,8 +12,8 @@ from exojit import IRGenerator
 def test_store_evaluation_order(statement):
     @proc
     def indexed_store(out: f64[4, 4] @ DRAM, src: f64[1] @ DRAM, row: index, col: index):
-        assert 0 <= row and row < 3
-        assert 0 <= col and col < 3
+        assert 0 <= row < 3
+        assert 0 <= col < 3
         out[row + 1, col + 1] += src[0]
 
     ir = indexed_store._loopir_proc
