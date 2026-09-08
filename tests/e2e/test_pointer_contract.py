@@ -170,7 +170,7 @@ def nested_modulo_shape_copy(N: size, n: size[4], out: f32[2, n[3 + -n[2 + (-(N 
 )
 def test_shape_arithmetic_matches_python_buffer_size(kernel, width, sizes):
     normal, raw = jit(kernel), jit(kernel, raw=True)
-    for n in ((2,) if sizes is not None else (1, 2, 3, 4, 6)):
+    for n in (2,) if sizes is not None else (1, 2, 3, 4, 6):
         args = (n,) if sizes is None else (n, (ctypes.c_int64 * len(sizes))(*sizes))
         values = [float(i + 10) for i in range(2 * width(n))]
         # Padding makes wrong row strides observable without an out-of-bounds raw access.
@@ -206,7 +206,7 @@ def test_mixed_width_stores_remain_rejected(kernel):
 @proc
 def captured_shapes(n: size[1], mutate: i32[1], out: f32[2, n[0]], x: f32[2, 3]):
     assert n[0] == 3
-    w = x[:, 0:n[0]]
+    w = x[:, 0 : n[0]]
     mutate[0] = 2
     for i in seq(0, 2):
         for j in seq(0, 3):
