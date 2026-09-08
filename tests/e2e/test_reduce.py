@@ -72,3 +72,22 @@ def test_reduce_dynamic_small():
 def test_reduce_dynamic_large():
     N = 128
     assert_match(reduce_dynamic, N=N, x=[1.0] * N, y=[0.0])
+
+
+def test_callee_scalar_and_literal_stores_f64():
+    @proc
+    def scalar_stores(out: f64[2] @ DRAM):
+        value: f64
+        copy: f64
+        value = 1.25
+        copy = value
+        value += copy
+        out[0] = value
+        out[1] += 2.5
+
+    @proc
+    def call_scalar_stores(out: f64[2] @ DRAM):
+        scalar_stores(out)
+
+    # The caller sorts first, exercising literal expected_type in recursive callee emission.
+    assert_match(call_scalar_stores, out=[0.0, 10.0])
