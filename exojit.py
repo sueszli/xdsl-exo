@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 import numbers
 import re
-import tempfile
 from collections.abc import Callable, MutableSequence, Sequence
 from dataclasses import dataclass
 from functools import cache
@@ -14,7 +13,7 @@ import click
 import exo.frontend.boundscheck as _boundscheck
 import exo.frontend.pyparser as _pyparser
 from cffi import FFI
-from exo import compile_procs as exo_compile_procs
+from exo import compile_procs_to_strings
 from exo.API import Procedure
 from exo.backend.LoopIR_compiler import find_all_subprocs
 from exo.backend.mem_analysis import MemoryAnalysis
@@ -790,8 +789,6 @@ def cli(source: Path, fmt: Literal["c", "mlir"] | None):
     procs = list({v.name(): v for v in mod.__dict__.values() if isinstance(v, Procedure) and not v.is_instr()}.values())
     match fmt:
         case "c":
-            tmpdir = Path(tempfile.mkdtemp())
-            exo_compile_procs(procs, tmpdir, "o.c", "o.h")
-            print((tmpdir / "o.c").read_text())
+            print(compile_procs_to_strings(procs, "o.h")[0])
         case "mlir":
             print(to_mlir(procs))
