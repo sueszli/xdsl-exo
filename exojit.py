@@ -4,7 +4,7 @@ import math
 import numbers
 import re
 import tempfile
-from collections.abc import Callable, MutableSequence, Sequence
+from collections.abc import Callable, Iterator, MutableSequence, Sequence
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
@@ -16,6 +16,8 @@ import exo.frontend.pyparser as _pyparser
 from cffi import FFI
 from exo import compile_procs as exo_compile_procs
 from exo.API import Procedure
+from exo.API_cursors import BlockCursor, ForCursor, IfCursor, WindowStmtCursor
+from exo.API_scheduling import inline_window
 from exo.backend.LoopIR_compiler import find_all_subprocs
 from exo.backend.mem_analysis import MemoryAnalysis
 from exo.backend.prec_analysis import PrecisionAnalysis
@@ -242,14 +244,13 @@ class IRGenerator:
     module: ModuleOp
     builder: Builder
     symbol_table: ScopedDict[str, SSAValue] | None
-    seen_proc_names: set[str]
     seen_extern_decls: set[str]
 
-    def __init__(self):
+    def __init__(self, procs: dict[str, LoopIR.proc]):
+        self.procs = procs  # analyzed, name-deduplicated closure from to_mlir
         self.module = ModuleOp([])
         self.builder = Builder(insertion_point=InsertPoint.at_end(self.module.body.blocks[0]))
         self.symbol_table = None
-        self.seen_proc_names = set()
         self.seen_extern_decls = set()
 
     @property
@@ -273,7 +274,7 @@ class IRGenerator:
         match exo_type:
             case T.F16():
                 return f16
-            case T.F32() | T.Num():
+            case T.F32():
                 return f32
             case T.F64():
                 return f64
@@ -327,8 +328,8 @@ class IRGenerator:
             value = self._memref_load(value, [])
         self.builder.insert(memref.StoreOp.get(value, memref_val, index_indices))
 
-    def _expr_const(self, const: LoopIR.Const, expected_type: Attribute | None = None) -> SSAValue:
-        mlir_type = expected_type if isinstance(const.type, T.Num) and expected_type is not None else self._to_mlir_type(const.type)
+    def _expr_const(self, const: LoopIR.Const) -> SSAValue:
+        mlir_type = self._to_mlir_type(const.type)
         assert isinstance(const.val, (int, float))
         if isinstance(mlir_type, AnyFloat):
             return self._emit(llvm.ConstantOp(FloatAttr(const.val, mlir_type), mlir_type))
@@ -363,18 +364,9 @@ class IRGenerator:
         return self._emit(llvm.FCmpOp(lhs, rhs, float_cmp_table[op]))
 
     def _expr_binop(self, binop: LoopIR.BinOp) -> SSAValue:
-        if not isinstance(binop.type, T.Num):
-            mlir_type = self._to_mlir_type(binop.type)
-            lhs = self._expr(binop.lhs, mlir_type)
-            rhs = self._expr(binop.rhs, mlir_type)
-        elif binop.op == "/" and isinstance(binop.lhs, LoopIR.Const):
-            rhs = self._expr(binop.rhs)
-            mlir_type = rhs.type
-            lhs = self._expr(binop.lhs, mlir_type)
-        else:
-            lhs = self._expr(binop.lhs)
-            rhs = self._expr(binop.rhs)
-            mlir_type = lhs.type
+        mlir_type = self._to_mlir_type(binop.type)
+        lhs = self._expr(binop.lhs)
+        rhs = self._expr(binop.rhs)
         if mlir_type == i1:
             return self._cmp_binop(lhs, rhs, binop.op)
         float_ops = {"+": llvm.FAddOp, "-": llvm.FSubOp, "*": llvm.FMulOp, "/": llvm.FDivOp}
@@ -415,10 +407,9 @@ class IRGenerator:
         name = extern.f.name()
         if name == "select":
             arg_b = self._expr(extern.args[1])
-            expected_type = arg_b.type
-            arg_a = self._expr(extern.args[0], expected_type)
-            arg_c = self._expr(extern.args[2], expected_type)
-            arg_d = self._expr(extern.args[3], expected_type)
+            arg_a = self._expr(extern.args[0])
+            arg_c = self._expr(extern.args[2])
+            arg_d = self._expr(extern.args[3])
             return self._emit(llvm.SelectOp(self._emit(llvm.FCmpOp(arg_a, arg_b, "olt")), arg_c, arg_d))
         if name == "expf":
             x = self._expr(extern.args[0])
@@ -431,12 +422,12 @@ class IRGenerator:
         args = [self._expr(arg) for arg in extern.args]
         return self._emit(llvm.CallOp(name, *args, return_type=self._to_mlir_type(extern.f.typecheck(extern.args))))
 
-    def _expr(self, expr: object, expected_type: Attribute | None = None) -> SSAValue:
+    def _expr(self, expr: object) -> SSAValue:
         match expr:
             case LoopIR.Read():
                 return self._expr_read(expr)
             case LoopIR.Const():
-                return self._expr_const(expr, expected_type)
+                return self._expr_const(expr)
             case LoopIR.USub():
                 return self._expr_usub(expr)
             case LoopIR.BinOp():
@@ -451,15 +442,13 @@ class IRGenerator:
     def _stmt_assign(self, stmt: LoopIR.Assign) -> None:
         idx = [self._expr(expr) for expr in stmt.idx]
         memref_val = self._syms[repr(stmt.name)]
-        expected_type = memref_val.type.element_type if isinstance(memref_val.type, MemRefType) else None
-        self._memref_store(self._expr(stmt.rhs, expected_type), memref_val, idx)
+        self._memref_store(self._expr(stmt.rhs), memref_val, idx)
 
     def _stmt_reduce(self, stmt: LoopIR.Reduce) -> None:
         # load + add + store (accumulate into buffer)
         idx = [self._expr(expr) for expr in stmt.idx]
         memref_val = self._syms[repr(stmt.name)]
-        expected_type = memref_val.type.element_type if isinstance(memref_val.type, MemRefType) else None
-        value = self._expr(stmt.rhs, expected_type)
+        value = self._expr(stmt.rhs)
         current = self._memref_load(memref_val, idx)
         result = self._emit(llvm.FAddOp(current, value, fast_math=llvm.FastMathAttr("fast")) if isinstance(value.type, AnyFloat) else llvm.AddOp(current, value))
         self._memref_store(result, memref_val, idx)
@@ -549,11 +538,11 @@ class IRGenerator:
         # memrefs reach callees as bare pointers
         fn_type = lambda types: llvm.LLVMFunctionType([llvm.LLVMPointerType() if isinstance(t, MemRefType) else t for t in types], llvm.LLVMVoidType())
         if call.f.instr is None:
-            self._generate_procedure(call.f)
-            assert len(call.args) == len(call.f.args)
+            callee = self.procs[call.f.name]
+            assert len(call.args) == len(callee.args)
             args = []
-            for arg, callee_arg in zip(call.args, call.f.args):
-                callee_type = self._arg_type(callee_arg, call.f.body)
+            for arg, callee_arg in zip(call.args, callee.args):
+                callee_type = self._arg_type(callee_arg, callee.body)
                 if isinstance(callee_type, MemRefType) and not callee_arg.type.is_tensor_or_window():
                     assert isinstance(arg, LoopIR.Read) and not arg.idx, "writable scalar call arguments must be scalar lvalues"
                     arg_val = self._syms[repr(arg.name)]
@@ -591,20 +580,12 @@ class IRGenerator:
                 self._stmt_free(stmt)
             case LoopIR.Call():
                 self._stmt_call(stmt)
-            case LoopIR.WindowStmt():
-                assert isinstance(stmt.rhs, LoopIR.WindowExpr) and isinstance(stmt.rhs.type, T.Window)
-                self._syms[repr(stmt.name)] = self._expr_window(stmt.rhs)
             case _:
                 assert False
 
     def _generate_procedure(self, procedure: LoopIR.proc) -> None:
-        if procedure.name in self.seen_proc_names:
-            return
-        self.seen_proc_names.add(procedure.name)
         input_types = [self._arg_type(arg, procedure.body) for arg in procedure.args]
         fn_type = llvm.LLVMFunctionType([llvm.LLVMPointerType() if isinstance(t, MemRefType) else t for t in input_types], llvm.LLVMVoidType())
-        # save and restore builder/symbol state across the procedure scope
-        parent_builder, parent_symbol_table = self.builder, self.symbol_table
         block = Block(arg_types=input_types)
         func_region = Region(block)
         self.builder = Builder(insertion_point=InsertPoint.at_end(block))
@@ -612,12 +593,11 @@ class IRGenerator:
         for stmt in procedure.body:
             self._stmt(stmt)
         self.builder.insert(llvm.ReturnOp())
-        self.builder, self.symbol_table = parent_builder, parent_symbol_table
         noalias_attrs = ArrayAttr([DictionaryAttr({"llvm.noalias": UnitAttr()} if isinstance(t, LLVMPointerType) else {}) for t in input_types])
         self._insert_at_module(llvm.FuncOp(procedure.name, fn_type, linkage=llvm.LinkageAttr("external"), body=func_region, other_props={"arg_attrs": noalias_attrs}))
 
-    def generate(self, procs: list[LoopIR.proc]) -> ModuleOp:
-        for proc in procs:
+    def generate(self) -> ModuleOp:
+        for proc in self.procs.values():
             self._generate_procedure(proc)
         # declare external malloc/free for dram alloc/free lowering
         self._insert_at_module(llvm.FuncOp("malloc", llvm.LLVMFunctionType([i64], llvm.LLVMPointerType()), llvm.LinkageAttr("external")))
@@ -636,9 +616,9 @@ class LLVMBackend:
         return ctx
 
     @staticmethod
-    def _lower(procs: list[LoopIR.proc]) -> ModuleOp:
+    def _lower(procs: dict[str, LoopIR.proc]) -> ModuleOp:
         ctx = LLVMBackend._context()
-        module = IRGenerator().generate(procs)
+        module = IRGenerator(procs).generate()
         CanonicalizePass().apply(ctx, module)
         CommonSubexpressionElimination().apply(ctx, module)
         module.verify()
@@ -753,16 +733,33 @@ class JITRuntime:
         return wrapped
 
 
+def _window_stmts(block: BlockCursor) -> Iterator[WindowStmtCursor]:
+    # Iterate siblings: Exo's pattern matcher recurses on the statement-list tail.
+    for stmt in block:
+        if isinstance(stmt, WindowStmtCursor):
+            yield stmt
+        elif isinstance(stmt, (ForCursor, IfCursor)):
+            yield from _window_stmts(stmt.body())
+            if isinstance(stmt, IfCursor) and stmt.orelse():
+                yield from _window_stmts(stmt.orelse())
+
+
 def to_mlir(library: Procedure | Sequence[Procedure]) -> ModuleOp:
     # exo procedures -> xdsl mlir (llvm dialect)
     if isinstance(library, Procedure):
         library = [library]
     compilable = [proc._loopir_proc for proc in library if not proc.is_instr()]
     all_procs = sorted(find_all_subprocs(compilable), key=lambda proc: proc.name)
-    unique_procs = list({proc.name: proc for proc in all_procs if proc.instr is None}.values())
+    unique_procs = {proc.name: proc for proc in all_procs if proc.instr is None}
 
-    exo_analyze = lambda proc: MemoryAnalysis().run(WindowAnalysis().apply_proc(PrecisionAnalysis().run(proc)))
-    return LLVMBackend._lower([exo_analyze(proc) for proc in unique_procs])
+    def exo_analyze(proc):
+        proc = Procedure(WindowAnalysis().apply_proc(PrecisionAnalysis().run(proc)))
+        # Exo's memory analysis tracks symbols, not local window alias lifetimes.
+        for stmt in list(_window_stmts(proc.body())):
+            proc = inline_window(proc, stmt)  # Exo forwards cursors through earlier rewrites.
+        return MemoryAnalysis().run(proc._loopir_proc)
+
+    return LLVMBackend._lower({name: exo_analyze(proc) for name, proc in unique_procs.items()})
 
 
 def jit(proc=None, *, raw: bool = False, optimize: Callable[[Procedure], Procedure] | None = None):
