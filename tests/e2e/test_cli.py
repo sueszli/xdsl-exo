@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from textwrap import dedent
+from unittest.mock import patch
 
 from click.testing import CliRunner
+from exo import compile_procs
+from exo.main import load_user_code
 
 from exojit import cli
 
@@ -25,9 +28,13 @@ def test_cli_deduplicates_exported_proc_names(tmp_path):
             """)
     )
 
-    result = CliRunner().invoke(cli, [str(source), "--c"])
+    compile_procs([load_user_code(source).opt], tmp_path, "o.c", "o.h")
+    expected = (tmp_path / "o.c").read_text() + "\n"
+    with patch("tempfile.mkdtemp", side_effect=AssertionError("C output must not create a temporary directory")):
+        result = CliRunner().invoke(cli, [str(source), "--c"])
 
     assert result.exit_code == 0, result.output
+    assert result.output == expected
     assert "multiple procs named" not in result.output
     assert result.output.count("void kernel") == 1
     assert result.output.count("for (int_fast32_t i = 0; i < 4; i++)") == 2
