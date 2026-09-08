@@ -178,7 +178,7 @@ class IRGenerator:
 
     def _buffer(self, ptr: SSAValue, exo_type: T.type) -> Buffer:
         # Capture dimensions now, before aliased writes can change their source values.
-        return Buffer(ptr, self._to_mlir_type(exo_type.basetype()), [self._shape_expr(dim) for dim in exo_type.shape()] if exo_type.is_tensor_or_window() else [])
+        return Buffer(ptr, self._to_mlir_type(exo_type.basetype()), [self._shape_expr(dim) for dim in exo_type.shape()] if isinstance(exo_type, (T.Tensor, T.Window)) else [])
 
     def _address(self, buffer: Buffer, indices: list[SSAValue]) -> SSAValue:
         if not indices:
@@ -362,9 +362,9 @@ class IRGenerator:
         # llvm.call @malloc (dram) or llvm.alloca (stack)
         mem_name = alloc.mem.name()
         element_type = self._to_mlir_type(alloc.type.basetype())
-        shape = alloc.type.shape() if alloc.type.is_tensor_or_window() else []
+        shape = alloc.type.shape() if isinstance(alloc.type, (T.Tensor, T.Window)) else []
         assert all(isinstance(dim, LoopIR.Const) for dim in shape), "dynamic-sized allocs are not supported"
-        total_elements = math.prod(dim.val for dim in shape)
+        total_elements = math.prod(cast(int, cast(LoopIR.Const, dim).val) for dim in shape)
         if mem_name == "DRAM":
             assert isinstance(element_type, FixedBitwidthType)
             raw_ptr = self._emit(llvm.CallOp("malloc", self._int_const(total_elements * element_type.size), return_type=LLVMPointerType()))  # malloc takes bytes
