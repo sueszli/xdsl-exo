@@ -102,7 +102,7 @@ _CAST_OP_NAMES[FPTruncOp] = "fptrunc"
 #
 # pipeline order matters:
 # ----------------------
-#     1. memref patterns             — rewrite load/store/subview while shape info is still on the memreftype
+#     1. memref patterns              — rewrite load/store/subview while shape info is still on the memreftype
 #     2. rewritememreftypes           — erase memreftype -> llvm.ptr everywhere
 #     3. reconcile-unrealized-casts   — clean up identity casts left behind
 #
