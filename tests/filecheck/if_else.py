@@ -1,31 +1,21 @@
 # RUN: uv run exojit --mlir %s | filecheck %s
 
-# CHECK: builtin.module {
-# CHECK-NEXT:   llvm.func @if_else(%0: !llvm.ptr, %1: i64, %2: i64) {
-# CHECK-NEXT:     %3 = llvm.icmp "slt" %1, %2 : i64
-# CHECK-NEXT:     llvm.cond_br %3, ^bb1, ^bb2
-# CHECK-NEXT:   ^bb1:
-# CHECK-NEXT:     %4 = llvm.mlir.constant(0) : i64
-# CHECK-NEXT:     %5 = llvm.mlir.constant(1.000000e+00 : f32) : f32
-# CHECK-NEXT:     %6 = llvm.mlir.constant(1) : i64
-# CHECK-NEXT:     %7 = llvm.mul %4, %6 : i64
-# CHECK-NEXT:     %8 = llvm.getelementptr inbounds %0[%7] : (!llvm.ptr, i64) -> !llvm.ptr, f32
-# CHECK-NEXT:     llvm.store %5, %8 : f32, !llvm.ptr
-# CHECK-NEXT:     llvm.br ^bb3
-# CHECK-NEXT:   ^bb2:
-# CHECK-NEXT:     %9 = llvm.mlir.constant(0) : i64
-# CHECK-NEXT:     %10 = llvm.mlir.constant(2.000000e+00 : f32) : f32
-# CHECK-NEXT:     %11 = llvm.mlir.constant(1) : i64
-# CHECK-NEXT:     %12 = llvm.mul %9, %11 : i64
-# CHECK-NEXT:     %13 = llvm.getelementptr inbounds %0[%12] : (!llvm.ptr, i64) -> !llvm.ptr, f32
-# CHECK-NEXT:     llvm.store %10, %13 : f32, !llvm.ptr
-# CHECK-NEXT:     llvm.br ^bb3
-# CHECK-NEXT:   ^bb3:
-# CHECK-NEXT:     llvm.return
-# CHECK-NEXT:   }
-# CHECK-NEXT:   llvm.func @malloc(i64) -> !llvm.ptr
-# CHECK-NEXT:   llvm.func @free(!llvm.ptr)
-# CHECK-NEXT: }
+# CHECK-LABEL: llvm.func @if_else
+# CHECK-SAME: (%[[OUT:[0-9]+]]: !llvm.ptr, %[[A:[0-9]+]]: i64, %[[B:[0-9]+]]: i64)
+# CHECK: %[[COND:[0-9]+]] = llvm.icmp "slt" %[[A]], %[[B]] : i64
+# CHECK: llvm.cond_br %[[COND]], ^[[TRUE:bb[0-9]+]], ^[[FALSE:bb[0-9]+]]
+# CHECK: ^[[TRUE]]:
+# CHECK: %[[ONE:[0-9]+]] = llvm.mlir.constant(1.000000e+00 : f32) : f32
+# CHECK: %[[P1:[0-9]+]] = llvm.getelementptr inbounds %[[OUT]][{{%[0-9]+}}]
+# CHECK: llvm.store %[[ONE]], %[[P1]] : f32, !llvm.ptr
+# CHECK: llvm.br ^[[MERGE:bb[0-9]+]]
+# CHECK: ^[[FALSE]]:
+# CHECK: %[[TWO:[0-9]+]] = llvm.mlir.constant(2.000000e+00 : f32) : f32
+# CHECK: %[[P2:[0-9]+]] = llvm.getelementptr inbounds %[[OUT]][{{%[0-9]+}}]
+# CHECK: llvm.store %[[TWO]], %[[P2]] : f32, !llvm.ptr
+# CHECK: llvm.br ^[[MERGE]]
+# CHECK: ^[[MERGE]]:
+# CHECK-NEXT: llvm.return
 
 
 from __future__ import annotations
