@@ -691,8 +691,7 @@ def to_mlir(library: Procedure | Sequence[Procedure]) -> ModuleOp:
     all_procs = sorted(find_all_subprocs(compilable), key=lambda proc: proc.name)
     unique_procs = list({proc.name: proc for proc in all_procs if proc.instr is None}.values())
 
-    exo_analyze = lambda proc: MemoryAnalysis().run(WindowAnalysis().apply_proc(PrecisionAnalysis().run(proc)))
-    module = IRGenerator().generate([exo_analyze(proc) for proc in unique_procs])
+    module = IRGenerator().generate([MemoryAnalysis().run(WindowAnalysis().apply_proc(PrecisionAnalysis().run(proc))) for proc in unique_procs])
     cse(module)
     PatternRewriteWalker(GreedyRewritePatternApplier([ConvertLoadStorePattern(), ConvertSubviewPattern()])).rewrite_module(module)
     PatternRewriteWalker(GreedyRewritePatternApplier([RewriteMemRefTypes()])).rewrite_module(module)
