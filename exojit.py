@@ -42,7 +42,6 @@ from xdsl.transforms.common_subexpression_elimination import CommonSubexpression
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.utils.hints import isa
 
-
 # ===----------------------------------------------------------------------=== #
 # exo patches
 # ===----------------------------------------------------------------------=== #
