@@ -1,6 +1,12 @@
 # RUN: uv run exojit --mlir %s | filecheck %s
+# RUN: uv run exojit --mlir %s | filecheck %s --check-prefix=NO-CALL
 
-# Contiguous row origins use i * 4 + 0; no descriptor or pointer-to-integer roundtrip.
+# NO-CALL: builtin.module {
+# NO-CALL-NOT: llvm.call
+# NO-CALL-NOT: memref.subview
+# NO-CALL: llvm.func @malloc
+
+# Inlined rows store into A[i * 4 + j]; the callee remains a standalone export.
 # CHECK-LABEL: llvm.func @set_row
 # CHECK-SAME: (%[[ROW:[0-9]+]]: !llvm.ptr)
 # CHECK: ^{{bb[0-9]+}}(%[[J:[0-9]+]]: i64):
@@ -12,11 +18,14 @@
 # CHECK-SAME: (%[[A:[0-9]+]]: !llvm.ptr)
 # CHECK: %[[WIDTH:[0-9]+]] = llvm.mlir.constant(4) : i64
 # CHECK: ^{{bb[0-9]+}}(%[[I:[0-9]+]]: i64):
-# CHECK: %[[COL:[0-9]+]] = llvm.mlir.constant(0) : i64
+# CHECK: ^{{bb[0-9]+}}(%[[INNER:[0-9]+]]: i64):
+# CHECK: %[[Z:[0-9]+]] = llvm.mlir.constant(0) : i64
+# CHECK: %[[COL:[0-9]+]] = llvm.add %[[INNER]], %[[Z]] : i64
+# CHECK: %[[VALUE:[0-9]+]] = llvm.mlir.constant(0.000000e+00 : f32) : f32
 # CHECK: %[[R:[0-9]+]] = llvm.mul %[[I]], %[[WIDTH]] : i64
 # CHECK: %[[OFFSET:[0-9]+]] = llvm.add %[[R]], %[[COL]] : i64
 # CHECK: %[[PTR:[0-9]+]] = llvm.getelementptr inbounds %[[A]][%[[OFFSET]]] : (!llvm.ptr, i64) -> !llvm.ptr, f32
-# CHECK-NEXT: llvm.call @set_row(%[[PTR]]) : (!llvm.ptr) -> ()
+# CHECK-NEXT: llvm.store %[[VALUE]], %[[PTR]] : f32, !llvm.ptr
 # CHECK: llvm.return
 
 

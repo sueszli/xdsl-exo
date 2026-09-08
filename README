@@ -23,10 +23,29 @@ Exo's default backend emits C, requiring an offline
 compile step. exojit lowers Exo IR through xDSL to
 LLVM and compiles it at import time via llvmlite MCJIT.
 
-Tensors and windows use contiguous row-major storage and a bare-pointer
-ABI. Window calls pass only the view origin; arbitrary strided views
-(such as matrix columns) are not supported. No shape/stride descriptor
-or hidden stride arguments are passed, including for standalone callees.
+Tensors and externally supplied windows use contiguous row-major storage
+and a bare-pointer ABI. MLIR/JIT normalizes ordinary calls and local windows
+using Exo's inline/inline_window APIs, composing source indices for rows,
+columns and chained views. No shape/stride descriptor or hidden stride
+arguments are passed, including for standalone callees.
+
+to_mlir still returns an xDSL ModuleOp and emits the full original
+ordinary-procedure closure as exports. Original precision, window and
+memory checks run before call boundaries disappear. The Python-list and
+raw-pointer JIT interfaces are unchanged. Source-declared dimensions,
+not loop bounds, determine addressing after inlining.
+
+Instruction calls retain the native-symbol ABI: provide a symbol named
+after the instruction procedure, with scalar values and bare buffer
+pointers (view origins for windows). Specifications are never inlined;
+arbitrary C templates are not implemented by MLIR/JIT. Standalone
+instructions remain skipped as exports; --c still uses Exo's C backend.
+
+There is no fixed expansion cap; inlining increases compile time and IR
+size. Normalization is BLOCKED for a local window preceding 1200 unrolled
+assignments: pinned Exo inline_window raises RecursionError, although the
+non-normalizing compiler accepts this input. General externally supplied
+strided windows remain unsupported.
 
 
     $ uv run exojit example.py --mlir

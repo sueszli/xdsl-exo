@@ -7,7 +7,7 @@ from exo import *
 from exo.libs.memories import DRAM_STACK
 from xdsl.dialects.builtin import ModuleOp
 
-from exojit import IRGenerator, jit, to_mlir
+from exojit import IRGenerator, _normalize, jit, to_mlir
 
 
 @proc
@@ -32,11 +32,13 @@ def test_contiguous_window_callee_is_standalone():
 
 
 def test_generator_emits_llvm_memory_without_lowering():
-    module = IRGenerator().generate([local_row_window._loopir_proc])
+    # The generator now consumes normalized procedures, still without xDSL lowering.
+    module = IRGenerator().generate([_normalize(local_row_window)])
     assert isinstance(module, ModuleOp)
     module.verify()
     names = {op.name for op in module.walk()}
-    assert {"llvm.getelementptr", "llvm.load", "llvm.store", "llvm.call"} <= names
+    assert {"llvm.getelementptr", "llvm.load", "llvm.store"} <= names
+    assert "llvm.call" not in names
     assert all(name == "builtin.module" or name.startswith("llvm.") for name in names)
     assert "llvm.noalias" not in str(module)
 
