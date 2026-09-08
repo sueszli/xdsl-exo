@@ -88,3 +88,27 @@ def call_add_buffers(out: f32[4] @ DRAM, a: f32[4] @ DRAM, b: f32[4] @ DRAM):
 
 def test_call_multi_buffer_subproc():
     assert_match(call_add_buffers, out=[0.0] * 4, a=[1.0, 2.0, 3.0, 4.0], b=[10.0, 20.0, 30.0, 40.0])
+
+
+def test_call_dynamic_to_static_shape():
+    @proc
+    def call_double_dynamic_to_static(N: size, x: f32[N] @ DRAM):
+        assert N == 8
+        call_double(x)
+
+    assert_match(call_double_dynamic_to_static, N=8, x=[float(i + 1) for i in range(8)])
+
+
+def test_call_dynamic_window_shape():
+    @proc
+    def double_window(N: size, x: [f32][N] @ DRAM):
+        for i in seq(0, N):
+            x[i] += x[i]
+
+    @proc
+    def call_double_dynamic_window(N: size, x: f32[8] @ DRAM):
+        assert N <= 4
+        view = x[2 : 2 + N]
+        double_window(N, view)
+
+    assert_match(call_double_dynamic_window, N=4, x=[float(i + 1) for i in range(8)])

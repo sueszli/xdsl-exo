@@ -39,10 +39,8 @@ from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, 
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.common_subexpression_elimination import CommonSubexpressionElimination
-from xdsl.transforms.convert_memref_to_ptr import ConvertCastOp
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.utils.hints import isa
-
 
 # ===----------------------------------------------------------------------=== #
 # exo patches
@@ -223,7 +221,7 @@ class ExtendedConvertMemRefToPtr(ModulePass):
     name = "extended-convert-memref-to-ptr"
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(GreedyRewritePatternApplier([ConvertCastOp(), ConvertLoadStorePattern(), ConvertSubviewPattern()])).rewrite_module(op)
+        PatternRewriteWalker(GreedyRewritePatternApplier([ConvertLoadStorePattern(), ConvertSubviewPattern()])).rewrite_module(op)
 
 
 # erase memreftype on all remaining values (runs after the patterns above consumed shape info)
@@ -314,10 +312,6 @@ class IRGenerator:
             assert isinstance(memref_val.type, MemRefType) and memref_val.type.get_shape() == (1,)
             idx = [self._int_const(0)]
         index_indices = [self._emit(UnrealizedConversionCastOp.get([index], [IndexType()])) for index in idx]
-        # if value is a scalar memref, load it first
-        if isinstance(value.type, MemRefType):
-            assert value.type.get_shape() == (1,)
-            value = self._memref_load(value, [])
         self.builder.insert(memref.StoreOp.get(value, memref_val, index_indices))
 
     def _expr_const(self, const: LoopIR.Const, expected_type: Attribute | None = None) -> SSAValue:
@@ -331,9 +325,8 @@ class IRGenerator:
     def _expr_read(self, read: LoopIR.Read) -> SSAValue:
         idx = [self._expr(expr) for expr in read.idx]
         operand = self.symbol_table[read.name]
-        # only emit a load when the operand is a memref holding scalar elements
-        # (not a window/tensor pass-through, and not a type-matched scalar already)
-        needs_load = isinstance(operand.type, MemRefType) and not isinstance(read.type, (T.Window, T.Tensor)) and operand.type != self._to_mlir_type(read.type)
+        # scalar reads load references; tensor/window reads pass the buffer through
+        needs_load = isinstance(operand.type, MemRefType) and not read.type.is_tensor_or_window()
         return self._memref_load(operand, idx) if needs_load else operand
 
     def _expr_usub(self, usub: LoopIR.USub) -> SSAValue:
@@ -441,21 +434,15 @@ class IRGenerator:
             case _:
                 assert False
 
-    def _stmt_assign(self, stmt: LoopIR.Assign) -> None:
-        idx = [self._expr(expr) for expr in stmt.idx]
-        memref_val = self.symbol_table[stmt.name]
-        expected_type = memref_val.type.element_type if isinstance(memref_val.type, MemRefType) else None
-        self._memref_store(self._expr(stmt.rhs, expected_type), memref_val, idx)
-
-    def _stmt_reduce(self, stmt: LoopIR.Reduce) -> None:
-        # load + add + store (accumulate into buffer)
+    def _stmt_assign(self, stmt: LoopIR.Assign | LoopIR.Reduce) -> None:
         idx = [self._expr(expr) for expr in stmt.idx]
         memref_val = self.symbol_table[stmt.name]
         expected_type = memref_val.type.element_type if isinstance(memref_val.type, MemRefType) else None
         value = self._expr(stmt.rhs, expected_type)
-        current = self._memref_load(memref_val, idx)
-        result = self._emit(llvm.FAddOp(current, value, fast_math=llvm.FastMathAttr("fast")) if isinstance(value.type, AnyFloat) else llvm.AddOp(current, value))
-        self._memref_store(result, memref_val, idx)
+        if isinstance(stmt, LoopIR.Reduce):
+            current = self._memref_load(memref_val, idx)
+            value = self._emit(llvm.FAddOp(current, value, fast_math=llvm.FastMathAttr("fast")) if isinstance(value.type, AnyFloat) else llvm.AddOp(current, value))
+        self._memref_store(value, memref_val, idx)
 
     def _stmt_if(self, if_stmt: LoopIR.If) -> None:
         cond = self._expr(if_stmt.cond)
@@ -549,9 +536,6 @@ class IRGenerator:
                     assert isinstance(arg_val.type, MemRefType)
                 else:
                     arg_val = self._expr(arg)
-                # reconcile shape mismatches (e.g. memref<8xf32> vs memref<?xf32>) via memref.cast
-                if isinstance(arg_val.type, MemRefType) and isinstance(callee_type, MemRefType) and arg_val.type != callee_type:
-                    arg_val = self._emit(memref.CastOp.get(arg_val, callee_type))
                 args.append(arg_val)
         else:
             args = [self._expr(arg) for arg in call.args]
@@ -562,10 +546,8 @@ class IRGenerator:
 
     def _stmt(self, stmt: object) -> None:
         match stmt:
-            case LoopIR.Assign():
+            case LoopIR.Assign() | LoopIR.Reduce():
                 self._stmt_assign(stmt)
-            case LoopIR.Reduce():
-                self._stmt_reduce(stmt)
             case LoopIR.WriteConfig():
                 assert False, "unsupported WriteConfig"
             case LoopIR.Pass():
