@@ -4,8 +4,6 @@ import math
 import numbers
 import re
 from collections.abc import Callable, MutableSequence, Sequence
-from dataclasses import dataclass
-from functools import cache
 from pathlib import Path
 from typing import Any, Literal, SupportsInt, TypeGuard, cast
 
@@ -28,18 +26,16 @@ from xdsl.backend.llvm.convert_op import _CAST_OP_NAMES
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import builtin, llvm, memref
-from xdsl.dialects.builtin import DYNAMIC_INDEX, AnyFloat, ArrayAttr, Builtin, DictionaryAttr, FixedBitwidthType, FloatAttr, IndexType, IntegerAttr, IntegerType, MemRefType, ModuleOp, NoneAttr, StringAttr, UnitAttr, UnrealizedConversionCastOp, f16, f32, f64, i1, i8, i16, i32, i64
+from xdsl.dialects.builtin import DYNAMIC_INDEX, AnyFloat, ArrayAttr, DictionaryAttr, FixedBitwidthType, FloatAttr, IndexType, IntegerAttr, IntegerType, MemRefType, ModuleOp, NoneAttr, StringAttr, UnitAttr, UnrealizedConversionCastOp, f16, f32, f64, i1, i8, i16, i32, i64
 from xdsl.dialects.llvm import GEP_USE_SSA_VAL, BrOp, FNegOp, GenericCastOp, LLVMPointerType
 from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
 from xdsl.ir import Attribute, Block, BlockArgument, Operation, OpResult, Region, SSAValue
 from xdsl.irdl import irdl_op_definition
 from xdsl.jit.llvm.backend import LLVMJITBackend
-from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, TypeConversionPattern, attr_type_rewrite_pattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
-from xdsl.transforms.canonicalize import CanonicalizePass
-from xdsl.transforms.common_subexpression_elimination import CommonSubexpressionElimination
-from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
+from xdsl.transforms.common_subexpression_elimination import cse
+from xdsl.transforms.reconcile_unrealized_casts import reconcile_unrealized_casts
 from xdsl.utils.hints import isa
 
 # ===----------------------------------------------------------------------=== #
@@ -106,7 +102,7 @@ _CAST_OP_NAMES[FPTruncOp] = "fptrunc"
 #
 # pipeline order matters:
 # ----------------------
-#     1. extendedconvertmemreftoptr   — rewrite load/store/subview while shape info is still on the memreftype
+#     1. memref patterns             — rewrite load/store/subview while shape info is still on the memreftype
 #     2. rewritememreftypes           — erase memreftype -> llvm.ptr everywhere
 #     3. reconcile-unrealized-casts   — clean up identity casts left behind
 #
@@ -214,14 +210,6 @@ class ConvertSubviewPattern(RewritePattern):
             ptr = ins(llvm.IntToPtrOp(ins(llvm.AddOp(ptr_int, byte_offset)).res)).output
         # wrap result as memreftype so downstream load/store patterns still see the right shape for stride computation
         rewriter.replace_op(op, UnrealizedConversionCastOp.get([ptr], [op.result.type]))
-
-
-@dataclass(frozen=True)
-class ExtendedConvertMemRefToPtr(ModulePass):
-    name = "extended-convert-memref-to-ptr"
-
-    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(GreedyRewritePatternApplier([ConvertLoadStorePattern(), ConvertSubviewPattern()])).rewrite_module(op)
 
 
 # erase memreftype on all remaining values (runs after the patterns above consumed shape info)
@@ -596,36 +584,9 @@ class IRGenerator:
         return self.module
 
 
-class LLVMBackend:
-    @staticmethod
-    @cache
-    def _context() -> Context:
-        ctx = Context()
-        ctx.load_dialect(Builtin)
-        ctx.load_dialect(llvm.LLVM)
-        ctx.load_dialect(memref.MemRef)
-        return ctx
-
-    @staticmethod
-    def _lower(procs: list[LoopIR.proc]) -> ModuleOp:
-        ctx = LLVMBackend._context()
-        module = IRGenerator().generate(procs)
-        CanonicalizePass().apply(ctx, module)
-        CommonSubexpressionElimination().apply(ctx, module)
-        module.verify()
-        ExtendedConvertMemRefToPtr().apply(ctx, module)
-        PatternRewriteWalker(GreedyRewritePatternApplier([RewriteMemRefTypes()])).rewrite_module(module)
-        ReconcileUnrealizedCastsPass().apply(ctx, module)
-        module.verify()
-        CanonicalizePass().apply(ctx, module)
-        CommonSubexpressionElimination().apply(ctx, module)
-        module.verify()
-        return module
-
+class JITRuntime:
     _jit_backend = LLVMJITBackend(lowering=(), opt_level=3)
 
-
-class JITRuntime:
     @staticmethod
     def _eval_shape_expr(expr: LoopIR.expr, env: dict[object, int]) -> int:
         # resolve a dynamic tensor dimension against the size arguments seen so far
@@ -683,7 +644,7 @@ class JITRuntime:
     @staticmethod
     def compile(proc: Procedure, raw: bool = False) -> Callable[..., None]:
         mlir_module = to_mlir(proc)
-        raw_jit = LLVMBackend._jit_backend.jit(mlir_module, proc.name(), LLVMBackend._context())  # retained by call's closure to keep the MCJIT code alive
+        raw_jit = JITRuntime._jit_backend.jit(mlir_module, proc.name(), Context())  # retained by call's closure to keep the MCJIT code alive
         ir_args = proc._loopir_proc.args
         for arg in ir_args:
             assert arg.type.is_tensor_or_window() or isinstance(arg.type, (LoopIR.Size, LoopIR.Index, LoopIR.Int, LoopIR.Bool, LoopIR.Stride)), f"unsupported JIT argument type for {arg.name}: {arg.type}"
@@ -731,7 +692,14 @@ def to_mlir(library: Procedure | Sequence[Procedure]) -> ModuleOp:
     unique_procs = list({proc.name: proc for proc in all_procs if proc.instr is None}.values())
 
     exo_analyze = lambda proc: MemoryAnalysis().run(WindowAnalysis().apply_proc(PrecisionAnalysis().run(proc)))
-    return LLVMBackend._lower([exo_analyze(proc) for proc in unique_procs])
+    module = IRGenerator().generate([exo_analyze(proc) for proc in unique_procs])
+    cse(module)
+    PatternRewriteWalker(GreedyRewritePatternApplier([ConvertLoadStorePattern(), ConvertSubviewPattern()])).rewrite_module(module)
+    PatternRewriteWalker(GreedyRewritePatternApplier([RewriteMemRefTypes()])).rewrite_module(module)
+    reconcile_unrealized_casts(module)
+    cse(module)
+    module.verify()
+    return module
 
 
 def jit(proc=None, *, raw: bool = False, optimize: Callable[[Procedure], Procedure] | None = None):
