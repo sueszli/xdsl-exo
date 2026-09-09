@@ -201,9 +201,9 @@ class ConvertSubviewPattern(RewritePattern):
         rewriter.replace_op(op, UnrealizedConversionCastOp.get([ptr], [op.result.type]))
 
 
-# erase memreftype on all remaining values (runs after the patterns above consumed shape info)
-# before:  %x : memref<4x8xf32>   after:  %x : !llvm.ptr
 class RewriteMemRefTypes(TypeConversionPattern):
+    # erase memreftype on all remaining values (runs after the patterns above consumed shape info)
+    # before:  %x : memref<4x8xf32>   after:  %x : !llvm.ptr
     @attr_type_rewrite_pattern
     def convert_type(self, type: MemRefType) -> llvm.LLVMPointerType:
         return llvm.LLVMPointerType()
