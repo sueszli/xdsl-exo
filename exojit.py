@@ -22,15 +22,13 @@ from exo.core.prelude import Sym
 from exo.frontend.pyparser import DummyScope, Parser, get_ast_from_python
 from exo.main import load_user_code
 from exo.rewrite.range_analysis import constant_bound
-from xdsl.backend.llvm.convert_op import _CAST_OP_NAMES
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import builtin, llvm, memref
 from xdsl.dialects.builtin import DYNAMIC_INDEX, AnyFloat, ArrayAttr, DictionaryAttr, FixedBitwidthType, FloatAttr, IndexType, IntegerAttr, IntegerType, MemRefType, ModuleOp, NoneAttr, StringAttr, UnitAttr, UnrealizedConversionCastOp, f16, f32, f64, i1, i8, i16, i32, i64
-from xdsl.dialects.llvm import GEP_USE_SSA_VAL, BrOp, FNegOp, GenericCastOp, LLVMPointerType
+from xdsl.dialects.llvm import GEP_USE_SSA_VAL, BrOp, FNegOp, FPTruncOp, LLVMPointerType
 from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
 from xdsl.ir import Attribute, Block, BlockArgument, Operation, OpResult, Region, SSAValue
-from xdsl.irdl import irdl_op_definition
 from xdsl.jit.llvm.backend import LLVMJITBackend
 from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern, TypeConversionPattern, attr_type_rewrite_pattern, op_type_rewrite_pattern
 from xdsl.rewriter import InsertPoint
@@ -82,17 +80,8 @@ _boundscheck.lift_expr = patched_lift_expr
 
 
 # ===----------------------------------------------------------------------=== #
-# xdsl patches
+# memref lowering
 # ===----------------------------------------------------------------------=== #
-
-
-@irdl_op_definition
-class FPTruncOp(GenericCastOp):
-    name = "llvm.fptrunc"
-
-
-# xdsl's llvm dialect has fpext but no fptrunc, so teach its llvmlite converter about ours
-_CAST_OP_NAMES[FPTruncOp] = "fptrunc"
 
 # `memref` -> `llvm.ptr` lowering: replace structured memory ops with raw pointer arithmetic
 #
